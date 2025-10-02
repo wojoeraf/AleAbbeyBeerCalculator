@@ -1,7 +1,8 @@
 
 import itertools
 import json
-from typing import List, Dict, Tuple, Optional
+from types import SimpleNamespace
+from typing import List, Dict, Tuple, Optional, Set
 import numpy as np
 from flask import Flask, request, render_template_string
 
@@ -148,6 +149,12 @@ INGREDIENTS = [
 
 
 ATTRS = ["taste","color","strength","foam"]
+ATTR_LABELS = {
+    "taste": "Geschmack",
+    "color": "Farbe",
+    "strength": "Stärke",
+    "foam": "Schaum",
+}
 
 # ============== Helpers ==============
 def intersect_interval(a: Tuple[float,float], b: Tuple[float,float]) -> Optional[Tuple[float,float]]:
@@ -164,18 +171,9 @@ def detect_band(style: str, attr: str, value: float) -> Optional[str]:
 def segments_for_band(style: str, attr: str, band: str) -> List[Tuple[float,float]]:
     return [(seg["min"], seg["max"]) for seg in BEER_STYLES[style]["bands"][attr] if seg["band"] == band]
 
-def parse_numeric_constraint(op: str, val: Optional[float]) -> Tuple[float,float]:
-    if val is None or op == "none": return (-1e9, 1e9)
-    v = float(val)
-    if op == "eq": return (v, v)
-    if op == "ge": return (v, 1e9)
-    if op == "le": return (-1e9, v)
-    return (-1e9, 1e9)
-
 # ============== Solvers ==============
-def solve_recipe(ingredients, style_name, numeric_cons, exactly_one_yellow, others_green,
-                 total_cap, per_cap, preferred_yellow_attr=None, topk=10,
-                 band_count_requirements: Optional[Dict[str,int]] = None):
+def solve_recipe(ingredients, style_name, numeric_intervals, band_preferences,
+                 total_cap, per_cap, topk=10):
     A = np.array([ing["vec"] for ing in ingredients], dtype=float).T  # 4 x n
     base = np.array(BEER_STYLES[style_name]["base"], dtype=float)
     n = A.shape[1]
@@ -188,10 +186,7 @@ def solve_recipe(ingredients, style_name, numeric_cons, exactly_one_yellow, othe
     if total_cap < min_sum: total_cap = min_sum
 
     # numeric constraints -> intervals
-    num_intervals = []
-    for a in ATTRS:
-        lo, hi = parse_numeric_constraint(*numeric_cons.get(a, ("none", None)))
-        num_intervals.append((lo, hi))
+    num_intervals = [numeric_intervals[a] for a in ATTRS]
 
     def allowed_intervals_for_attr(attr: str, allowed_bands: Optional[List[str]]):
         start_iv = num_intervals[ATTRS.index(attr)]
@@ -205,193 +200,106 @@ def solve_recipe(ingredients, style_name, numeric_cons, exactly_one_yellow, othe
                     out.append(iv)
         return out
 
-    yellow_attrs = [None]
-    if exactly_one_yellow:
-        yellow_attrs = ATTRS if preferred_yellow_attr is None else [preferred_yellow_attr]
-
     req_idx = list(np.where(min_x > 0)[0])
-    other_idx = [i for i in range(n) if i not in req_idx]
-
-    band_counts_req = band_count_requirements or {}
-
     solutions = []
-    for yellow_attr in yellow_attrs:
-        allowed_map: Dict[str, set] = {a: {"green", "yellow", "red"} for a in ATTRS}
-        if yellow_attr is not None:
-            allowed_map[yellow_attr] = {"yellow"}
-            if others_green:
-                for a in ATTRS:
-                    if a != yellow_attr:
-                        allowed_map[a] = {"green"}
-        elif others_green:
-            for a in ATTRS:
-                allowed_map[a] = {"green"}
 
-        assignments: List[Dict[str, List[str]]] = []
-
-        if band_counts_req:
-            def remaining_slots(color: str, start_idx: int) -> int:
-                return sum(1 for j in range(start_idx, len(ATTRS)) if color in allowed_map[ATTRS[j]])
-
-            def backtrack(idx: int, counts_used: Dict[str, int], current: Dict[str, List[str]]):
-                if idx == len(ATTRS):
-                    for color, target in band_counts_req.items():
-                        if target is None:
-                            continue
-                        if counts_used.get(color, 0) != target:
-                            return
-                    assignments.append({k: v[:] for k, v in current.items()})
-                    return
-                attr = ATTRS[idx]
-                options = sorted(allowed_map[attr])
-                if not options:
-                    return
-                for band in options:
-                    counts_used[band] = counts_used.get(band, 0) + 1
-                    target = band_counts_req.get(band)
-                    if target is not None and counts_used[band] > target:
-                        counts_used[band] -= 1
-                        if counts_used[band] == 0:
-                            counts_used.pop(band)
-                        continue
-                    feasible = True
-                    for color, target in band_counts_req.items():
-                        if target is None:
-                            continue
-                        used = counts_used.get(color, 0)
-                        max_possible = used + remaining_slots(color, idx + 1)
-                        if used > target or max_possible < target:
-                            feasible = False
-                            break
-                    if feasible:
-                        current[attr] = [band]
-                        backtrack(idx + 1, counts_used, current)
-                        current.pop(attr, None)
-                    counts_used[band] -= 1
-                    if counts_used[band] == 0:
-                        counts_used.pop(band)
-
-            backtrack(0, {}, {})
+    allowed_map: Dict[str, Optional[List[str]]] = {}
+    for attr in ATTRS:
+        pref = band_preferences.get(attr)
+        if pref:
+            allowed_map[attr] = sorted(pref)
         else:
-            assignments.append({a: sorted(allowed_map[a]) for a in ATTRS})
+            allowed_map[attr] = None
 
-        if not assignments:
+    per_attr_lists = []
+    for a in ATTRS:
+        ivs = allowed_intervals_for_attr(a, allowed_map[a])
+        if not ivs:
+            return []
+        per_attr_lists.append(ivs)
+
+    for iv_box in itertools.product(*per_attr_lists):
+        Lb = np.array([iv[0] for iv in iv_box], dtype=float)
+        Ub = np.array([iv[1] for iv in iv_box], dtype=float)
+
+        if np.any(min_x > per_cap):
             continue
 
-        for assignment in assignments:
-            per_attr_lists = []
-            valid = True
-            for a in ATTRS:
-                bands_for_attr = assignment[a] if assignment[a] else None
-                ivs = allowed_intervals_for_attr(a, bands_for_attr)
-                if not ivs:
-                    valid = False
-                    break
-                per_attr_lists.append(ivs)
-            if not valid:
-                continue
+        suffix_min_counts = np.zeros(n + 1, dtype=int)
+        for idx in range(n - 1, -1, -1):
+            suffix_min_counts[idx] = int(min_x[idx]) + suffix_min_counts[idx + 1]
+        if suffix_min_counts[0] > total_cap:
+            continue
 
-            for iv_box in itertools.product(*per_attr_lists):
-                Lb = np.array([iv[0] for iv in iv_box], dtype=float)
-                Ub = np.array([iv[1] for iv in iv_box], dtype=float)
+        suffix_lo = np.zeros((n + 1, 4), dtype=float)
+        suffix_hi = np.zeros((n + 1, 4), dtype=float)
+        for idx in range(n - 1, -1, -1):
+            vec = A[:, idx]
+            lo_cnt = int(min_x[idx])
+            hi_cnt = int(per_cap)
+            for k in range(4):
+                coef = vec[k]
+                if coef >= 0:
+                    lo_val = coef * lo_cnt
+                    hi_val = coef * hi_cnt
+                else:
+                    lo_val = coef * hi_cnt
+                    hi_val = coef * lo_cnt
+                suffix_lo[idx, k] = lo_val + suffix_lo[idx + 1, k]
+                suffix_hi[idx, k] = hi_val + suffix_hi[idx + 1, k]
 
-                if np.any(min_x > per_cap):
-                    continue
+        counts = [0] * n
+        seen_local = set()
 
-                suffix_min_counts = np.zeros(n + 1, dtype=int)
-                for idx in range(n - 1, -1, -1):
-                    suffix_min_counts[idx] = int(min_x[idx]) + suffix_min_counts[idx + 1]
-                if suffix_min_counts[0] > total_cap:
-                    continue
+        def dfs(idx: int, used: int, totals: np.ndarray):
+            if used + suffix_min_counts[idx] > total_cap:
+                return
+            for k in range(4):
+                min_possible = totals[k] + suffix_lo[idx, k]
+                max_possible = totals[k] + suffix_hi[idx, k]
+                if max_possible < Lb[k] - 1e-9 or min_possible > Ub[k] + 1e-9:
+                    return
 
-                suffix_lo = np.zeros((n + 1, 4), dtype=float)
-                suffix_hi = np.zeros((n + 1, 4), dtype=float)
-                for idx in range(n - 1, -1, -1):
-                    vec = A[:, idx]
-                    lo_cnt = int(min_x[idx])
-                    hi_cnt = int(per_cap)
-                    for k in range(4):
-                        coef = vec[k]
-                        if coef >= 0:
-                            lo_val = coef * lo_cnt
-                            hi_val = coef * hi_cnt
-                        else:
-                            lo_val = coef * hi_cnt
-                            hi_val = coef * lo_cnt
-                        suffix_lo[idx, k] = lo_val + suffix_lo[idx + 1, k]
-                        suffix_hi[idx, k] = hi_val + suffix_hi[idx + 1, k]
+            if idx == n:
+                if np.any(totals < Lb - 1e-9) or np.any(totals > Ub + 1e-9):
+                    return
+                key = tuple(counts)
+                if key in seen_local:
+                    return
+                seen_local.add(key)
+                bands = {a: (detect_band(style_name, a, float(totals[i])) or "n/a") for i, a in enumerate(ATTRS)}
+                cand = np.array(counts, dtype=int)
+                y = A @ cand + base
+                solutions.append({
+                    "x": counts.copy(),
+                    "sum": int(cand.sum()),
+                    "totals": y.round(3).tolist(),
+                    "bands": bands,
+                    "active": [ingredients[i]["name"] for i in np.where(cand > 0)[0]],
+                    "counts_by_name": {ingredients[i]["name"]: int(cand[i]) for i in range(n) if cand[i] > 0},
+                })
+                return
 
-                counts = [0] * n
-                seen_local = set()
+            remaining_min_after = suffix_min_counts[idx + 1]
+            max_c = min(per_cap, total_cap - used - remaining_min_after)
+            min_c = int(min_x[idx])
+            if max_c < min_c:
+                return
+            vec = A[:, idx]
+            for c in range(min_c, max_c + 1):
+                counts[idx] = c
+                new_used = used + c
+                new_totals = totals + vec * c
+                for k in range(4):
+                    min_possible = new_totals[k] + suffix_lo[idx + 1, k]
+                    max_possible = new_totals[k] + suffix_hi[idx + 1, k]
+                    if max_possible < Lb[k] - 1e-9 or min_possible > Ub[k] + 1e-9:
+                        break
+                else:
+                    dfs(idx + 1, new_used, new_totals)
+            counts[idx] = 0
 
-                def dfs(idx: int, used: int, totals: np.ndarray):
-                    if used + suffix_min_counts[idx] > total_cap:
-                        return
-                    for k in range(4):
-                        min_possible = totals[k] + suffix_lo[idx, k]
-                        max_possible = totals[k] + suffix_hi[idx, k]
-                        if max_possible < Lb[k] - 1e-9 or min_possible > Ub[k] + 1e-9:
-                            return
-
-                    if idx == n:
-                        if np.any(totals < Lb - 1e-9) or np.any(totals > Ub + 1e-9):
-                            return
-                        key = tuple(counts)
-                        if key in seen_local:
-                            return
-                        seen_local.add(key)
-                        bands = {a: (detect_band(style_name, a, float(totals[i])) or "n/a") for i, a in enumerate(ATTRS)}
-                        if exactly_one_yellow:
-                            yellow_count = sum(1 for a in ATTRS if bands[a] == "yellow")
-                            green_count = sum(1 for a in ATTRS if bands[a] == "green")
-                            if yellow_count != 1:
-                                return
-                            if others_green and green_count != (len(ATTRS) - 1):
-                                return
-                        if band_counts_req:
-                            counts_by_band = {"green": 0, "yellow": 0, "red": 0}
-                            for a in ATTRS:
-                                bname = bands[a]
-                                if bname in counts_by_band:
-                                    counts_by_band[bname] += 1
-                            for k, v in band_counts_req.items():
-                                if v is None:
-                                    continue
-                                if counts_by_band.get(k, 0) != v:
-                                    return
-                        cand = np.array(counts, dtype=int)
-                        y = A @ cand + base
-                        solutions.append({
-                            "x": counts.copy(),
-                            "sum": int(cand.sum()),
-                            "totals": y.round(3).tolist(),
-                            "bands": bands,
-                            "active": [ingredients[i]["name"] for i in np.where(cand > 0)[0]],
-                            "counts_by_name": {ingredients[i]["name"]: int(cand[i]) for i in range(n) if cand[i] > 0},
-                            "yellow_attr": yellow_attr,
-                        })
-                        return
-
-                    remaining_min_after = suffix_min_counts[idx + 1]
-                    max_c = min(per_cap, total_cap - used - remaining_min_after)
-                    min_c = int(min_x[idx])
-                    if max_c < min_c:
-                        return
-                    vec = A[:, idx]
-                    for c in range(min_c, max_c + 1):
-                        counts[idx] = c
-                        new_used = used + c
-                        new_totals = totals + vec * c
-                        for k in range(4):
-                            min_possible = new_totals[k] + suffix_lo[idx + 1, k]
-                            max_possible = new_totals[k] + suffix_hi[idx + 1, k]
-                            if max_possible < Lb[k] - 1e-9 or min_possible > Ub[k] + 1e-9:
-                                break
-                        else:
-                            dfs(idx + 1, new_used, new_totals)
-                    counts[idx] = 0
-
-                dfs(0, 0, base.copy())
+        dfs(0, 0, base.copy())
 
     solutions.sort(key=lambda s: (s["sum"], s["totals"], s["x"]))
     seen = set(); uniq = []
@@ -408,161 +316,446 @@ INDEX_HTML = r"""
 <html lang="de">
 <head>
   <meta charset="utf-8">
-  <title>Ale Abey Rezept-Solver (Multi-Band + Pflichtzutaten + Bandzähler)</title>
+  <title>Ale Abbey Rezept-Solver</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
-    .card { border: 1px solid #ddd; border-radius: 12px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.05); }
-    h1 { font-size: 1.6rem; margin-bottom: 8px; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 6px 8px; border-bottom: 1px solid #eee; text-align: left; }
-    code { background: #f6f8fa; padding: 2px 6px; border-radius: 6px; }
-    .pill { display:inline-block; padding:2px 8px; border-radius:12px; font-size:.85rem; }
-    .green { background:#e6f7e9; color:#176b2c; }
-    .yellow { background:#fff6cc; color:#8a6d00; }
-    .red { background:#ffe6e6; color:#8a0000; }
-    .btn { background:#111827; color:#fff; border:none; padding:10px 14px; border-radius:10px; cursor:pointer; }
-    .btn:hover { opacity: .9; }
-    .muted { color:#666; font-size:.9rem; }
+    :root {
+      --bg-gradient: linear-gradient(135deg, #f7f4ff 0%, #eef9ff 100%);
+      --card-bg: rgba(255, 255, 255, 0.92);
+      --border: rgba(255, 255, 255, 0.6);
+      --shadow: 0 20px 45px -24px rgba(16, 24, 40, 0.3);
+      --primary: #f97316;
+      --primary-dark: #ea580c;
+      --text-muted: #5f6b7d;
+      --pill-green-bg: #dcfce7;
+      --pill-green-text: #166534;
+      --pill-yellow-bg: #fef3c7;
+      --pill-yellow-text: #a16207;
+      --pill-red-bg: #fee2e2;
+      --pill-red-text: #b91c1c;
+      font-family: "Inter", "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg-gradient);
+      color: #0f172a;
+    }
+    .page {
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 40px 20px 64px;
+    }
+    header {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 28px;
+    }
+    header h1 {
+      font-size: clamp(2rem, 3vw, 2.6rem);
+      margin: 0;
+      font-weight: 700;
+    }
+    header p {
+      margin: 0;
+      color: var(--text-muted);
+      max-width: 640px;
+      line-height: 1.55;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(8px);
+      padding: clamp(18px, 2vw, 24px);
+    }
+    .form-card {
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+    .section-title {
+      margin: 0 0 12px;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+    .grid-two {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    }
+    label span.label {
+      display: block;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 6px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    select, input[type="number"] {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid rgba(15, 23, 42, 0.12);
+      padding: 10px 12px;
+      font-size: 0.95rem;
+      background: white;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    select:focus, input[type="number"]:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.18);
+    }
+    .chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .chip {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #1f2937;
+      background: rgba(15, 23, 42, 0.06);
+      cursor: pointer;
+      transition: transform 0.12s ease, background 0.12s ease;
+    }
+    .chip input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+    .chip[data-color="green"] { color: var(--pill-green-text); }
+    .chip[data-color="yellow"] { color: var(--pill-yellow-text); }
+    .chip[data-color="red"] { color: var(--pill-red-text); }
+    .chip input:checked + span {
+      background: rgba(15, 23, 42, 0.9);
+      color: #fff;
+    }
+    .chip span {
+      padding: 6px 12px;
+      border-radius: inherit;
+      transition: inherit;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .chip:hover span {
+      transform: translateY(-1px);
+    }
+    .attr-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 18px;
+    }
+    .attr-card {
+      border: 1px solid rgba(148, 163, 184, 0.24);
+      border-radius: 16px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      background: rgba(255,255,255,0.85);
+    }
+    .attr-card h4 {
+      margin: 0;
+      font-size: 1.05rem;
+      font-weight: 600;
+    }
+    .range-inputs {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .range-inputs label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .hint {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin: 4px 0 0;
+    }
+    .btn-primary {
+      align-self: flex-start;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 14px;
+      padding: 12px 20px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    }
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      background: var(--primary-dark);
+      box-shadow: 0 14px 30px -20px rgba(234, 88, 12, 0.65);
+    }
+    .ingredients-table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 12px;
+    }
+    .ingredients-table th,
+    .ingredients-table td {
+      padding: 10px 12px;
+      text-align: left;
+      font-size: 0.92rem;
+    }
+    .ingredients-table thead {
+      background: rgba(15, 23, 42, 0.85);
+      color: #fff;
+    }
+    .ingredients-table tbody tr:nth-child(even) {
+      background: rgba(15, 23, 42, 0.03);
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+    .pill.green { background: var(--pill-green-bg); color: var(--pill-green-text); }
+    .pill.yellow { background: var(--pill-yellow-bg); color: var(--pill-yellow-text); }
+    .pill.red { background: var(--pill-red-bg); color: var(--pill-red-text); }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    details summary {
+      cursor: pointer;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    @media (max-width: 640px) {
+      .range-inputs { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
-  <h1>🍺 Ale Abey – Rezept-Solver (Multi-Band + Pflichtzutaten + Bandzähler)</h1>
-  <p class="muted">Fix für dtype-Fehler. Zusätzlich kann festgelegt werden, wie viele Eigenschaften <span class="pill green">grün</span>,
-  <span class="pill yellow">gelb</span> oder <span class="pill red">rot</span> sein sollen.</p>
-  <form method="post" action="{{ url_for('solve') }}">
-    <div class="grid">
-      <div class="card">
-        <h3>Bierstil</h3>
-        <label>Stil:
-          <select name="style">
-            {% for s in styles %}
-              <option value="{{s}}" {% if s==style %}selected{% endif %}>{{s}}</option>
-            {% endfor %}
-          </select>
-        </label>
-        <p class="muted">Basiswerte: <span class="mono">{{ base }}</span></p>
-        <p class="muted">Pflichtzutaten: 
-          {% set mins = style_mins %}
-          {% if mins %}
-            {% for nm,c in mins.items() %}<code>{{nm}} ≥ {{c}}</code>{% endfor %}
-          {% else %}–{% endif %}
-        </p>
-        <p>
-          Max. Gesamt-Zutaten: <input type="number" name="total_cap" value="{{ total_cap }}" min="1" max="99">
-          &nbsp; Pro Zutat: <input type="number" name="per_cap" value="{{ per_cap }}" min="1" max="99">
-        </p>
-      </div>
-      <div class="card">
-        <h3>Numerische Vorgaben</h3>
-        <table>
-          <tr><th>Eigenschaft</th><th>Operator</th><th>Wert</th></tr>
-          {% for a in attrs %}
-          <tr>
-            <td>{{ a }}</td>
-            <td>
-              <select name="op_{{ a }}">
-                <option value="none">–</option>
-                <option value="ge" {% if reqs[a]["op"]=="ge" %}selected{% endif %}>&ge;</option>
-                <option value="le" {% if reqs[a]["op"]=="le" %}selected{% endif %}>&le;</option>
-                <option value="eq" {% if reqs[a]["op"]=="eq" %}selected{% endif %}>=</option>
-              </select>
-            </td>
-            <td><input type="number" step="0.1" name="val_{{ a }}" value="{{ reqs[a]['val'] if reqs[a]['val'] is not none else '' }}"></td>
-          </tr>
-          {% endfor %}
-        </table>
-      </div>
-      <div class="card">
-        <h3>Spektrum-Regeln</h3>
-        <p class="muted">Band-Zähler (0–4, leer = egal)</p>
-        <p>
-          Grün: <select name="count_green">
-            <option value="">egal</option>
-            {% for i in range(0,5) %}<option value="{{i}}" {% if count_green is not none and count_green==i %}selected{% endif %}>{{i}}</option>{% endfor %}
-          </select>
-          &nbsp; Gelb: <select name="count_yellow">
-            <option value="">egal</option>
-            {% for i in range(0,5) %}<option value="{{i}}" {% if count_yellow is not none and count_yellow==i %}selected{% endif %}>{{i}}</option>{% endfor %}
-          </select>
-          &nbsp; Rot: <select name="count_red">
-            <option value="">egal</option>
-            {% for i in range(0,5) %}<option value="{{i}}" {% if count_red is not none and count_red==i %}selected{% endif %}>{{i}}</option>{% endfor %}
-          </select>
-        </p>
-        <p><label><input type="checkbox" name="others_green" {% if others_green %}checked{% endif %}> Alles andere im <span class="pill green">grünen</span> Bereich</label></p>
-        <p><label><input type="checkbox" name="one_yellow" {% if one_yellow %}checked{% endif %}> Exakt eine Eigenschaft im <span class="pill yellow">gelben</span> Bereich</label></p>
-        <p class="muted">Optional: Attribut für Gelb festlegen</p>
-        <p>
-          <select name="yellow_attr">
-            <option value="">(egal)</option>
-            {% for a in attrs %}
-              <option value="{{a}}" {% if yellow_attr==a %}selected{% endif %}>{{a}}</option>
-            {% endfor %}
-          </select>
-        </p>
-      </div>
-      <div class="card">
-        <h3>Zutaten</h3>
-        <table>
-          <tr><th>Name</th><th>T</th><th>Farbe</th><th>Stärke</th><th>Schaum</th></tr>
-          {% for ing in ingredients %}
-            <tr>
-              <td>{{ ing.name }}</td>
-              {% for v in ing.vec %}<td>{{ '%.2f'|format(v) }}</td>{% endfor %}
-            </tr>
-          {% endfor %}
-        </table>
-      </div>
-    </div>
-    <p><button class="btn" type="submit">Rezept berechnen</button></p>
-  </form>
+  <div class="page">
+    <header>
+      <h1>🍺 Ale Abbey – Rezept-Solver</h1>
+      <p>Wähle für jede Eigenschaft die gewünschte Farbzone und lege exakte Wertebereiche fest. Der Solver berücksichtigt Pflichtzutaten, Mengenlimits und filtert passende Kombinationen für dich.</p>
+    </header>
 
-  {% if solutions is defined %}
-    <h2>Ergebnisse</h2>
-    {% if solutions|length == 0 %}
-      <p><strong>Keine Lösung</strong> unter den gegebenen Regeln gefunden.</p>
-    {% else %}
-      {% for s in solutions %}
-        <div class="card">
-          <h3>Gesamtzutaten: {{ s.sum }}</h3>
-          <p><strong>Zutatenmix:</strong>
-            {% for name, cnt in s.counts_by_name.items() %}
-              <code>{{name}} × {{cnt}}</code>
-            {% endfor %}
-          </p>
-          <p><strong>Ergebniswerte:</strong>
-            Geschmack {{ s.totals[0] }}, Farbe {{ s.totals[1] }}, Stärke {{ s.totals[2] }}, Schaum {{ s.totals[3] }}
-          </p>
-          <p>
-            {% for a in attrs %}
-              {% set b = s.bands[a] %}
-              <span class="pill {{ b }}">{{ a }}: {{ b }}</span>
-            {% endfor %}
-          </p>
-          <details><summary>Roh-Vektor</summary><pre class="mono">{{ s.x }}</pre></details>
+    <form method="post" action="{{ url_for('solve') }}" class="card form-card">
+      <section>
+        <h3 class="section-title">Grunddaten</h3>
+        <div class="grid-two">
+          <label>
+            <span class="label">Bierstil</span>
+            <select name="style">
+              {% for s in styles %}
+                <option value="{{ s }}" {% if s == style %}selected{% endif %}>{{ s }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            <span class="label">Maximale Gesamtmenge</span>
+            <input type="number" name="total_cap" value="{{ total_cap }}" min="1" max="99">
+          </label>
+          <label>
+            <span class="label">Maximal pro Zutat</span>
+            <input type="number" name="per_cap" value="{{ per_cap }}" min="1" max="99">
+          </label>
+          <div>
+            <span class="label">Pflichtzutaten</span>
+            <div class="chips">
+              {% if style_mins %}
+                {% for ing, cnt in style_mins.items() %}
+                  <span class="chip"><span>{{ ing }} × {{ cnt }}</span></span>
+                {% endfor %}
+              {% else %}
+                <span class="chip"><span>Keine</span></span>
+              {% endif %}
+            </div>
+            <p class="hint">Basiswerte: Geschmack {{ base[0] }}, Farbe {{ base[1] }}, Stärke {{ base[2] }}, Schaum {{ base[3] }}</p>
+          </div>
         </div>
-      {% endfor %}
-    {% endif %}
-  {% endif %}
+      </section>
 
-  <hr>
-  <details>
-    <summary>JSON ansehen</summary>
-    <h3>Zutaten</h3>
-    <pre class="mono">{{ ingredients_json }}</pre>
-    <h3>Bierstile</h3>
-    <pre class="mono">{{ styles_json }}</pre>
-  </details>
-  {% if debug_info %}
-      <hr>
-      <details open>
-        <summary>Debug</summary>
-        <pre class="mono">{{ debug_info | join('\n') }}</pre>
-      </details>
+      <section>
+        <h3 class="section-title">Eigenschaften & Zielbereiche</h3>
+        <div class="attr-grid">
+          {% for a in attrs %}
+            <div class="attr-card" data-attr-card>
+              <h4>{{ attr_labels[a] }}</h4>
+              <div>
+                <span class="label">Band</span>
+                <div class="chips">
+                  <label class="chip">
+                    <input type="radio" name="band_{{ a }}" value="any" {% if constraints[a].band == 'any' %}checked{% endif %}>
+                    <span>Egal</span>
+                  </label>
+                  <label class="chip" data-color="green">
+                    <input type="radio" name="band_{{ a }}" value="green" {% if constraints[a].band == 'green' %}checked{% endif %}>
+                    <span>Grün</span>
+                  </label>
+                  <label class="chip" data-color="yellow">
+                    <input type="radio" name="band_{{ a }}" value="yellow" {% if constraints[a].band == 'yellow' %}checked{% endif %}>
+                    <span>Gelb</span>
+                  </label>
+                  <label class="chip" data-color="red">
+                    <input type="radio" name="band_{{ a }}" value="red" {% if constraints[a].band == 'red' %}checked{% endif %}>
+                    <span>Rot</span>
+                  </label>
+                </div>
+              </div>
+              <div>
+                <span class="label">Numerische Vorgabe</span>
+                <select name="mode_{{ a }}" class="mode-select">
+                  <option value="any" {% if constraints[a].mode == 'any' %}selected{% endif %}>Kein Limit</option>
+                  <option value="ge" {% if constraints[a].mode == 'ge' %}selected{% endif %}>Mindestens …</option>
+                  <option value="le" {% if constraints[a].mode == 'le' %}selected{% endif %}>Höchstens …</option>
+                  <option value="between" {% if constraints[a].mode == 'between' %}selected{% endif %}>Zwischen … und …</option>
+                </select>
+                <div class="range-inputs">
+                  <label>Untergrenze
+                    <input type="number" class="min-input" name="min_{{ a }}" step="0.1" min="0" max="11" value="{{ constraints[a].min }}">
+                  </label>
+                  <label>Obergrenze
+                    <input type="number" class="max-input" name="max_{{ a }}" step="0.1" min="0" max="11" value="{{ constraints[a].max }}">
+                  </label>
+                </div>
+                <p class="hint">Wertebereich 0.0 – 11.0, eine Nachkommastelle.</p>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section>
+        <h3 class="section-title">Zutatenübersicht</h3>
+        <div class="table-wrapper">
+          <table class="ingredients-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Geschmack</th>
+                <th>Farbe</th>
+                <th>Stärke</th>
+                <th>Schaum</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for ing in ingredients %}
+                <tr>
+                  <td>{{ ing.name }}</td>
+                  <td>{{ '%.1f'|format(ing.vec[0]) }}</td>
+                  <td>{{ '%.1f'|format(ing.vec[1]) }}</td>
+                  <td>{{ '%.1f'|format(ing.vec[2]) }}</td>
+                  <td>{{ '%.1f'|format(ing.vec[3]) }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <button class="btn-primary" type="submit">Rezept berechnen</button>
+    </form>
+
+    {% if solutions is defined %}
+      <section style="margin-top: 32px;">
+        <h2 class="section-title">Ergebnisse</h2>
+        {% if solutions|length == 0 %}
+          <p><strong>Keine Lösung</strong> unter den gegebenen Regeln gefunden.</p>
+        {% else %}
+          <div class="grid-two">
+            {% for s in solutions %}
+              <div class="card">
+                <h3 style="margin-top:0;">Gesamtzutaten: {{ s.sum }}</h3>
+                <p style="margin-bottom:8px; font-weight:600;">Zutatenmix</p>
+                <div class="chips" style="margin-bottom:12px;">
+                  {% for name, cnt in s.counts_by_name.items() %}
+                    <span class="chip"><span>{{ name }} × {{ cnt }}</span></span>
+                  {% endfor %}
+                </div>
+                <p style="margin:0 0 10px;">Geschmack {{ s.totals[0] }}, Farbe {{ s.totals[1] }}, Stärke {{ s.totals[2] }}, Schaum {{ s.totals[3] }}</p>
+                <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+                  {% for a in attrs %}
+                    {% set b = s.bands[a] %}
+                    <span class="pill {{ b }}">{{ attr_labels[a] }}: {{ b|capitalize }}</span>
+                  {% endfor %}
+                </div>
+                <details>
+                  <summary>Roh-Vektor</summary>
+                  <pre class="mono">{{ s.x }}</pre>
+                </details>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </section>
     {% endif %}
+
+    <section style="margin-top: 36px;" class="card">
+      <details>
+        <summary>JSON ansehen</summary>
+        <h3 style="margin-top:16px;">Zutaten</h3>
+        <pre class="mono">{{ ingredients_json }}</pre>
+        <h3>Bierstile</h3>
+        <pre class="mono">{{ styles_json }}</pre>
+      </details>
+      {% if debug_info %}
+        <hr>
+        <details open>
+          <summary>Debug</summary>
+          <pre class="mono">{{ debug_info | join('
+') }}</pre>
+        </details>
+      {% endif %}
+    </section>
+  </div>
+
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('[data-attr-card]').forEach(card => {
+        const modeSelect = card.querySelector('.mode-select');
+        const minInput = card.querySelector('.min-input');
+        const maxInput = card.querySelector('.max-input');
+
+        const toggle = () => {
+          const mode = modeSelect.value;
+          if (mode === 'any') {
+            minInput.disabled = true;
+            maxInput.disabled = true;
+          } else if (mode === 'ge') {
+            minInput.disabled = false;
+            maxInput.disabled = true;
+          } else if (mode === 'le') {
+            minInput.disabled = true;
+            maxInput.disabled = false;
+          } else {
+            minInput.disabled = false;
+            maxInput.disabled = false;
+          }
+        };
+
+        toggle();
+        modeSelect.addEventListener('change', toggle);
+      });
+    });
+  </script>
 </body>
 </html>
 """
@@ -571,24 +764,25 @@ INDEX_HTML = r"""
 def index():
     style = list(BEER_STYLES.keys())[0]
     base = BEER_STYLES[style]["base"]
-    reqs = {a: {"op":"none","val":None} for a in ATTRS}
+    constraints = {
+        a: SimpleNamespace(band="any", mode="any", min="0.0", max="11.0")
+        for a in ATTRS
+    }
     return render_template_string(
         INDEX_HTML,
         styles=list(BEER_STYLES.keys()),
         style=style,
         base=base,
         attrs=ATTRS,
+        attr_labels=ATTR_LABELS,
         ingredients=[type("I",(object,),ing) for ing in INGREDIENTS],
         ingredients_json=json.dumps(INGREDIENTS, indent=2, ensure_ascii=False),
         styles_json=json.dumps(BEER_STYLES, indent=2, ensure_ascii=False),
-        reqs=reqs,
-        others_green=False,
-        one_yellow=False,
-        yellow_attr="",
+        constraints=constraints,
         total_cap=25,
         per_cap=25,
         style_mins=BEER_STYLES[style].get("min_counts", {}),
-        count_green=None, count_yellow=None, count_red=None
+        debug_info=[]
     )
 
 @app.route("/", methods=["POST"])
@@ -597,43 +791,81 @@ def solve():
     base = BEER_STYLES[style]["base"]
     total_cap = int(request.form.get("total_cap", "25"))
     per_cap = int(request.form.get("per_cap", "25"))
-    reqs = {}
+    band_preferences: Dict[str, Optional[Set[str]]] = {}
+    numeric_intervals: Dict[str, Tuple[float, float]] = {}
+    constraints: Dict[str, SimpleNamespace] = {}
+
+    def parse_and_clamp(raw: str) -> Optional[float]:
+        if not raw:
+            return None
+        try:
+            value = float(raw)
+        except ValueError:
+            return None
+        return max(0.0, min(11.0, value))
+
     for a in ATTRS:
-        op = request.form.get(f"op_{a}", "none")
-        val_raw = request.form.get(f"val_{a}", "").strip()
-        val = float(val_raw) if val_raw != "" else None
-        reqs[a] = {"op": op, "val": val}
-    others_green = request.form.get("others_green") is not None
-    one_yellow = request.form.get("one_yellow") is not None
-    yellow_attr = request.form.get("yellow_attr") or None
+        band_choice = request.form.get(f"band_{a}", "any")
+        band_preferences[a] = None if band_choice == "any" else {band_choice}
 
-    # band counts (0-4) or None
-    def parse_count(name):
-        raw = request.form.get(name, "").strip()
-        return int(raw) if raw != "" else None
-    count_green = parse_count("count_green")
-    count_yellow = parse_count("count_yellow")
-    count_red = parse_count("count_red")
+        mode = request.form.get(f"mode_{a}", "any")
+        min_raw = request.form.get(f"min_{a}", "").strip()
+        max_raw = request.form.get(f"max_{a}", "").strip()
+        min_val = parse_and_clamp(min_raw)
+        max_val = parse_and_clamp(max_raw)
 
-    numeric_cons = {a: (reqs[a]["op"], reqs[a]["val"]) for a in ATTRS}
-    band_counts = {}
-    if count_green is not None: band_counts["green"] = count_green
-    if count_yellow is not None: band_counts["yellow"] = count_yellow
-    if count_red is not None: band_counts["red"] = count_red
+        lo, hi = -1e9, 1e9
+        if mode == "ge":
+            if min_val is None:
+                min_val = 0.0
+            lo, hi = min_val, 1e9
+        elif mode == "le":
+            if max_val is None:
+                max_val = 11.0
+            lo, hi = -1e9, max_val
+        elif mode == "between":
+            if min_val is None:
+                min_val = 0.0
+            if max_val is None:
+                max_val = 11.0
+            if min_val > max_val:
+                min_val, max_val = max_val, min_val
+            lo, hi = min_val, max_val
+
+        numeric_intervals[a] = (lo, hi)
+
+        if mode == "any":
+            display_min = f"{0.0:.1f}"
+            display_max = f"{11.0:.1f}"
+        elif mode == "ge":
+            display_min = f"{min_val:.1f}" if min_val is not None else ""
+            display_max = ""
+        elif mode == "le":
+            display_min = ""
+            display_max = f"{max_val:.1f}" if max_val is not None else ""
+        else:
+            display_min = f"{min_val:.1f}" if min_val is not None else ""
+            display_max = f"{max_val:.1f}" if max_val is not None else ""
+
+        constraints[a] = SimpleNamespace(
+            band=band_choice,
+            mode=mode,
+            min=display_min,
+            max=display_max,
+        )
 
     sols = solve_recipe(
-        INGREDIENTS, style, numeric_cons,
-        exactly_one_yellow=one_yellow,
-        others_green=others_green,
-        total_cap=total_cap, per_cap=per_cap,
-        preferred_yellow_attr=yellow_attr, topk=10,
-        band_count_requirements=band_counts if band_counts else None
+        INGREDIENTS,
+        style,
+        numeric_intervals,
+        band_preferences,
+        total_cap=total_cap,
+        per_cap=per_cap,
+        topk=10,
     )
 
-    # --- Diagnose: warum keine Lösung? ---
     debug_info = []
 
-    # 1) Mindestmengen & Caps
     name_to_idx = {ing["name"]: i for i, ing in enumerate(INGREDIENTS)}
     min_x = np.zeros(len(INGREDIENTS), dtype=int)
     for nm, cnt in BEER_STYLES[style].get("min_counts", {}).items():
@@ -642,74 +874,20 @@ def solve():
     debug_info.append(f"min_x (Pflichtzutaten): {min_x.tolist()}")
     debug_info.append(f"Gesamt-Cap: {total_cap}, Pro-Zutat-Cap: {per_cap}")
 
-    # 2) Numerische Intervalle je Attribut (aus ≥, ≤, =)
-    def numeric_iv(op, val):
-        if val is None or op == "none":
-            return (-1e9, 1e9)
-        v = float(val)
-        if op == "eq": return (v, v)
-        if op == "ge": return (v, 1e9)
-        if op == "le": return (-1e9, v)
-        return (-1e9, 1e9)
-
-    num_iv = {a: numeric_iv(reqs[a]["op"], reqs[a]["val"]) for a in ATTRS}
-    debug_info.append("Numerische Intervalle:")
+    debug_info.append("Einstellungen je Attribut:")
     for a in ATTRS:
-        debug_info.append(f"  {a}: {num_iv[a]}")
+        lo, hi = numeric_intervals[a]
+        lo_txt = "-∞" if lo <= -1e8 else f"{lo:.2f}"
+        hi_txt = "∞" if hi >= 1e8 else f"{hi:.2f}"
+        band_choice = constraints[a].band
+        band_txt = "egal" if band_choice == "any" else band_choice
+        debug_info.append(
+            f"  {ATTR_LABELS[a]} → Band: {band_txt}, Intervall: [{lo_txt}, {hi_txt}]"
+        )
 
-    # 3) Helfer für Band-Segmente und Schnittbildung
-    def band_segments(style_name, attr, band):
-        return [
-            (seg["min"], seg["max"])
-            for seg in BEER_STYLES[style_name]["bands"][attr]
-            if seg["band"] == band
-        ]
-
-    def apply_force(attr, force_band, base_iv):
-        if force_band is None:
-            return [base_iv]
-        ivs = []
-        for lo, hi in band_segments(style, attr, force_band):
-            lo2 = max(base_iv[0], lo)
-            hi2 = min(base_iv[1], hi)
-            if lo2 <= hi2:
-                ivs.append((lo2, hi2))
-        return ivs
-
-    # 4) Erlaubte Intervalle nach "alles andere grün" / "genau eine gelb"
-    yb = (yellow_attr if yellow_attr else None)
-
-    if one_yellow:
-        # Der Solver prüft alle Kandidaten, wenn kein Attribut vorgegeben ist.
-        candidates = [yellow_attr] if yellow_attr else ATTRS
-        for cand in candidates:
-            if not cand:
-                continue
-            debug_info.append(f"--- Annahme: gelb = {cand} ---")
-            for a in ATTRS:
-                force = "yellow" if a == cand else ("green" if others_green else None)
-                ivs = apply_force(a, force, num_iv[a])
-                debug_info.append(f"  {a}: {ivs}")
-    else:
-        if others_green:
-            debug_info.append("--- Regel aktiv: alles andere grün ---")
-            for a in ATTRS:
-                ivs = apply_force(a, "green", num_iv[a])
-                debug_info.append(f"  {a}: {ivs}")
-        else:
-            debug_info.append("--- Keine Band-Erzwingung (nur numerisch) ---")
-
-    # 5) Band-Zähler aus UI
-    debug_info.append(
-        f"Band-Zähler gewünscht: green={request.form.get('count_green') or 'egal'}, "
-        f"yellow={request.form.get('count_yellow') or 'egal'}, "
-        f"red={request.form.get('count_red') or 'egal'}"
-    )
-
-    # 6) Hinweis, falls leer
     if not sols:
         debug_info.append(
-            "Hinweis: Wenn hier Intervalle leer sind, stimmen die Style-Bänder/Zutaten evtl. nicht mit dem Spiel überein.")
+            "Keine Kombination gefunden – prüfe Band- oder Wertebereiche.")
 
     return render_template_string(
         INDEX_HTML,
@@ -717,18 +895,15 @@ def solve():
         style=style,
         base=base,
         attrs=ATTRS,
+        attr_labels=ATTR_LABELS,
         ingredients=[type("I",(object,),ing) for ing in INGREDIENTS],
         ingredients_json=json.dumps(INGREDIENTS, indent=2, ensure_ascii=False),
         styles_json=json.dumps(BEER_STYLES, indent=2, ensure_ascii=False),
-        reqs=reqs,
-        others_green=others_green,
-        one_yellow=one_yellow,
-        yellow_attr=yellow_attr or "",
+        constraints=constraints,
         total_cap=total_cap,
         per_cap=per_cap,
         solutions=sols,
         style_mins=BEER_STYLES[style].get("min_counts", {}),
-        count_green=count_green, count_yellow=count_yellow, count_red=count_red,
         debug_info=debug_info
     )
 
