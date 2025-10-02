@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Ale Abbey Rezept-Solver</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <div class="page">
+    <header>
+      <h1>🍺 Ale Abbey – Rezept-Solver</h1>
+      <p>Wähle für jede Eigenschaft die gewünschte Farbzone und lege exakte Wertebereiche fest. Der Solver berücksichtigt Pflichtzutaten, Mengenlimits und filtert passende Kombinationen für dich.</p>
+    </header>
+
+    <form method="post" action="{{ url_for('index') }}" class="card form-card">
+      <section>
+        <h3 class="section-title">Grunddaten</h3>
+        <div class="grid-two">
+          <label>
+            <span class="label">Bierstil</span>
+            <select name="style">
+              {% for s in styles %}
+                <option value="{{ s }}" {% if s == style %}selected{% endif %}>{{ s }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            <span class="label">Gesamtanzahl Zutaten (Cap)</span>
+            <input type="number" name="total_cap" min="1" max="30" value="{{ total_cap }}">
+          </label>
+          <label>
+            <span class="label">Max pro Zutat</span>
+            <input type="number" name="per_cap" min="1" max="30" value="{{ per_cap }}">
+          </label>
+        </div>
+      </section>
+
+      <section>
+        <h3 class="section-title">Attribute</h3>
+        <div class="attr-grid">
+          {% for a in attrs %}
+            <div class="attr-card" data-attr-card>
+              <h4>{{ attr_labels[a] }}</h4>
+              <div class="chips">
+                {% for band in ['any', 'green', 'yellow', 'red'] %}
+                  {% set label = 'egal' if band == 'any' else band|capitalize %}
+                  <label class="chip" data-color="{{ band }}">
+                    <input type="radio" name="band_{{ a }}" value="{{ band }}" {% if constraints[a].band == band %}checked{% endif %}>
+                    <span>{{ label }}</span>
+                  </label>
+                {% endfor %}
+              </div>
+
+              <div>
+                <label class="label" style="margin-top:12px;">Modus</label>
+                <select class="mode-select" name="mode_{{ a }}">
+                  <option value="any" {% if constraints[a].mode == 'any' %}selected{% endif %}>Egal</option>
+                  <option value="ge" {% if constraints[a].mode == 'ge' %}selected{% endif %}>Mindestens</option>
+                  <option value="le" {% if constraints[a].mode == 'le' %}selected{% endif %}>Höchstens</option>
+                  <option value="between" {% if constraints[a].mode == 'between' %}selected{% endif %}>Zwischen</option>
+                </select>
+                <div class="range-inputs">
+                  <label>Untergrenze
+                    <input type="number" class="min-input" name="min_{{ a }}" step="0.1" min="0" max="11" value="{{ constraints[a].min }}">
+                  </label>
+                  <label>Obergrenze
+                    <input type="number" class="max-input" name="max_{{ a }}" step="0.1" min="0" max="11" value="{{ constraints[a].max }}">
+                  </label>
+                </div>
+                <p class="hint">Wertebereich 0.0 – 11.0, eine Nachkommastelle.</p>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section>
+        <h3 class="section-title">Zutatenübersicht</h3>
+        <div class="table-wrapper">
+          <table class="ingredients-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Geschmack</th>
+                <th>Farbe</th>
+                <th>Stärke</th>
+                <th>Schaum</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for ing in ingredients %}
+                <tr>
+                  <td>{{ ing.name }}</td>
+                  <td>{{ '%.1f'|format(ing.vec[0]) }}</td>
+                  <td>{{ '%.1f'|format(ing.vec[1]) }}</td>
+                  <td>{{ '%.1f'|format(ing.vec[2]) }}</td>
+                  <td>{{ '%.1f'|format(ing.vec[3]) }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <button class="btn-primary" type="submit">Rezept berechnen</button>
+    </form>
+
+    {% if solutions is not none %}
+      <section style="margin-top: 32px;">
+        <h2 class="section-title">Ergebnisse</h2>
+        {% if solutions|length == 0 %}
+          <p><strong>Keine Lösung</strong> unter den gegebenen Regeln gefunden.</p>
+        {% else %}
+          <div class="grid-two">
+            {% for s in solutions %}
+              <div class="card">
+                <h3 style="margin-top:0;">Gesamtzutaten: {{ s.sum }}</h3>
+                <p style="margin-bottom:8px; font-weight:600;">Zutatenmix</p>
+                <div class="chips" style="margin-bottom:12px;">
+                  {% for name, cnt in s.counts_by_name.items() %}
+                    <span class="chip"><span>{{ name }} × {{ cnt }}</span></span>
+                  {% endfor %}
+                </div>
+                <p style="margin:0 0 10px;">Geschmack {{ s.totals[0] }}, Farbe {{ s.totals[1] }}, Stärke {{ s.totals[2] }}, Schaum {{ s.totals[3] }}</p>
+                <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+                  {% for a in attrs %}
+                    {% set b = s.bands[a] %}
+                    <span class="pill {{ b }}">{{ attr_labels[a] }}: {{ b|capitalize }}</span>
+                  {% endfor %}
+                </div>
+                <details>
+                  <summary>Roh-Vektor</summary>
+                  <pre class="mono">{{ s.x }}</pre>
+                </details>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </section>
+    {% endif %}
+
+    <section style="margin-top: 36px;" class="card">
+      <details>
+        <summary>JSON ansehen</summary>
+        <h3 style="margin-top:16px;">Zutaten</h3>
+        <pre class="mono">{{ ingredients_json }}</pre>
+        <h3>Bierstile</h3>
+        <pre class="mono">{{ styles_json }}</pre>
+      </details>
+      {% if debug_info %}
+        <hr>
+        <details open>
+          <summary>Debug</summary>
+          <pre class="mono">{{ debug_info | join('\n') }}</pre>
+        </details>
+      {% endif %}
+    </section>
+  </div>
+
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('[data-attr-card]').forEach(card => {
+        const modeSelect = card.querySelector('.mode-select');
+        const minInput = card.querySelector('.min-input');
+        const maxInput = card.querySelector('.max-input');
+
+        const toggle = () => {
+          const mode = modeSelect.value;
+          if (mode === 'any') {
+            minInput.disabled = true;
+            maxInput.disabled = true;
+          } else if (mode === 'ge') {
+            minInput.disabled = false;
+            maxInput.disabled = true;
+          } else if (mode === 'le') {
+            minInput.disabled = true;
+            maxInput.disabled = false;
+          } else {
+            minInput.disabled = false;
+            maxInput.disabled = false;
+          }
+        };
+
+        toggle();
+        modeSelect.addEventListener('change', toggle);
+      });
+    });
+  </script>
+</body>
+</html>
