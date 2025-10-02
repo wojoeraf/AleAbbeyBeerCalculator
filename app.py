@@ -484,6 +484,7 @@ def index():
         per_cap=per_cap,
         solutions=solutions,
         style_mins=BEER_STYLES[style].get("min_counts", {}),
+        style_min_map={s: BEER_STYLES[s].get("min_counts", {}) for s in styles},
         debug_info=debug_info,
         has_active_constraints=has_active_constraints,
         selected_optional=selected_optional,

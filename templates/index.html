@@ -101,21 +101,23 @@
                   {% set is_required = required_count > 0 %}
                   {% set is_locked = is_required %}
                   {% set is_checked = is_locked or ing.name in selected_optional %}
-                  <tr class="{% if is_locked %}ingredient-locked{% endif %}">
+                  <tr class="{% if is_locked %}ingredient-locked{% endif %}" data-ingredient-row data-ingredient-name="{{ ing.name }}">
                     <td class="checkbox-cell">
                       <label class="ingredient-option" {% if is_locked %}title="Diese Zutat ist vorgegeben."{% endif %}>
-                        <input type="checkbox" name="optional_ingredients" value="{{ ing.name }}" {% if is_checked %}checked{% endif %} {% if is_locked %}disabled{% endif %}>
+                        <input type="checkbox" name="optional_ingredients" value="{{ ing.name }}" {% if is_checked %}checked{% endif %} {% if is_locked %}disabled{% endif %} data-user-selected="{{ 'true' if ing.name in selected_optional else 'false' }}">
                         <span class="checkbox-visual"></span>
                       </label>
                     </td>
                     <td>
                       <div class="ingredient-name">
                         <span>{{ ing.name }}</span>
-                        {% if is_required %}
-                          <span class="ingredient-badge badge-required">
+                        <span class="ingredient-badge badge-required" data-required-badge {% if not is_required %}hidden{% endif %}>
+                          {% if is_required %}
                             Pflicht{% if required_count > 1 %} × {{ required_count }}{% endif %}
-                          </span>
-                        {% endif %}
+                          {% else %}
+                            Pflicht
+                          {% endif %}
+                        </span>
                       </div>
                     </td>
                     <td>{{ '%.1f'|format(ing.vec[0]) }}</td>
@@ -186,11 +188,24 @@
     </section>
   </div>
 
+  <script id="style-min-data" type="application/json">{{ style_min_map | tojson }}</script>
   <script>
     window.addEventListener('DOMContentLoaded', () => {
       const attrCards = Array.from(document.querySelectorAll('[data-attr-card]'));
       const submitBtn = document.querySelector('[data-submit-button]');
       const setAllGreenBtn = document.querySelector('[data-set-all-green]');
+      const styleSelect = document.querySelector('select[name="style"]');
+      const styleMinDataEl = document.getElementById('style-min-data');
+      const ingredientRows = Array.from(document.querySelectorAll('[data-ingredient-row]'));
+      const styleMinMap = (() => {
+        if (!styleMinDataEl) return {};
+        try {
+          return JSON.parse(styleMinDataEl.textContent || '{}');
+        } catch (err) {
+          console.error('Konnte Style-Daten nicht lesen', err);
+          return {};
+        }
+      })();
 
       const updateSubmitState = () => {
         if (!submitBtn) return;
@@ -244,6 +259,61 @@
           });
           updateSubmitState();
         });
+      }
+
+      ingredientRows.forEach(row => {
+        const checkbox = row.querySelector('input[type="checkbox"]');
+        if (!checkbox) return;
+        checkbox.addEventListener('change', () => {
+          checkbox.dataset.userSelected = checkbox.checked ? 'true' : 'false';
+        });
+      });
+
+      const applyStyleRequirements = (styleName) => {
+        if (!styleName) return;
+        const activeMins = styleMinMap[styleName] || {};
+
+        ingredientRows.forEach(row => {
+          const ingredientName = row.dataset.ingredientName;
+          const checkbox = row.querySelector('input[type="checkbox"]');
+          const label = row.querySelector('.ingredient-option');
+          const badge = row.querySelector('[data-required-badge]');
+          if (!checkbox || !ingredientName) {
+            return;
+          }
+          const requiredCount = activeMins[ingredientName] || 0;
+          if (requiredCount > 0) {
+            row.classList.add('ingredient-locked');
+            checkbox.checked = true;
+            checkbox.disabled = true;
+            checkbox.dataset.userSelected = 'false';
+            if (label) {
+              label.title = 'Diese Zutat ist vorgegeben.';
+            }
+            if (badge) {
+              badge.hidden = false;
+              badge.textContent = requiredCount > 1 ? `Pflicht × ${requiredCount}` : 'Pflicht';
+            }
+          } else {
+            row.classList.remove('ingredient-locked');
+            checkbox.disabled = false;
+            const userSelected = checkbox.dataset.userSelected === 'true';
+            checkbox.checked = userSelected;
+            if (label) {
+              label.removeAttribute('title');
+            }
+            if (badge) {
+              badge.hidden = true;
+            }
+          }
+        });
+      };
+
+      if (styleSelect) {
+        styleSelect.addEventListener('change', () => {
+          applyStyleRequirements(styleSelect.value);
+        });
+        applyStyleRequirements(styleSelect.value);
       }
 
       updateSubmitState();
