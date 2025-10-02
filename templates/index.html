@@ -37,14 +37,17 @@
       </section>
 
       <section>
-        <h3 class="section-title">Attribute</h3>
+        <div class="section-header">
+          <h3 class="section-title">Attribute</h3>
+          <button type="button" class="btn-secondary" data-set-all-green>Alle Attribute auf Grün</button>
+        </div>
         <div class="attr-grid">
           {% for a in attrs %}
             <div class="attr-card" data-attr-card>
               <h4>{{ attr_labels[a] }}</h4>
               <div class="chips">
                 {% for band in ['any', 'green', 'yellow', 'red'] %}
-                  {% set label = 'egal' if band == 'any' else band|capitalize %}
+                  {% set label = band_labels.get(band, band) %}
                   <label class="chip" data-color="{{ band }}">
                     <input type="radio" name="band_{{ a }}" value="{{ band }}" {% if constraints[a].band == band %}checked{% endif %}>
                     <span>{{ label }}</span>
@@ -84,6 +87,7 @@
             <table class="ingredients-table">
               <thead>
                 <tr>
+                  <th class="col-checkbox"></th>
                   <th>Name</th>
                   <th>Geschmack</th>
                   <th>Farbe</th>
@@ -93,8 +97,27 @@
               </thead>
               <tbody>
                 {% for ing in ingredients %}
-                  <tr>
-                    <td>{{ ing.name }}</td>
+                  {% set is_required = style_mins.get(ing.name, 0) > 0 %}
+                  {% set is_facultative = ing.name in style_facultative %}
+                  {% set is_locked = is_required or is_facultative %}
+                  {% set is_checked = is_locked or ing.name in selected_optional %}
+                  <tr class="{% if is_locked %}ingredient-locked{% endif %}">
+                    <td class="checkbox-cell">
+                      <label class="ingredient-option" {% if is_locked %}title="Diese Zutat ist vorgegeben."{% endif %}>
+                        <input type="checkbox" name="optional_ingredients" value="{{ ing.name }}" {% if is_checked %}checked{% endif %} {% if is_locked %}disabled{% endif %}>
+                        <span class="checkbox-visual"></span>
+                      </label>
+                    </td>
+                    <td>
+                      <div class="ingredient-name">
+                        <span>{{ ing.name }}</span>
+                        {% if is_required %}
+                          <span class="ingredient-badge badge-required">Pflicht</span>
+                        {% elif is_facultative %}
+                          <span class="ingredient-badge badge-facultative">Fakultativ</span>
+                        {% endif %}
+                      </div>
+                    </td>
                     <td>{{ '%.1f'|format(ing.vec[0]) }}</td>
                     <td>{{ '%.1f'|format(ing.vec[1]) }}</td>
                     <td>{{ '%.1f'|format(ing.vec[2]) }}</td>
@@ -130,7 +153,8 @@
                 <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
                   {% for a in attrs %}
                     {% set b = s.bands[a] %}
-                    <span class="pill {{ b }}">{{ attr_labels[a] }}: {{ b|capitalize }}</span>
+                    {% set pill_class = b.replace('/', '-') %}
+                    <span class="pill {{ pill_class }}">{{ attr_labels[a] }}: {{ band_labels.get(b, b) }}</span>
                   {% endfor %}
                 </div>
                 <details>
@@ -166,6 +190,7 @@
     window.addEventListener('DOMContentLoaded', () => {
       const attrCards = Array.from(document.querySelectorAll('[data-attr-card]'));
       const submitBtn = document.querySelector('[data-submit-button]');
+      const setAllGreenBtn = document.querySelector('[data-set-all-green]');
 
       const updateSubmitState = () => {
         if (!submitBtn) return;
@@ -208,6 +233,18 @@
           radio.addEventListener('change', updateSubmitState);
         });
       });
+
+      if (setAllGreenBtn) {
+        setAllGreenBtn.addEventListener('click', () => {
+          attrCards.forEach(card => {
+            const greenRadio = card.querySelector('input[type="radio"][value="green"]');
+            if (greenRadio) {
+              greenRadio.checked = true;
+            }
+          });
+          updateSubmitState();
+        });
+      }
 
       updateSubmitState();
     });

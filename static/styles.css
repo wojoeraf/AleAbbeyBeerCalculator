@@ -206,6 +206,35 @@ input[type="number"]:focus {
 .btn-primary:disabled:hover {
   background: rgba(15, 23, 42, 0.18);
 }
+.btn-secondary {
+  background: rgba(249, 115, 22, 0.1);
+  color: var(--primary);
+  border: 1px solid rgba(249, 115, 22, 0.35);
+  border-radius: 12px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.btn-secondary:hover {
+  background: rgba(249, 115, 22, 0.18);
+  border-color: rgba(249, 115, 22, 0.6);
+}
+.btn-secondary:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.25);
+}
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.section-header .section-title {
+  margin-bottom: 0;
+}
 .ingredients-table {
   width: 100%;
   border-collapse: collapse;
@@ -218,12 +247,93 @@ input[type="number"]:focus {
   text-align: left;
   font-size: 0.92rem;
 }
+.ingredients-table th.col-checkbox {
+  width: 52px;
+  text-align: center;
+}
+.ingredients-table td.checkbox-cell {
+  text-align: center;
+}
 .ingredients-table thead {
   background: rgba(15, 23, 42, 0.85);
   color: #fff;
 }
 .ingredients-table tbody tr:nth-child(even) {
   background: rgba(15, 23, 42, 0.03);
+}
+.ingredient-option {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+}
+.ingredient-option input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+}
+.ingredient-option input:not(:disabled) {
+  cursor: pointer;
+}
+.ingredient-option input:disabled {
+  cursor: not-allowed;
+}
+.checkbox-visual {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  border: 2px solid rgba(15, 23, 42, 0.25);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  color: transparent;
+}
+.ingredient-option input:focus-visible + .checkbox-visual {
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.25);
+}
+.ingredient-option input:checked + .checkbox-visual {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+.ingredient-option input:checked + .checkbox-visual::after {
+  content: '✓';
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.ingredient-option input:disabled + .checkbox-visual {
+  background: rgba(15, 23, 42, 0.12);
+  border-color: rgba(15, 23, 42, 0.16);
+  color: rgba(15, 23, 42, 0.45);
+}
+.ingredient-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.ingredient-badge {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+.badge-required {
+  background: rgba(15, 23, 42, 0.8);
+  color: #fff;
+}
+.badge-facultative {
+  background: rgba(34, 197, 94, 0.18);
+  color: #166534;
+}
+.ingredient-locked td {
+  color: rgba(15, 23, 42, 0.85);
 }
 .pill {
   display: inline-flex;
@@ -246,6 +356,10 @@ input[type="number"]:focus {
 .pill.red {
   background: var(--pill-red-bg);
   color: var(--pill-red-text);
+}
+.pill.n-a {
+  background: rgba(15, 23, 42, 0.12);
+  color: rgba(15, 23, 42, 0.7);
 }
 .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
