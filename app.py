@@ -4,7 +4,7 @@ import json
 from types import SimpleNamespace
 from typing import List, Dict, Tuple, Optional, Set
 import numpy as np
-from flask import Flask, request, render_template_string
+from flask import Flask, request, render_template
 
 app = Flask(__name__)
 
@@ -311,601 +311,143 @@ def solve_recipe(ingredients, style_name, numeric_intervals, band_preferences,
     return uniq
 
 # ================= Web UI =================
-INDEX_HTML = r"""
-<!doctype html>
-<html lang="de">
-<head>
-  <meta charset="utf-8">
-  <title>Ale Abbey Rezept-Solver</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    :root {
-      --bg-gradient: linear-gradient(135deg, #f7f4ff 0%, #eef9ff 100%);
-      --card-bg: rgba(255, 255, 255, 0.92);
-      --border: rgba(255, 255, 255, 0.6);
-      --shadow: 0 20px 45px -24px rgba(16, 24, 40, 0.3);
-      --primary: #f97316;
-      --primary-dark: #ea580c;
-      --text-muted: #5f6b7d;
-      --pill-green-bg: #dcfce7;
-      --pill-green-text: #166534;
-      --pill-yellow-bg: #fef3c7;
-      --pill-yellow-text: #a16207;
-      --pill-red-bg: #fee2e2;
-      --pill-red-text: #b91c1c;
-      font-family: "Inter", "SF Pro Display", "Segoe UI", system-ui, sans-serif;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      background: var(--bg-gradient);
-      color: #0f172a;
-    }
-    .page {
-      max-width: 1140px;
-      margin: 0 auto;
-      padding: 40px 20px 64px;
-    }
-    header {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      margin-bottom: 28px;
-    }
-    header h1 {
-      font-size: clamp(2rem, 3vw, 2.6rem);
-      margin: 0;
-      font-weight: 700;
-    }
-    header p {
-      margin: 0;
-      color: var(--text-muted);
-      max-width: 640px;
-      line-height: 1.55;
-    }
-    .card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(8px);
-      padding: clamp(18px, 2vw, 24px);
-    }
-    .form-card {
-      display: flex;
-      flex-direction: column;
-      gap: 28px;
-    }
-    .section-title {
-      margin: 0 0 12px;
-      font-size: 1.1rem;
-      font-weight: 600;
-    }
-    .grid-two {
-      display: grid;
-      gap: 20px;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    }
-    label span.label {
-      display: block;
-      font-size: 0.85rem;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      margin-bottom: 6px;
-      color: var(--text-muted);
-      font-weight: 600;
-    }
-    select, input[type="number"] {
-      width: 100%;
-      border-radius: 12px;
-      border: 1px solid rgba(15, 23, 42, 0.12);
-      padding: 10px 12px;
-      font-size: 0.95rem;
-      background: white;
-      transition: border-color 0.15s ease, box-shadow 0.15s ease;
-    }
-    select:focus, input[type="number"]:focus {
-      outline: none;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.18);
-    }
-    .chips {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-    .chip {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 6px 12px;
-      border-radius: 999px;
-      font-weight: 600;
-      font-size: 0.9rem;
-      color: #1f2937;
-      background: rgba(15, 23, 42, 0.06);
-      cursor: pointer;
-      transition: transform 0.12s ease, background 0.12s ease;
-    }
-    .chip input {
-      position: absolute;
-      inset: 0;
-      opacity: 0;
-      cursor: pointer;
-    }
-    .chip[data-color="green"] { color: var(--pill-green-text); }
-    .chip[data-color="yellow"] { color: var(--pill-yellow-text); }
-    .chip[data-color="red"] { color: var(--pill-red-text); }
-    .chip input:checked + span {
-      background: rgba(15, 23, 42, 0.9);
-      color: #fff;
-    }
-    .chip span {
-      padding: 6px 12px;
-      border-radius: inherit;
-      transition: inherit;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .chip:hover span {
-      transform: translateY(-1px);
-    }
-    .attr-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 18px;
-    }
-    .attr-card {
-      border: 1px solid rgba(148, 163, 184, 0.24);
-      border-radius: 16px;
-      padding: 18px;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      background: rgba(255,255,255,0.85);
-    }
-    .attr-card h4 {
-      margin: 0;
-      font-size: 1.05rem;
-      font-weight: 600;
-    }
-    .range-inputs {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
-      margin-top: 10px;
-    }
-    .range-inputs label {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      font-size: 0.85rem;
-      color: var(--text-muted);
-    }
-    .hint {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      margin: 4px 0 0;
-    }
-    .btn-primary {
-      align-self: flex-start;
-      background: var(--primary);
-      color: #fff;
-      border: none;
-      border-radius: 14px;
-      padding: 12px 20px;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
-    }
-    .btn-primary:hover {
-      transform: translateY(-1px);
-      background: var(--primary-dark);
-      box-shadow: 0 14px 30px -20px rgba(234, 88, 12, 0.65);
-    }
-    .ingredients-table {
-      width: 100%;
-      border-collapse: collapse;
-      overflow: hidden;
-      border-radius: 12px;
-    }
-    .ingredients-table th,
-    .ingredients-table td {
-      padding: 10px 12px;
-      text-align: left;
-      font-size: 0.92rem;
-    }
-    .ingredients-table thead {
-      background: rgba(15, 23, 42, 0.85);
-      color: #fff;
-    }
-    .ingredients-table tbody tr:nth-child(even) {
-      background: rgba(15, 23, 42, 0.03);
-    }
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      padding: 4px 12px;
-      border-radius: 999px;
-      font-weight: 600;
-      font-size: 0.85rem;
-    }
-    .pill.green { background: var(--pill-green-bg); color: var(--pill-green-text); }
-    .pill.yellow { background: var(--pill-yellow-bg); color: var(--pill-yellow-text); }
-    .pill.red { background: var(--pill-red-bg); color: var(--pill-red-text); }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-    details summary {
-      cursor: pointer;
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-    @media (max-width: 640px) {
-      .range-inputs { grid-template-columns: 1fr; }
-    }
-  </style>
-</head>
-<body>
-  <div class="page">
-    <header>
-      <h1>🍺 Ale Abbey – Rezept-Solver</h1>
-      <p>Wähle für jede Eigenschaft die gewünschte Farbzone und lege exakte Wertebereiche fest. Der Solver berücksichtigt Pflichtzutaten, Mengenlimits und filtert passende Kombinationen für dich.</p>
-    </header>
 
-    <form method="post" action="{{ url_for('solve') }}" class="card form-card">
-      <section>
-        <h3 class="section-title">Grunddaten</h3>
-        <div class="grid-two">
-          <label>
-            <span class="label">Bierstil</span>
-            <select name="style">
-              {% for s in styles %}
-                <option value="{{ s }}" {% if s == style %}selected{% endif %}>{{ s }}</option>
-              {% endfor %}
-            </select>
-          </label>
-          <label>
-            <span class="label">Maximale Gesamtmenge</span>
-            <input type="number" name="total_cap" value="{{ total_cap }}" min="1" max="99">
-          </label>
-          <label>
-            <span class="label">Maximal pro Zutat</span>
-            <input type="number" name="per_cap" value="{{ per_cap }}" min="1" max="99">
-          </label>
-          <div>
-            <span class="label">Pflichtzutaten</span>
-            <div class="chips">
-              {% if style_mins %}
-                {% for ing, cnt in style_mins.items() %}
-                  <span class="chip"><span>{{ ing }} × {{ cnt }}</span></span>
-                {% endfor %}
-              {% else %}
-                <span class="chip"><span>Keine</span></span>
-              {% endif %}
-            </div>
-            <p class="hint">Basiswerte: Geschmack {{ base[0] }}, Farbe {{ base[1] }}, Stärke {{ base[2] }}, Schaum {{ base[3] }}</p>
-          </div>
-        </div>
-      </section>
 
-      <section>
-        <h3 class="section-title">Eigenschaften & Zielbereiche</h3>
-        <div class="attr-grid">
-          {% for a in attrs %}
-            <div class="attr-card" data-attr-card>
-              <h4>{{ attr_labels[a] }}</h4>
-              <div>
-                <span class="label">Band</span>
-                <div class="chips">
-                  <label class="chip">
-                    <input type="radio" name="band_{{ a }}" value="any" {% if constraints[a].band == 'any' %}checked{% endif %}>
-                    <span>Egal</span>
-                  </label>
-                  <label class="chip" data-color="green">
-                    <input type="radio" name="band_{{ a }}" value="green" {% if constraints[a].band == 'green' %}checked{% endif %}>
-                    <span>Grün</span>
-                  </label>
-                  <label class="chip" data-color="yellow">
-                    <input type="radio" name="band_{{ a }}" value="yellow" {% if constraints[a].band == 'yellow' %}checked{% endif %}>
-                    <span>Gelb</span>
-                  </label>
-                  <label class="chip" data-color="red">
-                    <input type="radio" name="band_{{ a }}" value="red" {% if constraints[a].band == 'red' %}checked{% endif %}>
-                    <span>Rot</span>
-                  </label>
-                </div>
-              </div>
-              <div>
-                <span class="label">Numerische Vorgabe</span>
-                <select name="mode_{{ a }}" class="mode-select">
-                  <option value="any" {% if constraints[a].mode == 'any' %}selected{% endif %}>Kein Limit</option>
-                  <option value="ge" {% if constraints[a].mode == 'ge' %}selected{% endif %}>Mindestens …</option>
-                  <option value="le" {% if constraints[a].mode == 'le' %}selected{% endif %}>Höchstens …</option>
-                  <option value="between" {% if constraints[a].mode == 'between' %}selected{% endif %}>Zwischen … und …</option>
-                </select>
-                <div class="range-inputs">
-                  <label>Untergrenze
-                    <input type="number" class="min-input" name="min_{{ a }}" step="0.1" min="0" max="11" value="{{ constraints[a].min }}">
-                  </label>
-                  <label>Obergrenze
-                    <input type="number" class="max-input" name="max_{{ a }}" step="0.1" min="0" max="11" value="{{ constraints[a].max }}">
-                  </label>
-                </div>
-                <p class="hint">Wertebereich 0.0 – 11.0, eine Nachkommastelle.</p>
-              </div>
-            </div>
-          {% endfor %}
-        </div>
-      </section>
-
-      <section>
-        <h3 class="section-title">Zutatenübersicht</h3>
-        <div class="table-wrapper">
-          <table class="ingredients-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Geschmack</th>
-                <th>Farbe</th>
-                <th>Stärke</th>
-                <th>Schaum</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for ing in ingredients %}
-                <tr>
-                  <td>{{ ing.name }}</td>
-                  <td>{{ '%.1f'|format(ing.vec[0]) }}</td>
-                  <td>{{ '%.1f'|format(ing.vec[1]) }}</td>
-                  <td>{{ '%.1f'|format(ing.vec[2]) }}</td>
-                  <td>{{ '%.1f'|format(ing.vec[3]) }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <button class="btn-primary" type="submit">Rezept berechnen</button>
-    </form>
-
-    {% if solutions is defined %}
-      <section style="margin-top: 32px;">
-        <h2 class="section-title">Ergebnisse</h2>
-        {% if solutions|length == 0 %}
-          <p><strong>Keine Lösung</strong> unter den gegebenen Regeln gefunden.</p>
-        {% else %}
-          <div class="grid-two">
-            {% for s in solutions %}
-              <div class="card">
-                <h3 style="margin-top:0;">Gesamtzutaten: {{ s.sum }}</h3>
-                <p style="margin-bottom:8px; font-weight:600;">Zutatenmix</p>
-                <div class="chips" style="margin-bottom:12px;">
-                  {% for name, cnt in s.counts_by_name.items() %}
-                    <span class="chip"><span>{{ name }} × {{ cnt }}</span></span>
-                  {% endfor %}
-                </div>
-                <p style="margin:0 0 10px;">Geschmack {{ s.totals[0] }}, Farbe {{ s.totals[1] }}, Stärke {{ s.totals[2] }}, Schaum {{ s.totals[3] }}</p>
-                <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
-                  {% for a in attrs %}
-                    {% set b = s.bands[a] %}
-                    <span class="pill {{ b }}">{{ attr_labels[a] }}: {{ b|capitalize }}</span>
-                  {% endfor %}
-                </div>
-                <details>
-                  <summary>Roh-Vektor</summary>
-                  <pre class="mono">{{ s.x }}</pre>
-                </details>
-              </div>
-            {% endfor %}
-          </div>
-        {% endif %}
-      </section>
-    {% endif %}
-
-    <section style="margin-top: 36px;" class="card">
-      <details>
-        <summary>JSON ansehen</summary>
-        <h3 style="margin-top:16px;">Zutaten</h3>
-        <pre class="mono">{{ ingredients_json }}</pre>
-        <h3>Bierstile</h3>
-        <pre class="mono">{{ styles_json }}</pre>
-      </details>
-      {% if debug_info %}
-        <hr>
-        <details open>
-          <summary>Debug</summary>
-          <pre class="mono">{{ debug_info | join('
-') }}</pre>
-        </details>
-      {% endif %}
-    </section>
-  </div>
-
-  <script>
-    window.addEventListener('DOMContentLoaded', () => {
-      document.querySelectorAll('[data-attr-card]').forEach(card => {
-        const modeSelect = card.querySelector('.mode-select');
-        const minInput = card.querySelector('.min-input');
-        const maxInput = card.querySelector('.max-input');
-
-        const toggle = () => {
-          const mode = modeSelect.value;
-          if (mode === 'any') {
-            minInput.disabled = true;
-            maxInput.disabled = true;
-          } else if (mode === 'ge') {
-            minInput.disabled = false;
-            maxInput.disabled = true;
-          } else if (mode === 'le') {
-            minInput.disabled = true;
-            maxInput.disabled = false;
-          } else {
-            minInput.disabled = false;
-            maxInput.disabled = false;
-          }
-        };
-
-        toggle();
-        modeSelect.addEventListener('change', toggle);
-      });
-    });
-  </script>
-</body>
-</html>
-"""
-
-@app.route("/", methods=["GET"])
+@app.route("/", methods=["GET", "POST"])
 def index():
-    style = list(BEER_STYLES.keys())[0]
-    base = BEER_STYLES[style]["base"]
-    constraints = {
-        a: SimpleNamespace(band="any", mode="any", min="0.0", max="11.0")
-        for a in ATTRS
-    }
-    return render_template_string(
-        INDEX_HTML,
-        styles=list(BEER_STYLES.keys()),
-        style=style,
-        base=base,
-        attrs=ATTRS,
-        attr_labels=ATTR_LABELS,
-        ingredients=[type("I",(object,),ing) for ing in INGREDIENTS],
-        ingredients_json=json.dumps(INGREDIENTS, indent=2, ensure_ascii=False),
-        styles_json=json.dumps(BEER_STYLES, indent=2, ensure_ascii=False),
-        constraints=constraints,
-        total_cap=25,
-        per_cap=25,
-        style_mins=BEER_STYLES[style].get("min_counts", {}),
-        debug_info=[]
-    )
+    styles = list(BEER_STYLES.keys())
+    style = request.form.get("style", styles[0])
+    if style not in BEER_STYLES:
+        style = styles[0]
 
-@app.route("/", methods=["POST"])
-def solve():
-    style = request.form.get("style")
-    base = BEER_STYLES[style]["base"]
     total_cap = int(request.form.get("total_cap", "25"))
     per_cap = int(request.form.get("per_cap", "25"))
-    band_preferences: Dict[str, Optional[Set[str]]] = {}
-    numeric_intervals: Dict[str, Tuple[float, float]] = {}
+    base = BEER_STYLES[style]["base"]
+
     constraints: Dict[str, SimpleNamespace] = {}
+    solutions: Optional[List[Dict[str, object]]] = None
+    debug_info: List[str] = []
 
-    def parse_and_clamp(raw: str) -> Optional[float]:
-        if not raw:
-            return None
-        try:
-            value = float(raw)
-        except ValueError:
-            return None
-        return max(0.0, min(11.0, value))
+    if request.method == "POST":
+        band_preferences: Dict[str, Optional[Set[str]]] = {}
+        numeric_intervals: Dict[str, Tuple[float, float]] = {}
 
-    for a in ATTRS:
-        band_choice = request.form.get(f"band_{a}", "any")
-        band_preferences[a] = None if band_choice == "any" else {band_choice}
+        def parse_and_clamp(raw: str) -> Optional[float]:
+            if not raw:
+                return None
+            try:
+                value = float(raw)
+            except ValueError:
+                return None
+            return max(0.0, min(11.0, value))
 
-        mode = request.form.get(f"mode_{a}", "any")
-        min_raw = request.form.get(f"min_{a}", "").strip()
-        max_raw = request.form.get(f"max_{a}", "").strip()
-        min_val = parse_and_clamp(min_raw)
-        max_val = parse_and_clamp(max_raw)
+        for a in ATTRS:
+            band_choice = request.form.get(f"band_{a}", "any")
+            band_preferences[a] = None if band_choice == "any" else {band_choice}
 
-        lo, hi = -1e9, 1e9
-        if mode == "ge":
-            if min_val is None:
-                min_val = 0.0
-            lo, hi = min_val, 1e9
-        elif mode == "le":
-            if max_val is None:
-                max_val = 11.0
-            lo, hi = -1e9, max_val
-        elif mode == "between":
-            if min_val is None:
-                min_val = 0.0
-            if max_val is None:
-                max_val = 11.0
-            if min_val > max_val:
-                min_val, max_val = max_val, min_val
-            lo, hi = min_val, max_val
+            mode = request.form.get(f"mode_{a}", "any")
+            min_raw = request.form.get(f"min_{a}", "").strip()
+            max_raw = request.form.get(f"max_{a}", "").strip()
+            min_val = parse_and_clamp(min_raw)
+            max_val = parse_and_clamp(max_raw)
 
-        numeric_intervals[a] = (lo, hi)
+            lo, hi = -1e9, 1e9
+            if mode == "ge":
+                if min_val is None:
+                    min_val = 0.0
+                lo, hi = min_val, 1e9
+            elif mode == "le":
+                if max_val is None:
+                    max_val = 11.0
+                lo, hi = -1e9, max_val
+            elif mode == "between":
+                if min_val is None:
+                    min_val = 0.0
+                if max_val is None:
+                    max_val = 11.0
+                if min_val > max_val:
+                    min_val, max_val = max_val, min_val
+                lo, hi = min_val, max_val
 
-        if mode == "any":
-            display_min = f"{0.0:.1f}"
-            display_max = f"{11.0:.1f}"
-        elif mode == "ge":
-            display_min = f"{min_val:.1f}" if min_val is not None else ""
-            display_max = ""
-        elif mode == "le":
-            display_min = ""
-            display_max = f"{max_val:.1f}" if max_val is not None else ""
-        else:
-            display_min = f"{min_val:.1f}" if min_val is not None else ""
-            display_max = f"{max_val:.1f}" if max_val is not None else ""
+            numeric_intervals[a] = (lo, hi)
 
-        constraints[a] = SimpleNamespace(
-            band=band_choice,
-            mode=mode,
-            min=display_min,
-            max=display_max,
+            if mode == "any":
+                display_min = f"{0.0:.1f}"
+                display_max = f"{11.0:.1f}"
+            elif mode == "ge":
+                display_min = f"{min_val:.1f}" if min_val is not None else ""
+                display_max = ""
+            elif mode == "le":
+                display_min = ""
+                display_max = f"{max_val:.1f}" if max_val is not None else ""
+            else:
+                display_min = f"{min_val:.1f}" if min_val is not None else ""
+                display_max = f"{max_val:.1f}" if max_val is not None else ""
+
+            constraints[a] = SimpleNamespace(
+                band=band_choice,
+                mode=mode,
+                min=display_min,
+                max=display_max,
+            )
+
+        solutions = solve_recipe(
+            INGREDIENTS,
+            style,
+            numeric_intervals,
+            band_preferences,
+            total_cap=total_cap,
+            per_cap=per_cap,
+            topk=10,
         )
 
-    sols = solve_recipe(
-        INGREDIENTS,
-        style,
-        numeric_intervals,
-        band_preferences,
-        total_cap=total_cap,
-        per_cap=per_cap,
-        topk=10,
-    )
+        name_to_idx = {ing["name"]: i for i, ing in enumerate(INGREDIENTS)}
+        min_x = np.zeros(len(INGREDIENTS), dtype=int)
+        for nm, cnt in BEER_STYLES[style].get("min_counts", {}).items():
+            if nm in name_to_idx:
+                min_x[name_to_idx[nm]] = int(cnt)
+        debug_info.append(f"min_x (Pflichtzutaten): {min_x.tolist()}")
+        debug_info.append(f"Gesamt-Cap: {total_cap}, Pro-Zutat-Cap: {per_cap}")
 
-    debug_info = []
+        debug_info.append("Einstellungen je Attribut:")
+        for a in ATTRS:
+            lo, hi = numeric_intervals[a]
+            lo_txt = "-∞" if lo <= -1e8 else f"{lo:.2f}"
+            hi_txt = "∞" if hi >= 1e8 else f"{hi:.2f}"
+            band_choice = constraints[a].band
+            band_txt = "egal" if band_choice == "any" else band_choice
+            debug_info.append(
+                f"  {ATTR_LABELS[a]} → Band: {band_txt}, Intervall: [{lo_txt}, {hi_txt}]"
+            )
 
-    name_to_idx = {ing["name"]: i for i, ing in enumerate(INGREDIENTS)}
-    min_x = np.zeros(len(INGREDIENTS), dtype=int)
-    for nm, cnt in BEER_STYLES[style].get("min_counts", {}).items():
-        if nm in name_to_idx:
-            min_x[name_to_idx[nm]] = int(cnt)
-    debug_info.append(f"min_x (Pflichtzutaten): {min_x.tolist()}")
-    debug_info.append(f"Gesamt-Cap: {total_cap}, Pro-Zutat-Cap: {per_cap}")
+        if not solutions:
+            debug_info.append(
+                "Keine Kombination gefunden – prüfe Band- oder Wertebereiche."
+            )
+    else:
+        constraints = {
+            a: SimpleNamespace(band="any", mode="any", min="0.0", max="11.0")
+            for a in ATTRS
+        }
 
-    debug_info.append("Einstellungen je Attribut:")
-    for a in ATTRS:
-        lo, hi = numeric_intervals[a]
-        lo_txt = "-∞" if lo <= -1e8 else f"{lo:.2f}"
-        hi_txt = "∞" if hi >= 1e8 else f"{hi:.2f}"
-        band_choice = constraints[a].band
-        band_txt = "egal" if band_choice == "any" else band_choice
-        debug_info.append(
-            f"  {ATTR_LABELS[a]} → Band: {band_txt}, Intervall: [{lo_txt}, {hi_txt}]"
-        )
-
-    if not sols:
-        debug_info.append(
-            "Keine Kombination gefunden – prüfe Band- oder Wertebereiche.")
-
-    return render_template_string(
-        INDEX_HTML,
-        styles=list(BEER_STYLES.keys()),
+    return render_template(
+        "index.html",
+        styles=styles,
         style=style,
         base=base,
         attrs=ATTRS,
         attr_labels=ATTR_LABELS,
-        ingredients=[type("I",(object,),ing) for ing in INGREDIENTS],
+        ingredients=INGREDIENTS,
         ingredients_json=json.dumps(INGREDIENTS, indent=2, ensure_ascii=False),
         styles_json=json.dumps(BEER_STYLES, indent=2, ensure_ascii=False),
         constraints=constraints,
         total_cap=total_cap,
         per_cap=per_cap,
-        solutions=sols,
+        solutions=solutions,
         style_mins=BEER_STYLES[style].get("min_counts", {}),
-        debug_info=debug_info
+        debug_info=debug_info,
     )
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
