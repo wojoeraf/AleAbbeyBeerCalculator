@@ -325,6 +325,7 @@ def index():
     base = BEER_STYLES[style]["base"]
 
     constraints: Dict[str, SimpleNamespace] = {}
+    has_active_constraints = False
     solutions: Optional[List[Dict[str, object]]] = None
     debug_info: List[str] = []
 
@@ -391,6 +392,11 @@ def index():
                 max=display_max,
             )
 
+        has_active_constraints = any(
+            (constraints[a].band != "any") or (constraints[a].mode != "any")
+            for a in ATTRS
+        )
+
         solutions = solve_recipe(
             INGREDIENTS,
             style,
@@ -446,6 +452,7 @@ def index():
         solutions=solutions,
         style_mins=BEER_STYLES[style].get("min_counts", {}),
         debug_info=debug_info,
+        has_active_constraints=has_active_constraints,
     )
 
 

@@ -196,6 +196,16 @@ input[type="number"]:focus {
   background: var(--primary-dark);
   box-shadow: 0 14px 30px -20px rgba(234, 88, 12, 0.65);
 }
+.btn-primary:disabled {
+  background: rgba(15, 23, 42, 0.18);
+  color: rgba(15, 23, 42, 0.5);
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+.btn-primary:disabled:hover {
+  background: rgba(15, 23, 42, 0.18);
+}
 .ingredients-table {
   width: 100%;
   border-collapse: collapse;
@@ -244,6 +254,32 @@ details summary {
   cursor: pointer;
   font-weight: 600;
   margin-bottom: 8px;
+}
+.collapsible summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.collapsible summary::-webkit-details-marker {
+  display: none;
+}
+.collapsible summary .section-title {
+  margin: 0;
+}
+.collapsible summary::after {
+  content: '▾';
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+}
+.collapsible[open] summary::after {
+  transform: rotate(180deg);
+}
+.collapsible > .table-wrapper {
+  margin-top: 12px;
 }
 @media (max-width: 640px) {
   .range-inputs {

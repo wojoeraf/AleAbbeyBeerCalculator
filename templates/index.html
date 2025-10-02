@@ -76,39 +76,43 @@
       </section>
 
       <section>
-        <h3 class="section-title">Zutatenübersicht</h3>
-        <div class="table-wrapper">
-          <table class="ingredients-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Geschmack</th>
-                <th>Farbe</th>
-                <th>Stärke</th>
-                <th>Schaum</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for ing in ingredients %}
+        <details class="collapsible" data-collapsible open>
+          <summary>
+            <h3 class="section-title">Zutatenübersicht</h3>
+          </summary>
+          <div class="table-wrapper">
+            <table class="ingredients-table">
+              <thead>
                 <tr>
-                  <td>{{ ing.name }}</td>
-                  <td>{{ '%.1f'|format(ing.vec[0]) }}</td>
-                  <td>{{ '%.1f'|format(ing.vec[1]) }}</td>
-                  <td>{{ '%.1f'|format(ing.vec[2]) }}</td>
-                  <td>{{ '%.1f'|format(ing.vec[3]) }}</td>
+                  <th>Name</th>
+                  <th>Geschmack</th>
+                  <th>Farbe</th>
+                  <th>Stärke</th>
+                  <th>Schaum</th>
                 </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {% for ing in ingredients %}
+                  <tr>
+                    <td>{{ ing.name }}</td>
+                    <td>{{ '%.1f'|format(ing.vec[0]) }}</td>
+                    <td>{{ '%.1f'|format(ing.vec[1]) }}</td>
+                    <td>{{ '%.1f'|format(ing.vec[2]) }}</td>
+                    <td>{{ '%.1f'|format(ing.vec[3]) }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </details>
       </section>
 
-      <button class="btn-primary" type="submit">Rezept berechnen</button>
+      <button class="btn-primary" type="submit" data-submit-button {% if not has_active_constraints %}disabled{% endif %}>Rezept berechnen</button>
     </form>
 
     {% if solutions is not none %}
       <section style="margin-top: 32px;">
-        <h2 class="section-title">Ergebnisse</h2>
+        <h2 class="section-title">Ergebnisse ({{ solutions|length }})</h2>
         {% if solutions|length == 0 %}
           <p><strong>Keine Lösung</strong> unter den gegebenen Regeln gefunden.</p>
         {% else %}
@@ -160,7 +164,22 @@
 
   <script>
     window.addEventListener('DOMContentLoaded', () => {
-      document.querySelectorAll('[data-attr-card]').forEach(card => {
+      const attrCards = Array.from(document.querySelectorAll('[data-attr-card]'));
+      const submitBtn = document.querySelector('[data-submit-button]');
+
+      const updateSubmitState = () => {
+        if (!submitBtn) return;
+        const hasConstraint = attrCards.some(card => {
+          const selectedBand = card.querySelector('input[type="radio"]:checked');
+          const modeSelect = card.querySelector('.mode-select');
+          const bandActive = selectedBand && selectedBand.value !== 'any';
+          const modeActive = modeSelect && modeSelect.value !== 'any';
+          return bandActive || modeActive;
+        });
+        submitBtn.disabled = !hasConstraint;
+      };
+
+      attrCards.forEach(card => {
         const modeSelect = card.querySelector('.mode-select');
         const minInput = card.querySelector('.min-input');
         const maxInput = card.querySelector('.max-input');
@@ -180,11 +199,17 @@
             minInput.disabled = false;
             maxInput.disabled = false;
           }
+          updateSubmitState();
         };
 
         toggle();
         modeSelect.addEventListener('change', toggle);
+        card.querySelectorAll('input[type="radio"]').forEach(radio => {
+          radio.addEventListener('change', updateSubmitState);
+        });
       });
+
+      updateSubmitState();
     });
   </script>
 </body>
