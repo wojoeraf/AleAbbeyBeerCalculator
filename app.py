@@ -12,7 +12,6 @@ BEER_STYLES = {
     "Blonde Ale": {
         "base": [0.0, 0.0, 0.0, 0.0],
         "min_counts": {"Grut":1,"Helles Malz":1,"Standardhefe":1},
-        "facultative_counts": {"Honig": 1},
         "bands": {
             "taste": [
                 {"band":"red",    "min":0.0, "max":0.99},
@@ -44,7 +43,6 @@ BEER_STYLES = {
     "Leichtes Ale": {
         "base": [0.0, 0.0, 0.0, 0.0],
         "min_counts": {"Helles Malz":1,"Standardhefe":1},
-        "facultative_counts": {"Honig": 1},
         "bands": {
             "taste": [
                 {"band": "red",    "min":0.0, "max":0.99},
@@ -74,7 +72,6 @@ BEER_STYLES = {
     "Old Ale": {
         "base": [0.0, 0.0, 0.0, 0.0],
         "min_counts": {"Grut":1,"Braunes Malz":1,"Helles Malz":1,"Standardhefe":1},
-        "facultative_counts": {"Honig": 1},
         "bands": {
             "taste": [
                 {"band": "red",    "min":0.0, "max":1.99},
@@ -107,7 +104,6 @@ BEER_STYLES = {
     "Kräuterbier": {
         "base": [0.0, 0.0, 0.0, 0.0],
         "min_counts": {"Eukalyptus":1,"Grut":1,"Honig":1,"Bernsteinfarbenes Malz":1,"Helles Malz":1,"Standardhefe":1},
-        "facultative_counts": {},
         "bands": {
             "taste": [
                 {"band": "red",    "min":0.0, "max":3.99},
@@ -194,9 +190,6 @@ def solve_recipe(ingredients, style_name, numeric_intervals, band_preferences,
     min_x = np.zeros(n, dtype=int)
     for nm, cnt in BEER_STYLES[style_name].get("min_counts", {}).items():
         if nm in name_to_idx: min_x[name_to_idx[nm]] = int(cnt)
-    for nm, cnt in BEER_STYLES[style_name].get("facultative_counts", {}).items():
-        if nm in name_to_idx:
-            min_x[name_to_idx[nm]] = max(min_x[name_to_idx[nm]], int(cnt))
     if extra_min_counts:
         for nm, cnt in extra_min_counts.items():
             if nm in name_to_idx:
@@ -422,8 +415,7 @@ def index():
             for a in ATTRS
         )
 
-        facultative_counts = BEER_STYLES[style].get("facultative_counts", {})
-        extra_min_counts = {nm: int(cnt) for nm, cnt in facultative_counts.items()}
+        extra_min_counts: Dict[str, int] = {}
         for nm in selected_optional:
             extra_min_counts[nm] = max(extra_min_counts.get(nm, 0), 1)
 
@@ -443,9 +435,6 @@ def index():
         for nm, cnt in BEER_STYLES[style].get("min_counts", {}).items():
             if nm in name_to_idx:
                 min_x[name_to_idx[nm]] = int(cnt)
-        for nm, cnt in facultative_counts.items():
-            if nm in name_to_idx:
-                min_x[name_to_idx[nm]] = max(min_x[name_to_idx[nm]], int(cnt))
         for nm in selected_optional:
             if nm in name_to_idx:
                 min_x[name_to_idx[nm]] = max(min_x[name_to_idx[nm]], 1)
@@ -495,7 +484,6 @@ def index():
         per_cap=per_cap,
         solutions=solutions,
         style_mins=BEER_STYLES[style].get("min_counts", {}),
-        style_facultative=BEER_STYLES[style].get("facultative_counts", {}),
         debug_info=debug_info,
         has_active_constraints=has_active_constraints,
         selected_optional=selected_optional,

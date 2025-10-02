@@ -97,9 +97,9 @@
               </thead>
               <tbody>
                 {% for ing in ingredients %}
-                  {% set is_required = style_mins.get(ing.name, 0) > 0 %}
-                  {% set is_facultative = ing.name in style_facultative %}
-                  {% set is_locked = is_required or is_facultative %}
+                  {% set required_count = style_mins.get(ing.name, 0) %}
+                  {% set is_required = required_count > 0 %}
+                  {% set is_locked = is_required %}
                   {% set is_checked = is_locked or ing.name in selected_optional %}
                   <tr class="{% if is_locked %}ingredient-locked{% endif %}">
                     <td class="checkbox-cell">
@@ -112,9 +112,9 @@
                       <div class="ingredient-name">
                         <span>{{ ing.name }}</span>
                         {% if is_required %}
-                          <span class="ingredient-badge badge-required">Pflicht</span>
-                        {% elif is_facultative %}
-                          <span class="ingredient-badge badge-facultative">Fakultativ</span>
+                          <span class="ingredient-badge badge-required">
+                            Pflicht{% if required_count > 1 %} × {{ required_count }}{% endif %}
+                          </span>
                         {% endif %}
                       </div>
                     </td>
