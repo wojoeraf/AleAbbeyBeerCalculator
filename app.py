@@ -173,48 +173,6 @@ def parse_numeric_constraint(op: str, val: Optional[float]) -> Tuple[float,float
     return (-1e9, 1e9)
 
 # ============== Solvers ==============
-def nnls_clip(A: np.ndarray, b: np.ndarray) -> np.ndarray:
-    m, n = A.shape
-    active = np.ones(n, dtype=bool)
-    x = np.zeros(n)
-    for _ in range(20):
-        if active.sum() == 0: return x
-        A_sub = A[:, active]
-        try:
-            x_sub, *_ = np.linalg.lstsq(A_sub, b, rcond=None)
-        except np.linalg.LinAlgError:
-            return x
-        x_sub = np.maximum(x_sub, 0.0)
-        x[:] = 0.0; x[active] = x_sub
-        if (x >= -1e-9).all(): return x
-        active[np.argmin(x)] = False
-    return np.maximum(x,0.0)
-
-def local_search_integer(A: np.ndarray, base: np.ndarray, L: np.ndarray, U: np.ndarray,
-                         start_x: np.ndarray, total_cap: int, per_cap: int, min_x: np.ndarray) -> Optional[np.ndarray]:
-    """Hill-climbing with lower bounds min_x and upper per_cap/total_cap."""
-    x = np.clip(np.round(start_x).astype(int), 0, per_cap)
-    x = np.maximum(x, min_x)
-    def score(xv):
-        if np.any(xv < min_x) or xv.sum()>total_cap: return (True,10**9,10**9,())
-        y = A @ xv + base
-        below = np.maximum(L - y, 0); above = np.maximum(y - U, 0)
-        viol = float(below.sum() + above.sum())
-        return (viol > 1e-9, int(xv.sum()), viol, tuple(xv.tolist()))
-    best = x.copy(); best_score = score(best)
-    improved = True; iters = 0
-    while improved and iters < 2000:
-        improved = False; iters += 1
-        for i in range(len(x)):
-            for d in (-1, 1):
-                cand = best.copy()
-                cand[i] = int(np.clip(cand[i] + d, min_x[i], per_cap))
-                sc = score(cand)
-                if sc < best_score:
-                    best, best_score = cand, sc; improved = True
-    if best_score[0]: return None
-    return best
-
 def solve_recipe(ingredients, style_name, numeric_cons, exactly_one_yellow, others_green,
                  total_cap, per_cap, preferred_yellow_attr=None, topk=10,
                  band_count_requirements: Optional[Dict[str,int]] = None):
@@ -235,15 +193,16 @@ def solve_recipe(ingredients, style_name, numeric_cons, exactly_one_yellow, othe
         lo, hi = parse_numeric_constraint(*numeric_cons.get(a, ("none", None)))
         num_intervals.append((lo, hi))
 
-    def allowed_intervals_for_attr(attr: str, force_band: Optional[str]):
+    def allowed_intervals_for_attr(attr: str, allowed_bands: Optional[List[str]]):
         start_iv = num_intervals[ATTRS.index(attr)]
-        if force_band is None:
+        if not allowed_bands:
             return [start_iv]
-        segs = segments_for_band(style_name, attr, force_band)
-        out = []
-        for seg in segs:
-            iv = intersect_interval(start_iv, seg)
-            if iv: out.append(iv)
+        out: List[Tuple[float, float]] = []
+        for band in allowed_bands:
+            for seg in segments_for_band(style_name, attr, band):
+                iv = intersect_interval(start_iv, seg)
+                if iv and iv not in out:
+                    out.append(iv)
         return out
 
     yellow_attrs = [None]
@@ -257,66 +216,182 @@ def solve_recipe(ingredients, style_name, numeric_cons, exactly_one_yellow, othe
 
     solutions = []
     for yellow_attr in yellow_attrs:
-        per_attr_lists = []
-        for a in ATTRS:
-            force = None
-            if others_green and a != yellow_attr: force = "green"
-            if yellow_attr == a: force = "yellow"
-            per_attr_lists.append(allowed_intervals_for_attr(a, force))
-        if any(len(lst)==0 for lst in per_attr_lists): continue
+        allowed_map: Dict[str, set] = {a: {"green", "yellow", "red"} for a in ATTRS}
+        if yellow_attr is not None:
+            allowed_map[yellow_attr] = {"yellow"}
+            if others_green:
+                for a in ATTRS:
+                    if a != yellow_attr:
+                        allowed_map[a] = {"green"}
+        elif others_green:
+            for a in ATTRS:
+                allowed_map[a] = {"green"}
 
-        for iv_box in itertools.product(*per_attr_lists):
-            Lb = np.array([iv[0] for iv in iv_box], dtype=float)
-            Ub = np.array([iv[1] for iv in iv_box], dtype=float)
-            Lx = Lb - base; Ux = Ub - base
+        assignments: List[Dict[str, List[str]]] = []
 
-            subset_sizes = [len(req_idx), len(req_idx)+1, len(req_idx)+2, len(req_idx)+3]
-            subset_sizes = [r for r in subset_sizes if r <= n and r >= len(req_idx)]
-            baseline = A @ min_x
-            for r in subset_sizes:
-                for add_combo in itertools.combinations(other_idx, r - len(req_idx)):
-                    S = tuple(sorted(req_idx + list(add_combo)))
-                    AS = A[:, S]
-                    corners = list(itertools.product(*[(Lx[k], Ux[k]) for k in range(4)]))
-                    for t in corners:
-                        b = np.array(t, dtype=float) - baseline
-                        x0 = nnls_clip(AS, b)
-                        x_full = min_x.astype(float).copy()
-                        x_full[list(S)] += x0
-                        cand = local_search_integer(A, base, Lb, Ub, x_full, total_cap, per_cap, min_x=min_x)
-                        if cand is None: continue
-                        y = A @ cand + base
-                        bands = {a: (detect_band(style_name, a, float(y[i])) or "n/a") for i,a in enumerate(ATTRS)}
+        if band_counts_req:
+            def remaining_slots(color: str, start_idx: int) -> int:
+                return sum(1 for j in range(start_idx, len(ATTRS)) if color in allowed_map[ATTRS[j]])
+
+            def backtrack(idx: int, counts_used: Dict[str, int], current: Dict[str, List[str]]):
+                if idx == len(ATTRS):
+                    for color, target in band_counts_req.items():
+                        if target is None:
+                            continue
+                        if counts_used.get(color, 0) != target:
+                            return
+                    assignments.append({k: v[:] for k, v in current.items()})
+                    return
+                attr = ATTRS[idx]
+                options = sorted(allowed_map[attr])
+                if not options:
+                    return
+                for band in options:
+                    counts_used[band] = counts_used.get(band, 0) + 1
+                    target = band_counts_req.get(band)
+                    if target is not None and counts_used[band] > target:
+                        counts_used[band] -= 1
+                        if counts_used[band] == 0:
+                            counts_used.pop(band)
+                        continue
+                    feasible = True
+                    for color, target in band_counts_req.items():
+                        if target is None:
+                            continue
+                        used = counts_used.get(color, 0)
+                        max_possible = used + remaining_slots(color, idx + 1)
+                        if used > target or max_possible < target:
+                            feasible = False
+                            break
+                    if feasible:
+                        current[attr] = [band]
+                        backtrack(idx + 1, counts_used, current)
+                        current.pop(attr, None)
+                    counts_used[band] -= 1
+                    if counts_used[band] == 0:
+                        counts_used.pop(band)
+
+            backtrack(0, {}, {})
+        else:
+            assignments.append({a: sorted(allowed_map[a]) for a in ATTRS})
+
+        if not assignments:
+            continue
+
+        for assignment in assignments:
+            per_attr_lists = []
+            valid = True
+            for a in ATTRS:
+                bands_for_attr = assignment[a] if assignment[a] else None
+                ivs = allowed_intervals_for_attr(a, bands_for_attr)
+                if not ivs:
+                    valid = False
+                    break
+                per_attr_lists.append(ivs)
+            if not valid:
+                continue
+
+            for iv_box in itertools.product(*per_attr_lists):
+                Lb = np.array([iv[0] for iv in iv_box], dtype=float)
+                Ub = np.array([iv[1] for iv in iv_box], dtype=float)
+
+                if np.any(min_x > per_cap):
+                    continue
+
+                suffix_min_counts = np.zeros(n + 1, dtype=int)
+                for idx in range(n - 1, -1, -1):
+                    suffix_min_counts[idx] = int(min_x[idx]) + suffix_min_counts[idx + 1]
+                if suffix_min_counts[0] > total_cap:
+                    continue
+
+                suffix_lo = np.zeros((n + 1, 4), dtype=float)
+                suffix_hi = np.zeros((n + 1, 4), dtype=float)
+                for idx in range(n - 1, -1, -1):
+                    vec = A[:, idx]
+                    lo_cnt = int(min_x[idx])
+                    hi_cnt = int(per_cap)
+                    for k in range(4):
+                        coef = vec[k]
+                        if coef >= 0:
+                            lo_val = coef * lo_cnt
+                            hi_val = coef * hi_cnt
+                        else:
+                            lo_val = coef * hi_cnt
+                            hi_val = coef * lo_cnt
+                        suffix_lo[idx, k] = lo_val + suffix_lo[idx + 1, k]
+                        suffix_hi[idx, k] = hi_val + suffix_hi[idx + 1, k]
+
+                counts = [0] * n
+                seen_local = set()
+
+                def dfs(idx: int, used: int, totals: np.ndarray):
+                    if used + suffix_min_counts[idx] > total_cap:
+                        return
+                    for k in range(4):
+                        min_possible = totals[k] + suffix_lo[idx, k]
+                        max_possible = totals[k] + suffix_hi[idx, k]
+                        if max_possible < Lb[k] - 1e-9 or min_possible > Ub[k] + 1e-9:
+                            return
+
+                    if idx == n:
+                        if np.any(totals < Lb - 1e-9) or np.any(totals > Ub + 1e-9):
+                            return
+                        key = tuple(counts)
+                        if key in seen_local:
+                            return
+                        seen_local.add(key)
+                        bands = {a: (detect_band(style_name, a, float(totals[i])) or "n/a") for i, a in enumerate(ATTRS)}
                         if exactly_one_yellow:
-                            yellow_count = sum(1 for a in ATTRS if bands[a]=="yellow")
-                            green_count  = sum(1 for a in ATTRS if bands[a]=="green")
-                            if yellow_count != 1: continue
-                            if others_green and green_count != (4-1): continue
-                        ok = True
-                        for i,a in enumerate(ATTRS):
-                            lo,hi = num_intervals[i]
-                            if y[i] < lo - 1e-9 or y[i] > hi + 1e-9:
-                                ok = False; break
-                        if not ok: continue
+                            yellow_count = sum(1 for a in ATTRS if bands[a] == "yellow")
+                            green_count = sum(1 for a in ATTRS if bands[a] == "green")
+                            if yellow_count != 1:
+                                return
+                            if others_green and green_count != (len(ATTRS) - 1):
+                                return
                         if band_counts_req:
-                            counts = {'green':0,'yellow':0,'red':0}
+                            counts_by_band = {"green": 0, "yellow": 0, "red": 0}
                             for a in ATTRS:
                                 bname = bands[a]
-                                if bname in counts: counts[bname] += 1
-                            for k,v in band_counts_req.items():
-                                if v is None: continue
-                                if counts.get(k,0) != v:
-                                    ok = False; break
-                            if not ok: continue
+                                if bname in counts_by_band:
+                                    counts_by_band[bname] += 1
+                            for k, v in band_counts_req.items():
+                                if v is None:
+                                    continue
+                                if counts_by_band.get(k, 0) != v:
+                                    return
+                        cand = np.array(counts, dtype=int)
+                        y = A @ cand + base
                         solutions.append({
-                            "x": cand.tolist(),
+                            "x": counts.copy(),
                             "sum": int(cand.sum()),
                             "totals": y.round(3).tolist(),
                             "bands": bands,
-                            "active": [ingredients[i]["name"] for i in np.where(cand>0)[0]],
-                            "counts_by_name": {ingredients[i]["name"]: int(cand[i]) for i in range(n) if cand[i]>0},
-                            "yellow_attr": yellow_attr
+                            "active": [ingredients[i]["name"] for i in np.where(cand > 0)[0]],
+                            "counts_by_name": {ingredients[i]["name"]: int(cand[i]) for i in range(n) if cand[i] > 0},
+                            "yellow_attr": yellow_attr,
                         })
+                        return
+
+                    remaining_min_after = suffix_min_counts[idx + 1]
+                    max_c = min(per_cap, total_cap - used - remaining_min_after)
+                    min_c = int(min_x[idx])
+                    if max_c < min_c:
+                        return
+                    vec = A[:, idx]
+                    for c in range(min_c, max_c + 1):
+                        counts[idx] = c
+                        new_used = used + c
+                        new_totals = totals + vec * c
+                        for k in range(4):
+                            min_possible = new_totals[k] + suffix_lo[idx + 1, k]
+                            max_possible = new_totals[k] + suffix_hi[idx + 1, k]
+                            if max_possible < Lb[k] - 1e-9 or min_possible > Ub[k] + 1e-9:
+                                break
+                        else:
+                            dfs(idx + 1, new_used, new_totals)
+                    counts[idx] = 0
+
+                dfs(0, 0, base.copy())
 
     solutions.sort(key=lambda s: (s["sum"], s["totals"], s["x"]))
     seen = set(); uniq = []
