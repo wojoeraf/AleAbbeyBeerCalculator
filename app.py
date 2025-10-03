@@ -181,7 +181,7 @@ def segments_for_band(style: str, attr: str, band: str) -> List[Tuple[float,floa
 
 # ============== Solvers ==============
 def solve_recipe(ingredients, style_name, numeric_intervals, band_preferences,
-                 total_cap, per_cap, topk=10, extra_min_counts=None):
+                 total_cap, per_cap, topk=3, extra_min_counts=None):
     A = np.array([ing["vec"] for ing in ingredients], dtype=float).T  # 4 x n
     base = np.array(BEER_STYLES[style_name]["base"], dtype=float)
     n = A.shape[1]
