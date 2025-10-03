@@ -93,6 +93,7 @@
                   <th>Farbe</th>
                   <th>Stärke</th>
                   <th>Schaum</th>
+                  <th>Preis (Gold)</th>
                 </tr>
               </thead>
               <tbody>
@@ -124,6 +125,14 @@
                     <td>{{ '%.1f'|format(ing.vec[1]) }}</td>
                     <td>{{ '%.1f'|format(ing.vec[2]) }}</td>
                     <td>{{ '%.1f'|format(ing.vec[3]) }}</td>
+                    <td>
+                      <input type="number"
+                             name="price_{{ loop.index0 }}"
+                             value="{{ '%.2f'|format(ing.price) }}"
+                             step="0.1"
+                             min="0"
+                             class="price-input">
+                    </td>
                   </tr>
                 {% endfor %}
               </tbody>
@@ -145,6 +154,7 @@
             {% for s in solutions %}
               <div class="card">
                 <h3 style="margin-top:0;">Gesamtzutaten: {{ s.sum }}</h3>
+                <p style="margin:4px 0 12px; font-weight:600;">Gesamtpreis: {{ '%.2f'|format(s.total_price) }} Gold</p>
                 <p style="margin-bottom:8px; font-weight:600;">Zutatenmix</p>
                 <div class="chips" style="margin-bottom:12px;">
                   {% for name, cnt in s.counts_by_name.items() %}

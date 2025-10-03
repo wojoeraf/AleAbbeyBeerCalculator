@@ -136,14 +136,14 @@ BEER_STYLES = {
 }
 # ================= DATA =================
 INGREDIENTS = [
-    # name, (taste, color, strength, foam)
-    {"name": "Grut", "vec": [0.5, -0.3, 0.0, 0.0]},
-    {"name": "Honig", "vec": [1, 0.3, 1.0, 0.0]},
-    {"name": "Helles Malz", "vec": [0.4, 0.3, 1.0, 0.5]},
-    {"name": "Standardhefe", "vec": [0.5, 0.0, -1.0, -0.5]},
-    {"name": "Eukalyptus", "vec": [1.0, 0.0, -0.2, -0.5]},
-    {"name": "Braunes Malz", "vec": [1.6, 2.0, 0.0, 0.0]},
-    {"name": "Bernsteinfarbenes Malz", "vec": [0.8, 1.2, 0.5, 0.8]},
+    # name, (taste, color, strength, foam), price
+    {"name": "Grut", "vec": [0.5, -0.3, 0.0, 0.0], "price": 4.5},
+    {"name": "Honig", "vec": [1, 0.3, 1.0, 0.0], "price": 3.0},
+    {"name": "Helles Malz", "vec": [0.4, 0.3, 1.0, 0.5], "price": 2.0},
+    {"name": "Standardhefe", "vec": [0.5, 0.0, -1.0, -0.5], "price": 1.5},
+    {"name": "Eukalyptus", "vec": [1.0, 0.0, -0.2, -0.5], "price": 2.5},
+    {"name": "Braunes Malz", "vec": [1.6, 2.0, 0.0, 0.0], "price": 2.2},
+    {"name": "Bernsteinfarbenes Malz", "vec": [0.8, 1.2, 0.5, 0.8], "price": 2.8},
     # Add more here...
 ]
 
@@ -181,8 +181,9 @@ def segments_for_band(style: str, attr: str, band: str) -> List[Tuple[float,floa
 
 # ============== Solvers ==============
 def solve_recipe(ingredients, style_name, numeric_intervals, band_preferences,
-                 total_cap, per_cap, topk=10, extra_min_counts=None):
+                 total_cap, per_cap, topk=3, extra_min_counts=None):
     A = np.array([ing["vec"] for ing in ingredients], dtype=float).T  # 4 x n
+    prices = np.array([float(ing.get("price", 0.0)) for ing in ingredients], dtype=float)
     base = np.array(BEER_STYLES[style_name]["base"], dtype=float)
     n = A.shape[1]
 
@@ -230,6 +231,18 @@ def solve_recipe(ingredients, style_name, numeric_intervals, band_preferences,
             return []
         per_attr_lists.append(ivs)
 
+    best_costs: List[float] = []
+    best_cost_threshold = float("inf")
+
+    def register_cost(val: float):
+        nonlocal best_cost_threshold
+        best_costs.append(val)
+        best_costs.sort()
+        if len(best_costs) > topk:
+            best_costs.pop()
+        if len(best_costs) == topk:
+            best_cost_threshold = best_costs[-1]
+
     for iv_box in itertools.product(*per_attr_lists):
         Lb = np.array([iv[0] for iv in iv_box], dtype=float)
         Ub = np.array([iv[1] for iv in iv_box], dtype=float)
@@ -238,8 +251,10 @@ def solve_recipe(ingredients, style_name, numeric_intervals, band_preferences,
             continue
 
         suffix_min_counts = np.zeros(n + 1, dtype=int)
+        suffix_min_price = np.zeros(n + 1, dtype=float)
         for idx in range(n - 1, -1, -1):
             suffix_min_counts[idx] = int(min_x[idx]) + suffix_min_counts[idx + 1]
+            suffix_min_price[idx] = prices[idx] * int(min_x[idx]) + suffix_min_price[idx + 1]
         if suffix_min_counts[0] > total_cap:
             continue
 
@@ -248,7 +263,10 @@ def solve_recipe(ingredients, style_name, numeric_intervals, band_preferences,
         for idx in range(n - 1, -1, -1):
             vec = A[:, idx]
             lo_cnt = int(min_x[idx])
-            hi_cnt = int(per_cap)
+            remaining_capacity = total_cap - suffix_min_counts[idx + 1]
+            if remaining_capacity < 0:
+                remaining_capacity = 0
+            hi_cnt = int(min(per_cap, remaining_capacity))
             for k in range(4):
                 coef = vec[k]
                 if coef >= 0:
@@ -263,8 +281,10 @@ def solve_recipe(ingredients, style_name, numeric_intervals, band_preferences,
         counts = [0] * n
         seen_local = set()
 
-        def dfs(idx: int, used: int, totals: np.ndarray):
+        def dfs(idx: int, used: int, totals: np.ndarray, cost: float):
             if used + suffix_min_counts[idx] > total_cap:
+                return
+            if len(best_costs) >= topk and cost + suffix_min_price[idx] >= best_cost_threshold - 1e-9:
                 return
             for k in range(4):
                 min_possible = totals[k] + suffix_lo[idx, k]
@@ -289,7 +309,10 @@ def solve_recipe(ingredients, style_name, numeric_intervals, band_preferences,
                     "bands": bands,
                     "active": [ingredients[i]["name"] for i in np.where(cand > 0)[0]],
                     "counts_by_name": {ingredients[i]["name"]: int(cand[i]) for i in range(n) if cand[i] > 0},
+                    "total_price": round(cost, 2),
+                    "total_price_raw": cost,
                 })
+                register_cost(cost)
                 return
 
             remaining_min_after = suffix_min_counts[idx + 1]
@@ -298,27 +321,34 @@ def solve_recipe(ingredients, style_name, numeric_intervals, band_preferences,
             if max_c < min_c:
                 return
             vec = A[:, idx]
+            price = prices[idx]
             for c in range(min_c, max_c + 1):
                 counts[idx] = c
                 new_used = used + c
                 new_totals = totals + vec * c
+                new_cost = cost + price * c
+                if len(best_costs) >= topk and new_cost + suffix_min_price[idx + 1] >= best_cost_threshold - 1e-9:
+                    continue
                 for k in range(4):
                     min_possible = new_totals[k] + suffix_lo[idx + 1, k]
                     max_possible = new_totals[k] + suffix_hi[idx + 1, k]
                     if max_possible < Lb[k] - 1e-9 or min_possible > Ub[k] + 1e-9:
                         break
                 else:
-                    dfs(idx + 1, new_used, new_totals)
+                    dfs(idx + 1, new_used, new_totals, new_cost)
             counts[idx] = 0
 
-        dfs(0, 0, base.copy())
+        dfs(0, 0, base.copy(), 0.0)
 
-    solutions.sort(key=lambda s: (s["sum"], s["totals"], s["x"]))
+    solutions.sort(key=lambda s: (s["total_price_raw"], s["sum"], s["totals"], s["x"]))
     seen = set(); uniq = []
     for s in solutions:
         key = tuple(s["x"])
         if key in seen: continue
-        seen.add(key); uniq.append(s)
+        seen.add(key)
+        s = dict(s)
+        s.pop("total_price_raw", None)
+        uniq.append(s)
         if len(uniq) >= topk: break
     return uniq
 
@@ -341,11 +371,24 @@ def index():
     solutions: Optional[List[Dict[str, object]]] = None
     debug_info: List[str] = []
     selected_optional: Set[str] = set()
+    current_ingredients = [dict(ing) for ing in INGREDIENTS]
 
     if request.method == "POST":
+        for idx, ing in enumerate(current_ingredients):
+            field_name = f"price_{idx}"
+            raw_value = request.form.get(field_name, "").strip()
+            if raw_value:
+                try:
+                    price_val = float(raw_value)
+                except ValueError:
+                    price_val = ing.get("price", 0.0)
+                else:
+                    price_val = max(0.0, price_val)
+                ing["price"] = price_val
+
         band_preferences: Dict[str, Optional[Set[str]]] = {}
         numeric_intervals: Dict[str, Tuple[float, float]] = {}
-        ingredient_names = {ing["name"] for ing in INGREDIENTS}
+        ingredient_names = {ing["name"] for ing in current_ingredients}
         selected_optional = {
             name for name in request.form.getlist("optional_ingredients")
             if name in ingredient_names
@@ -420,18 +463,18 @@ def index():
             extra_min_counts[nm] = max(extra_min_counts.get(nm, 0), 1)
 
         solutions = solve_recipe(
-            INGREDIENTS,
+            current_ingredients,
             style,
             numeric_intervals,
             band_preferences,
             total_cap=total_cap,
             per_cap=per_cap,
-            topk=10,
+            topk=3,
             extra_min_counts=extra_min_counts,
         )
 
-        name_to_idx = {ing["name"]: i for i, ing in enumerate(INGREDIENTS)}
-        min_x = np.zeros(len(INGREDIENTS), dtype=int)
+        name_to_idx = {ing["name"]: i for i, ing in enumerate(current_ingredients)}
+        min_x = np.zeros(len(current_ingredients), dtype=int)
         for nm, cnt in BEER_STYLES[style].get("min_counts", {}).items():
             if nm in name_to_idx:
                 min_x[name_to_idx[nm]] = int(cnt)
@@ -476,8 +519,8 @@ def index():
         attrs=ATTRS,
         attr_labels=ATTR_LABELS,
         band_labels=BAND_LABELS,
-        ingredients=INGREDIENTS,
-        ingredients_json=json.dumps(INGREDIENTS, indent=2, ensure_ascii=False),
+        ingredients=current_ingredients,
+        ingredients_json=json.dumps(current_ingredients, indent=2, ensure_ascii=False),
         styles_json=json.dumps(BEER_STYLES, indent=2, ensure_ascii=False),
         constraints=constraints,
         total_cap=total_cap,
