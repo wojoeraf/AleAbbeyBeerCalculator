@@ -156,6 +156,14 @@ ATTR_LABELS = {
     "foam": "Schaum",
 }
 
+BAND_LABELS = {
+    "any": "Egal",
+    "green": "Grün",
+    "yellow": "Gelb",
+    "red": "Rot",
+    "n/a": "Keine Angabe",
+}
+
 # ============== Helpers ==============
 def intersect_interval(a: Tuple[float,float], b: Tuple[float,float]) -> Optional[Tuple[float,float]]:
     lo = max(a[0], b[0]); hi = min(a[1], b[1])
@@ -173,7 +181,7 @@ def segments_for_band(style: str, attr: str, band: str) -> List[Tuple[float,floa
 
 # ============== Solvers ==============
 def solve_recipe(ingredients, style_name, numeric_intervals, band_preferences,
-                 total_cap, per_cap, topk=10):
+                 total_cap, per_cap, topk=10, extra_min_counts=None):
     A = np.array([ing["vec"] for ing in ingredients], dtype=float).T  # 4 x n
     base = np.array(BEER_STYLES[style_name]["base"], dtype=float)
     n = A.shape[1]
@@ -182,6 +190,10 @@ def solve_recipe(ingredients, style_name, numeric_intervals, band_preferences,
     min_x = np.zeros(n, dtype=int)
     for nm, cnt in BEER_STYLES[style_name].get("min_counts", {}).items():
         if nm in name_to_idx: min_x[name_to_idx[nm]] = int(cnt)
+    if extra_min_counts:
+        for nm, cnt in extra_min_counts.items():
+            if nm in name_to_idx:
+                min_x[name_to_idx[nm]] = max(min_x[name_to_idx[nm]], int(cnt))
     min_sum = int(min_x.sum())
     if total_cap < min_sum: total_cap = min_sum
 
@@ -325,12 +337,19 @@ def index():
     base = BEER_STYLES[style]["base"]
 
     constraints: Dict[str, SimpleNamespace] = {}
+    has_active_constraints = False
     solutions: Optional[List[Dict[str, object]]] = None
     debug_info: List[str] = []
+    selected_optional: Set[str] = set()
 
     if request.method == "POST":
         band_preferences: Dict[str, Optional[Set[str]]] = {}
         numeric_intervals: Dict[str, Tuple[float, float]] = {}
+        ingredient_names = {ing["name"] for ing in INGREDIENTS}
+        selected_optional = {
+            name for name in request.form.getlist("optional_ingredients")
+            if name in ingredient_names
+        }
 
         def parse_and_clamp(raw: str) -> Optional[float]:
             if not raw:
@@ -391,6 +410,15 @@ def index():
                 max=display_max,
             )
 
+        has_active_constraints = any(
+            (constraints[a].band != "any") or (constraints[a].mode != "any")
+            for a in ATTRS
+        )
+
+        extra_min_counts: Dict[str, int] = {}
+        for nm in selected_optional:
+            extra_min_counts[nm] = max(extra_min_counts.get(nm, 0), 1)
+
         solutions = solve_recipe(
             INGREDIENTS,
             style,
@@ -399,6 +427,7 @@ def index():
             total_cap=total_cap,
             per_cap=per_cap,
             topk=10,
+            extra_min_counts=extra_min_counts,
         )
 
         name_to_idx = {ing["name"]: i for i, ing in enumerate(INGREDIENTS)}
@@ -406,6 +435,9 @@ def index():
         for nm, cnt in BEER_STYLES[style].get("min_counts", {}).items():
             if nm in name_to_idx:
                 min_x[name_to_idx[nm]] = int(cnt)
+        for nm in selected_optional:
+            if nm in name_to_idx:
+                min_x[name_to_idx[nm]] = max(min_x[name_to_idx[nm]], 1)
         debug_info.append(f"min_x (Pflichtzutaten): {min_x.tolist()}")
         debug_info.append(f"Gesamt-Cap: {total_cap}, Pro-Zutat-Cap: {per_cap}")
 
@@ -415,9 +447,15 @@ def index():
             lo_txt = "-∞" if lo <= -1e8 else f"{lo:.2f}"
             hi_txt = "∞" if hi >= 1e8 else f"{hi:.2f}"
             band_choice = constraints[a].band
-            band_txt = "egal" if band_choice == "any" else band_choice
+            band_txt = BAND_LABELS.get(band_choice, band_choice)
             debug_info.append(
                 f"  {ATTR_LABELS[a]} → Band: {band_txt}, Intervall: [{lo_txt}, {hi_txt}]"
+            )
+
+        if selected_optional:
+            debug_info.append(
+                "Zusätzliche gewünschte Zutaten: "
+                + ", ".join(sorted(selected_optional))
             )
 
         if not solutions:
@@ -437,6 +475,7 @@ def index():
         base=base,
         attrs=ATTRS,
         attr_labels=ATTR_LABELS,
+        band_labels=BAND_LABELS,
         ingredients=INGREDIENTS,
         ingredients_json=json.dumps(INGREDIENTS, indent=2, ensure_ascii=False),
         styles_json=json.dumps(BEER_STYLES, indent=2, ensure_ascii=False),
@@ -445,7 +484,10 @@ def index():
         per_cap=per_cap,
         solutions=solutions,
         style_mins=BEER_STYLES[style].get("min_counts", {}),
+        style_min_map={s: BEER_STYLES[s].get("min_counts", {}) for s in styles},
         debug_info=debug_info,
+        has_active_constraints=has_active_constraints,
+        selected_optional=selected_optional,
     )
 
 
