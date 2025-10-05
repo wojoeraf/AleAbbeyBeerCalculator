@@ -1,4 +1,3 @@
-
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -15,34 +14,60 @@ def load_json(filename: str):
         return json.load(f)
 
 
-BEER_STYLES = load_json("beer_styles.json")
+TRANSLATIONS = load_json("translations.json")
+LANGUAGE_NAMES = {code: data.get("language_name", code) for code, data in TRANSLATIONS.items()}
+DEFAULT_LANG = "de" if "de" in TRANSLATIONS else next(iter(TRANSLATIONS))
+
 INGREDIENTS = load_json("ingredients.json")
+INGREDIENT_MAP = {ing["id"]: ing for ing in INGREDIENTS}
+BEER_STYLES = load_json("beer_styles.json")
+STYLE_ORDER = list(BEER_STYLES.keys())
+
+ATTRS = ["taste", "color", "strength", "foam"]
 
 
-ATTRS = ["taste","color","strength","foam"]
-ATTR_LABELS = {
-    "taste": "Geschmack",
-    "color": "Farbe",
-    "strength": "Stärke",
-    "foam": "Schaum",
-}
+def get_translation_data(lang: str):
+    if lang in TRANSLATIONS:
+        return TRANSLATIONS[lang]
+    return TRANSLATIONS.get(DEFAULT_LANG, {})
 
-BAND_LABELS = {
-    "any": "Egal",
-    "green": "Grün",
-    "yellow": "Gelb",
-    "red": "Rot",
-    "n/a": "Keine Angabe",
-}
 
-# (Solver-Logik wird nun clientseitig ausgeführt)
-# ================= Web UI =================
+def get_localized_name(names, lang: str) -> str:
+    if isinstance(names, dict):
+        if lang in names:
+            return names[lang]
+        if DEFAULT_LANG in names:
+            return names[DEFAULT_LANG]
+        if names:
+            return next(iter(names.values()))
+    return str(names)
 
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    styles = list(BEER_STYLES.keys())
-    default_style = styles[0]
+    lang_source = request.form if request.method == "POST" else request.args
+    lang = lang_source.get("lang", DEFAULT_LANG)
+    if lang not in TRANSLATIONS:
+        lang = DEFAULT_LANG
+
+    translation = get_translation_data(lang)
+    ui_strings = translation.get("ui", {})
+    attr_labels = translation.get("attr_labels", {})
+    band_labels = translation.get("band_labels", {})
+    mode_labels = translation.get("modes", {})
+
+    styles_ids = STYLE_ORDER or list(BEER_STYLES.keys())
+    if not styles_ids:
+        styles_ids = []
+    styles_for_template = [
+        {
+            "id": style_id,
+            "name": get_localized_name(BEER_STYLES[style_id].get("names", {}), lang),
+        }
+        for style_id in styles_ids
+    ]
+
+    default_style = styles_ids[0] if styles_ids else ""
     style_source = request.form if request.method == "POST" else request.args
     style = style_source.get("style", default_style)
     if style not in BEER_STYLES:
@@ -68,10 +93,9 @@ def index():
         return max(0.0, min(11.0, value))
 
     if request.method == "POST":
-        ingredient_names = {ing["name"] for ing in INGREDIENTS}
+        ingredient_ids = set(INGREDIENT_MAP.keys())
         selected_optional = {
-            name for name in request.form.getlist("optional_ingredients")
-            if name in ingredient_names
+            name for name in request.form.getlist("optional_ingredients") if name in ingredient_ids
         }
 
         for a in ATTRS:
@@ -112,25 +136,66 @@ def index():
         for a in ATTRS
     )
 
+    style_min_map = {s: BEER_STYLES[s].get("min_counts", {}) for s in styles_ids}
+    style_mins = BEER_STYLES.get(style, {}).get("min_counts", {})
+
+    ingredients_for_template = [
+        {
+            "id": ing["id"],
+            "name": get_localized_name(ing.get("names", {}), lang),
+            "vec": ing.get("vec", []),
+        }
+        for ing in INGREDIENTS
+    ]
+
+    ingredient_display_map = {
+        ing["id"]: get_localized_name(ing.get("names", {}), lang) for ing in INGREDIENTS
+    }
+    style_display_map = {
+        sid: get_localized_name(BEER_STYLES[sid].get("names", {}), lang) for sid in styles_ids
+    }
+
+    languages = [
+        {"code": code, "label": LANGUAGE_NAMES.get(code, code)} for code in TRANSLATIONS.keys()
+    ]
+
+    i18n_payload = {
+        "lang": lang,
+        "messages": translation.get("messages", {}),
+        "ui": ui_strings,
+        "ingredient_names": ingredient_display_map,
+        "style_names": style_display_map,
+    }
+
+    meta_data = {
+        "attrs": ATTRS,
+        "attr_labels": attr_labels,
+        "band_labels": band_labels,
+    }
+
     return render_template(
         "index.html",
-        styles=styles,
+        lang=lang,
+        languages=languages,
+        styles=styles_for_template,
         style=style,
         attrs=ATTRS,
-        attr_labels=ATTR_LABELS,
-        band_labels=BAND_LABELS,
-        ingredients=INGREDIENTS,
-        ingredients_json=json.dumps(INGREDIENTS, indent=2, ensure_ascii=False),
-        styles_json=json.dumps(BEER_STYLES, indent=2, ensure_ascii=False),
+        attr_labels=attr_labels,
+        band_labels=band_labels,
+        mode_labels=mode_labels,
+        ingredients=ingredients_for_template,
         constraints=constraints,
         total_cap=total_cap,
         per_cap=per_cap,
-        style_mins=BEER_STYLES[style].get("min_counts", {}),
-        style_min_map={s: BEER_STYLES[s].get("min_counts", {}) for s in styles},
+        style_mins=style_mins,
+        style_min_map=style_min_map,
         has_active_constraints=has_active_constraints,
         selected_optional=selected_optional,
         ingredients_data=INGREDIENTS,
         styles_data=BEER_STYLES,
+        ui=ui_strings,
+        i18n_payload=i18n_payload,
+        meta_data=meta_data,
     )
 
 

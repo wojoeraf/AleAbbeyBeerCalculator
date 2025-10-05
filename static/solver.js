@@ -5,22 +5,100 @@ const parseJSONScript = (id, fallback) => {
     const txt = el.textContent || el.innerText || '';
     return txt ? JSON.parse(txt) : fallback;
   } catch (error) {
-    console.error(`Konnte ${id} nicht parsen`, error);
+    console.error(`Failed to parse ${id}`, error);
     return fallback;
   }
 };
 
+const formatTemplate = (template, replacements = {}) => {
+  if (typeof template !== 'string') return template;
+  return template.replace(/\{(\w+)\}/g, (match, key) => {
+    if (Object.prototype.hasOwnProperty.call(replacements, key)) {
+      const value = replacements[key];
+      if (value === null || value === undefined) {
+        return '';
+      }
+      return String(value);
+    }
+    return match;
+  });
+};
+
 const initSolver = () => {
+  const i18nData = parseJSONScript('i18n-data', {});
   const styleMinMap = parseJSONScript('style-min-data', {});
   const ingredients = parseJSONScript('ingredients-data', []);
   const stylesData = parseJSONScript('styles-data', {});
   const metaData = parseJSONScript('meta-data', {});
 
-  const styleNames = Object.keys(stylesData);
   const ATTRS = metaData.attrs || ['taste', 'color', 'strength', 'foam'];
   const attrLabels = metaData.attr_labels || metaData.attrLabels || {};
   const bandLabels = metaData.band_labels || metaData.bandLabels || {};
   const EPS = 1e-9;
+
+  const messages = i18nData.messages || {};
+  const uiStrings = i18nData.ui || {};
+  const ingredientNames = i18nData.ingredient_names || {};
+  const styleNameMap = i18nData.style_names || {};
+  const currentLang = i18nData.lang || 'en';
+
+  const translate = (key, replacements = {}) => {
+    if (typeof messages[key] === 'string') {
+      return formatTemplate(messages[key], replacements);
+    }
+    if (typeof uiStrings[key] === 'string') {
+      return formatTemplate(uiStrings[key], replacements);
+    }
+    return key;
+  };
+
+  const getIngredientId = (ingredient, index) => {
+    if (ingredient && typeof ingredient.id === 'string') {
+      return ingredient.id;
+    }
+    if (ingredient && typeof ingredient.name === 'string') {
+      return ingredient.name;
+    }
+    return String(index);
+  };
+
+  const displayIngredientName = (id) => {
+    if (!id) {
+      return translate('style_unknown');
+    }
+    if (ingredientNames[id]) {
+      return ingredientNames[id];
+    }
+    const entry = ingredients.find((ing, idx) => getIngredientId(ing, idx) === id);
+    if (entry) {
+      if (entry.names) {
+        if (currentLang && entry.names[currentLang]) {
+          return entry.names[currentLang];
+        }
+        if (entry.names.en) {
+          return entry.names.en;
+        }
+        if (entry.names.de) {
+          return entry.names.de;
+        }
+        const values = Object.values(entry.names);
+        if (values.length) {
+          return values[0];
+        }
+      }
+      if (entry.name) {
+        return entry.name;
+      }
+    }
+    return id;
+  };
+
+  const displayStyleName = (id) => {
+    if (!id) {
+      return translate('style_unknown');
+    }
+    return styleNameMap[id] || id;
+  };
 
   const attrCards = Array.from(document.querySelectorAll('[data-attr-card]'));
   const submitBtn = document.querySelector('[data-submit-button]');
@@ -74,6 +152,8 @@ const initSolver = () => {
     return lo <= hi ? [lo, hi] : null;
   };
 
+  const styleIds = Object.keys(stylesData);
+
   const solveRecipe = ({
     styleName,
     numericIntervals,
@@ -85,32 +165,32 @@ const initSolver = () => {
   }) => {
     const style = stylesData[styleName];
     if (!style) {
-      return { solutions: [], info: [`Unbekannter Stil: ${styleName}`] };
+      return { solutions: [], info: [translate('unknown_style', { style: displayStyleName(styleName) })] };
     }
 
     const n = ingredients.length;
     const base = (style.base || [0, 0, 0, 0]).map(Number);
     const vectors = ingredients.map((ing) => (ing.vec || [0, 0, 0, 0]).map(Number));
-    const nameToIndex = new Map(ingredients.map((ing, idx) => [ing.name, idx]));
+    const idToIndex = new Map(ingredients.map((ing, idx) => [getIngredientId(ing, idx), idx]));
 
     const minCounts = new Array(n).fill(0);
     const mandatory = style.min_counts || {};
-    Object.entries(mandatory).forEach(([name, cnt]) => {
-      if (!nameToIndex.has(name)) return;
-      const idx = nameToIndex.get(name);
+    Object.entries(mandatory).forEach(([id, cnt]) => {
+      if (!idToIndex.has(id)) return;
+      const idx = idToIndex.get(id);
       minCounts[idx] = Math.max(minCounts[idx], Number(cnt) || 0);
     });
 
     if (extraMinCounts) {
-      Object.entries(extraMinCounts).forEach(([name, cnt]) => {
-        if (!nameToIndex.has(name)) return;
-        const idx = nameToIndex.get(name);
+      Object.entries(extraMinCounts).forEach(([id, cnt]) => {
+        if (!idToIndex.has(id)) return;
+        const idx = idToIndex.get(id);
         minCounts[idx] = Math.max(minCounts[idx], Number(cnt) || 0);
       });
     }
 
     if (minCounts.some((cnt) => cnt > perCap)) {
-      return { solutions: [], info: ['Pflichtanzahl übersteigt das Zutatencap.'] };
+      return { solutions: [], info: [translate('min_exceeds_cap')] };
     }
 
     const minSum = minCounts.reduce((acc, val) => acc + val, 0);
@@ -150,7 +230,7 @@ const initSolver = () => {
 
     const perAttrLists = ATTRS.map((attr) => allowedIntervalsForAttr(attr, allowedBandMap[attr]));
     if (perAttrLists.some((list) => list.length === 0)) {
-      return { solutions: [], info: ['Keine passenden Intervalle für die gewählten Bänder.'] };
+      return { solutions: [], info: [translate('no_intervals')] };
     }
 
     const suffixMinCounts = new Array(n + 1).fill(0);
@@ -158,7 +238,7 @@ const initSolver = () => {
       suffixMinCounts[idx] = minCounts[idx] + suffixMinCounts[idx + 1];
     }
     if (suffixMinCounts[0] > adjustedTotalCap) {
-      return { solutions: [], info: ['Gesamtcap ist kleiner als die Summe der Pflichtzutaten.'] };
+      return { solutions: [], info: [translate('cap_too_small')] };
     }
 
     const suffixLo = Array.from({ length: n + 1 }, () => new Array(ATTRS.length).fill(0));
@@ -204,10 +284,11 @@ const initSolver = () => {
               bands[attr] = detectBand(style, attr, totals[k]) || 'n/a';
             }
 
-            const countsByName = {};
+            const countsById = {};
             counts.forEach((cnt, ingredientIdx) => {
               if (cnt > 0) {
-                countsByName[ingredients[ingredientIdx].name] = cnt;
+                const id = getIngredientId(ingredients[ingredientIdx], ingredientIdx);
+                countsById[id] = cnt;
               }
             });
 
@@ -217,7 +298,7 @@ const initSolver = () => {
               sum: counts.reduce((acc, val) => acc + val, 0),
               totals: totalsRounded,
               bands,
-              countsByName,
+              countsById,
             });
             return;
           }
@@ -369,30 +450,40 @@ const initSolver = () => {
     });
   });
 
+  const requiredTooltip = uiStrings.tooltip_required || '';
+  const requiredSingle = uiStrings.badge_required_single || 'Required';
+  const requiredMultipleTemplate = uiStrings.badge_required_multiple || `${requiredSingle} × {count}`;
+  const formatRequiredBadge = (count) => {
+    if (count > 1) {
+      return formatTemplate(requiredMultipleTemplate, { count });
+    }
+    return requiredSingle;
+  };
+
   const applyStyleRequirements = (styleName) => {
     if (!styleName) return;
     const activeMins = styleMinMap[styleName] || {};
 
     ingredientRows.forEach((row) => {
-      const ingredientName = row.dataset.ingredientName;
+      const ingredientId = row.dataset.ingredientId;
       const checkbox = row.querySelector('input[type="checkbox"]');
       const label = row.querySelector('.ingredient-option');
       const badge = row.querySelector('[data-required-badge]');
-      if (!checkbox || !ingredientName) {
+      if (!checkbox || !ingredientId) {
         return;
       }
-      const requiredCount = activeMins[ingredientName] || 0;
+      const requiredCount = activeMins[ingredientId] || 0;
       if (requiredCount > 0) {
         row.classList.add('ingredient-locked');
         checkbox.checked = true;
         checkbox.disabled = true;
         checkbox.dataset.userSelected = 'false';
-        if (label) {
-          label.title = 'Diese Zutat ist vorgegeben.';
+        if (label && requiredTooltip) {
+          label.title = requiredTooltip;
         }
         if (badge) {
           badge.hidden = false;
-          badge.textContent = requiredCount > 1 ? `Pflicht × ${requiredCount}` : 'Pflicht';
+          badge.textContent = formatRequiredBadge(requiredCount);
         }
       } else {
         row.classList.remove('ingredient-locked');
@@ -404,6 +495,7 @@ const initSolver = () => {
         }
         if (badge) {
           badge.hidden = true;
+          badge.textContent = requiredSingle;
         }
       }
     });
@@ -438,7 +530,8 @@ const initSolver = () => {
     resultsSection.hidden = false;
     const count = solutions.length;
     if (resultsTitle) {
-      resultsTitle.textContent = `Ergebnisse (${count})`;
+      const titleText = translate('results_title', { count });
+      resultsTitle.textContent = typeof titleText === 'string' ? titleText : translate('results_heading');
     }
     if (resultsSummary) {
       if (summaryLines.length) {
@@ -474,23 +567,23 @@ const initSolver = () => {
 
       const heading = document.createElement('h3');
       heading.style.marginTop = '0';
-      heading.textContent = `Gesamtzutaten: ${solution.sum}`;
+      heading.textContent = translate('solutions_total', { count: solution.sum });
       card.appendChild(heading);
 
       const mixTitle = document.createElement('p');
       mixTitle.style.marginBottom = '8px';
       mixTitle.style.fontWeight = '600';
-      mixTitle.textContent = 'Zutatenmix';
+      mixTitle.textContent = translate('results_mix_title');
       card.appendChild(mixTitle);
 
       const chipsContainer = document.createElement('div');
       chipsContainer.className = 'chips';
       chipsContainer.style.marginBottom = '12px';
-      Object.entries(solution.countsByName).forEach(([name, cnt]) => {
+      Object.entries(solution.countsById).forEach(([id, cnt]) => {
         const chip = document.createElement('span');
         chip.className = 'chip';
         const span = document.createElement('span');
-        span.textContent = `${name} × ${cnt}`;
+        span.textContent = `${displayIngredientName(id)} × ${cnt}`;
         chip.appendChild(span);
         chipsContainer.appendChild(chip);
       });
@@ -498,7 +591,8 @@ const initSolver = () => {
 
       const totalsText = document.createElement('p');
       totalsText.style.margin = '0 0 10px';
-      totalsText.textContent = `Geschmack ${solution.totals[0]}, Farbe ${solution.totals[1]}, Stärke ${solution.totals[2]}, Schaum ${solution.totals[3]}`;
+      const totalsParts = ATTRS.map((attr, idx) => `${attrLabels[attr] || attr} ${solution.totals[idx]}`);
+      totalsText.textContent = totalsParts.join(', ');
       card.appendChild(totalsText);
 
       const pillContainer = document.createElement('div');
@@ -518,15 +612,27 @@ const initSolver = () => {
 
       const details = document.createElement('details');
       const summary = document.createElement('summary');
-      summary.textContent = 'Roh-Vektor';
+      summary.textContent = translate('raw_vector_title');
       details.appendChild(summary);
+
       const pre = document.createElement('pre');
-      pre.className = 'mono';
-      pre.textContent = JSON.stringify(solution.x);
+      pre.style.margin = '8px 0 0';
+      pre.textContent = JSON.stringify(
+        {
+          counts: solution.x,
+          totals: solution.totals,
+          bands: solution.bands,
+        },
+        null,
+        2,
+      );
       details.appendChild(pre);
+
       card.appendChild(details);
 
-      resultsList?.appendChild(card);
+      if (resultsList) {
+        resultsList.appendChild(card);
+      }
     });
   };
 
@@ -546,11 +652,11 @@ const initSolver = () => {
       event.preventDefault();
       const formData = new FormData(form);
       let styleName = formData.get('style');
-      if (!styleName && styleNames.length) {
-        styleName = styleNames[0];
+      if (!styleName && styleIds.length) {
+        styleName = styleIds[0];
       }
-      if (styleName && !(styleName in stylesData) && styleNames.length) {
-        styleName = styleNames[0];
+      if (styleName && !(styleName in stylesData) && styleIds.length) {
+        styleName = styleIds[0];
       }
       const totalCapRaw = Number(formData.get('total_cap'));
       const perCapRaw = Number(formData.get('per_cap'));
@@ -603,28 +709,33 @@ const initSolver = () => {
 
       const selectedOptional = new Set(formData.getAll('optional_ingredients'));
       const extraMinCounts = {};
-      selectedOptional.forEach((name) => {
-        extraMinCounts[name] = Math.max(extraMinCounts[name] || 0, 1);
+      selectedOptional.forEach((id) => {
+        extraMinCounts[id] = Math.max(extraMinCounts[id] || 0, 1);
       });
 
-      debugLines.push(`Stil: ${styleName || '—'}`);
-      debugLines.push(`Gesamt-Cap: ${totalCap}, Pro-Zutat-Cap: ${perCap}`);
-      debugLines.push('Einstellungen je Attribut:');
+      const styleLabel = displayStyleName(styleName) || translate('style_unknown');
+      debugLines.push(translate('debug_style', { style: styleLabel }));
+      debugLines.push(translate('debug_caps', { total: totalCap, per: perCap }));
+      debugLines.push(translate('debug_attr_heading'));
       ATTRS.forEach((attr) => {
         const interval = debugIntervals[attr] || [0, 11];
         const bandPref = bandPreferences[attr];
         const bandKey = bandPref && bandPref.length === 1 ? bandPref[0] : 'any';
-        const bandText = bandLabels[bandKey] || (bandPref ? bandPref.join(', ') : 'Egal');
+        const bandText = bandLabels[bandKey] || bandKey;
         debugLines.push(
-          `  ${attrLabels[attr] || attr} → Band: ${bandText}, Intervall: [${formatIntervalValue(
-            interval[0],
-          )}, ${formatIntervalValue(interval[1])}]`,
+          translate('debug_attr_entry', {
+            label: attrLabels[attr] || attr,
+            band: bandText,
+            min: formatIntervalValue(interval[0]),
+            max: formatIntervalValue(interval[1]),
+          }),
         );
       });
       if (selectedOptional.size) {
-        debugLines.push(
-          'Zusätzliche gewünschte Zutaten: ' + Array.from(selectedOptional).sort().join(', '),
-        );
+        const optionalList = Array.from(selectedOptional)
+          .map((id) => displayIngredientName(id))
+          .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+        debugLines.push(translate('debug_optional', { list: optionalList.join(', ') }));
       }
 
       const { solutions, info } = solveRecipe({
@@ -638,9 +749,9 @@ const initSolver = () => {
 
       const summaryLines = [];
       if (styleName) {
-        summaryLines.push(`Stil: ${styleName}`);
+        summaryLines.push(translate('summary_style', { style: displayStyleName(styleName) }));
       }
-      summaryLines.push(`Cap gesamt ${totalCap}, pro Zutat ${perCap}`);
+      summaryLines.push(translate('summary_caps', { total: totalCap, per: perCap }));
 
       renderSolutions(solutions, summaryLines, info);
       renderDebug(debugLines);

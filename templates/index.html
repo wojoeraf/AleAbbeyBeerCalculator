@@ -1,36 +1,53 @@
 <!doctype html>
-<html lang="de">
+<html lang="{{ lang }}">
 <head>
   <meta charset="utf-8">
-  <title>Ale Abbey Rezept-Solver</title>
+  <title>{{ ui.page_title }}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
   <div class="page">
     <header>
-      <h1>🍺 Ale Abbey – Rezept-Solver</h1>
-      <p>Wähle für jede Eigenschaft die gewünschte Farbzone und lege exakte Wertebereiche fest. Die Berechnung berücksichtigt Pflichtzutaten, Mengenlimits und optionale Wünsche.</p>
+      <div class="header-row">
+        <h1>{{ ui.header_title }}</h1>
+        <form class="language-switcher" method="get">
+          <label for="language-select">{{ ui.language_label }}</label>
+          <div class="language-switcher-controls">
+            <select id="language-select" name="lang" onchange="this.form.submit()">
+              {% for entry in languages %}
+                <option value="{{ entry.code }}" {% if entry.code == lang %}selected{% endif %}>{{ entry.label }}</option>
+              {% endfor %}
+            </select>
+            <noscript>
+              <button type="submit" class="btn-secondary">{{ ui.language_submit }}</button>
+            </noscript>
+          </div>
+          <input type="hidden" name="style" value="{{ style }}">
+        </form>
+      </div>
+      <p>{{ ui.header_description }}</p>
     </header>
 
     <form class="card form-card" data-solver-form>
+      <input type="hidden" name="lang" value="{{ lang }}">
       <section>
-        <h3 class="section-title">Grunddaten</h3>
+        <h3 class="section-title">{{ ui.section_base }}</h3>
         <div class="grid-two">
           <label>
-            <span class="label">Bierstil</span>
+            <span class="label">{{ ui.field_style }}</span>
             <select name="style">
               {% for s in styles %}
-                <option value="{{ s }}" {% if s == style %}selected{% endif %}>{{ s }}</option>
+                <option value="{{ s.id }}" {% if s.id == style %}selected{% endif %}>{{ s.name }}</option>
               {% endfor %}
             </select>
           </label>
           <label>
-            <span class="label">Gesamtanzahl Zutaten (Cap)</span>
+            <span class="label">{{ ui.field_total_cap }}</span>
             <input type="number" name="total_cap" min="1" max="30" value="{{ total_cap }}">
           </label>
           <label>
-            <span class="label">Max pro Zutat</span>
+            <span class="label">{{ ui.field_per_cap }}</span>
             <input type="number" name="per_cap" min="1" max="30" value="{{ per_cap }}">
           </label>
         </div>
@@ -38,8 +55,8 @@
 
       <section>
         <div class="section-header">
-          <h3 class="section-title">Attribute</h3>
-          <button type="button" class="btn-secondary" data-set-all-green>Alle Attribute auf Grün</button>
+          <h3 class="section-title">{{ ui.section_attributes }}</h3>
+          <button type="button" class="btn-secondary" data-set-all-green>{{ ui.button_all_green }}</button>
         </div>
         <div class="attr-grid">
           {% for a in attrs %}
@@ -56,18 +73,18 @@
               </div>
 
               <div>
-                <label class="label" style="margin-top:12px;">Modus</label>
+                <label class="label" style="margin-top:12px;">{{ ui.label_mode }}</label>
                 <select class="mode-select" name="mode_{{ a }}">
-                  <option value="any" {% if constraints[a].mode == 'any' %}selected{% endif %}>Egal</option>
-                  <option value="ge" {% if constraints[a].mode == 'ge' %}selected{% endif %}>Mindestens</option>
-                  <option value="le" {% if constraints[a].mode == 'le' %}selected{% endif %}>Höchstens</option>
-                  <option value="between" {% if constraints[a].mode == 'between' %}selected{% endif %}>Zwischen</option>
+                  <option value="any" {% if constraints[a].mode == 'any' %}selected{% endif %}>{{ mode_labels['any'] }}</option>
+                  <option value="ge" {% if constraints[a].mode == 'ge' %}selected{% endif %}>{{ mode_labels['ge'] }}</option>
+                  <option value="le" {% if constraints[a].mode == 'le' %}selected{% endif %}>{{ mode_labels['le'] }}</option>
+                  <option value="between" {% if constraints[a].mode == 'between' %}selected{% endif %}>{{ mode_labels['between'] }}</option>
                 </select>
                 <div class="range-inputs">
-                  <label>Untergrenze
+                  <label>{{ ui.label_min }}
                     <input type="number" class="min-input" name="min_{{ a }}" step="0.1" min="0" max="11" value="{{ constraints[a].min }}">
                   </label>
-                  <label>Obergrenze
+                  <label>{{ ui.label_max }}
                     <input type="number" class="max-input" name="max_{{ a }}" step="0.1" min="0" max="11" value="{{ constraints[a].max }}">
                   </label>
                 </div>
@@ -80,30 +97,30 @@
       <section>
         <details class="collapsible" data-collapsible open>
           <summary>
-            <h3 class="section-title">Zutatenübersicht</h3>
+            <h3 class="section-title">{{ ui.section_ingredients }}</h3>
           </summary>
           <div class="table-wrapper">
             <table class="ingredients-table">
               <thead>
                 <tr>
                   <th class="col-checkbox"></th>
-                  <th>Name</th>
-                  <th>Geschmack</th>
-                  <th>Farbe</th>
-                  <th>Stärke</th>
-                  <th>Schaum</th>
+                  <th>{{ ui.table_name }}</th>
+                  <th>{{ ui.table_taste }}</th>
+                  <th>{{ ui.table_color }}</th>
+                  <th>{{ ui.table_strength }}</th>
+                  <th>{{ ui.table_foam }}</th>
                 </tr>
               </thead>
               <tbody>
                 {% for ing in ingredients %}
-                  {% set required_count = style_mins.get(ing.name, 0) %}
+                  {% set required_count = style_mins.get(ing.id, 0) %}
                   {% set is_required = required_count > 0 %}
                   {% set is_locked = is_required %}
-                  {% set is_checked = is_locked or ing.name in selected_optional %}
-                  <tr class="{% if is_locked %}ingredient-locked{% endif %}" data-ingredient-row data-ingredient-name="{{ ing.name }}">
+                  {% set is_checked = is_locked or ing.id in selected_optional %}
+                  <tr class="{% if is_locked %}ingredient-locked{% endif %}" data-ingredient-row data-ingredient-id="{{ ing.id }}">
                     <td class="checkbox-cell">
-                      <label class="ingredient-option" {% if is_locked %}title="Diese Zutat ist vorgegeben."{% endif %}>
-                        <input type="checkbox" name="optional_ingredients" value="{{ ing.name }}" {% if is_checked %}checked{% endif %} {% if is_locked %}disabled{% endif %} data-user-selected="{{ 'true' if ing.name in selected_optional else 'false' }}">
+                      <label class="ingredient-option" {% if is_locked %}title="{{ ui.tooltip_required }}"{% endif %}>
+                        <input type="checkbox" name="optional_ingredients" value="{{ ing.id }}" {% if is_checked %}checked{% endif %} {% if is_locked %}disabled{% endif %} data-user-selected="{{ 'true' if ing.id in selected_optional else 'false' }}">
                         <span class="checkbox-visual"></span>
                       </label>
                     </td>
@@ -112,9 +129,13 @@
                         <span>{{ ing.name }}</span>
                         <span class="ingredient-badge badge-required" data-required-badge {% if not is_required %}hidden{% endif %}>
                           {% if is_required %}
-                            Pflicht{% if required_count > 1 %} × {{ required_count }}{% endif %}
+                            {% if required_count > 1 %}
+                              {{ ui.badge_required_multiple | replace('{count}', '%d' % required_count) }}
+                            {% else %}
+                              {{ ui.badge_required_single }}
+                            {% endif %}
                           {% else %}
-                            Pflicht
+                            {{ ui.badge_required_single }}
                           {% endif %}
                         </span>
                       </div>
@@ -131,21 +152,22 @@
         </details>
       </section>
 
-      <button class="btn-primary" type="submit" data-submit-button {% if not has_active_constraints %}disabled{% endif %}>Rezept berechnen</button>
+      <button class="btn-primary" type="submit" data-submit-button {% if not has_active_constraints %}disabled{% endif %}>{{ ui.button_submit }}</button>
     </form>
 
     <section class="results-section" data-results hidden style="margin-top: 32px;">
-      <h2 class="section-title" data-results-title>Ergebnisse</h2>
+      <h2 class="section-title" data-results-title>{{ ui.section_results }}</h2>
       <p class="hint" data-results-summary></p>
       <p class="hint" data-status-message hidden></p>
-      <p data-results-empty hidden><strong>Keine Lösung</strong> unter den gegebenen Regeln gefunden.</p>
+      <p data-results-empty hidden><strong>{{ ui.section_results }}</strong> {{ ui.results_empty }}</p>
       <div class="grid-two" data-results-list></div>
     </section>
   </div>
 
   <script id="ingredients-data" type="application/json">{{ ingredients_data | tojson }}</script>
   <script id="styles-data" type="application/json">{{ styles_data | tojson }}</script>
-  <script id="meta-data" type="application/json">{{ {'attrs': attrs, 'attr_labels': attr_labels, 'band_labels': band_labels} | tojson }}</script>
+  <script id="meta-data" type="application/json">{{ meta_data | tojson }}</script>
+  <script id="i18n-data" type="application/json">{{ i18n_payload | tojson }}</script>
   <script id="style-min-data" type="application/json">{{ style_min_map | tojson }}</script>
   <script type="module" src="{{ url_for('static', filename='solver.js') }}"></script>
 </body>

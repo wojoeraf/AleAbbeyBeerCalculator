@@ -1,9 +1,37 @@
 [
-  {"name": "Standardhefe", "vec": [0.5, 0.0, -1.0, -0.5]},
-  {"name": "Helles Malz", "vec": [0.4, 0.3, 1.0, 0.5]},
-  {"name": "Grut", "vec": [0.5, -0.3, 0.0, 0.0]},
-  {"name": "Braunes Malz", "vec": [1.6, 2.0, 0.0, 0.0]},
-  {"name": "Eukalyptus", "vec": [1.0, 0.0, -0.2, -0.5]},
-  {"name": "Bernsteinfarbenes Malz", "vec": [0.8, 1.2, 0.5, 0.8]},
-  {"name": "Honig", "vec": [1.0, 0.3, 1.0, 0.0]}
+  {
+    "id": "standard_yeast",
+    "names": {"de": "Standardhefe", "en": "Standard Yeast"},
+    "vec": [0.5, 0.0, -1.0, -0.5]
+  },
+  {
+    "id": "pale_malt",
+    "names": {"de": "Helles Malz", "en": "Pale Malt"},
+    "vec": [0.4, 0.3, 1.0, 0.5]
+  },
+  {
+    "id": "grut",
+    "names": {"de": "Grut", "en": "Gruit"},
+    "vec": [0.5, -0.3, 0.0, 0.0]
+  },
+  {
+    "id": "brown_malt",
+    "names": {"de": "Braunes Malz", "en": "Brown Malt"},
+    "vec": [1.6, 2.0, 0.0, 0.0]
+  },
+  {
+    "id": "eucalyptus",
+    "names": {"de": "Eukalyptus", "en": "Eucalyptus"},
+    "vec": [1.0, 0.0, -0.2, -0.5]
+  },
+  {
+    "id": "amber_malt",
+    "names": {"de": "Bernsteinfarbenes Malz", "en": "Amber Malt"},
+    "vec": [0.8, 1.2, 0.5, 0.8]
+  },
+  {
+    "id": "honey",
+    "names": {"de": "Honig", "en": "Honey"},
+    "vec": [1.0, 0.3, 1.0, 0.0]
+  }
 ]
