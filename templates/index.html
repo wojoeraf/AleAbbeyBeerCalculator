@@ -10,10 +10,10 @@
   <div class="page">
     <header>
       <h1>🍺 Ale Abbey – Rezept-Solver</h1>
-      <p>Wähle für jede Eigenschaft die gewünschte Farbzone und lege exakte Wertebereiche fest. Der Solver berücksichtigt Pflichtzutaten, Mengenlimits und filtert passende Kombinationen für dich.</p>
+      <p>Wähle für jede Eigenschaft die gewünschte Farbzone und lege exakte Wertebereiche fest. Die Berechnung läuft vollständig im Browser und berücksichtigt Pflichtzutaten, Mengenlimits und optionale Wünsche.</p>
     </header>
 
-    <form method="post" action="{{ url_for('index') }}" class="card form-card">
+    <form class="card form-card" data-solver-form>
       <section>
         <h3 class="section-title">Grunddaten</h3>
         <div class="grid-two">
@@ -71,7 +71,6 @@
                     <input type="number" class="max-input" name="max_{{ a }}" step="0.1" min="0" max="11" value="{{ constraints[a].max }}">
                   </label>
                 </div>
-                <p class="hint">Wertebereich 0.0 – 11.0, eine Nachkommastelle.</p>
               </div>
             </div>
           {% endfor %}
@@ -135,189 +134,40 @@
       <button class="btn-primary" type="submit" data-submit-button {% if not has_active_constraints %}disabled{% endif %}>Rezept berechnen</button>
     </form>
 
-    {% if solutions is not none %}
-      <section style="margin-top: 32px;">
-        <h2 class="section-title">Ergebnisse ({{ solutions|length }})</h2>
-        {% if solutions|length == 0 %}
-          <p><strong>Keine Lösung</strong> unter den gegebenen Regeln gefunden.</p>
-        {% else %}
-          <div class="grid-two">
-            {% for s in solutions %}
-              <div class="card">
-                <h3 style="margin-top:0;">Gesamtzutaten: {{ s.sum }}</h3>
-                <p style="margin-bottom:8px; font-weight:600;">Zutatenmix</p>
-                <div class="chips" style="margin-bottom:12px;">
-                  {% for name, cnt in s.counts_by_name.items() %}
-                    <span class="chip"><span>{{ name }} × {{ cnt }}</span></span>
-                  {% endfor %}
-                </div>
-                <p style="margin:0 0 10px;">Geschmack {{ s.totals[0] }}, Farbe {{ s.totals[1] }}, Stärke {{ s.totals[2] }}, Schaum {{ s.totals[3] }}</p>
-                <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
-                  {% for a in attrs %}
-                    {% set b = s.bands[a] %}
-                    {% set pill_class = b.replace('/', '-') %}
-                    <span class="pill {{ pill_class }}">{{ attr_labels[a] }}: {{ band_labels.get(b, b) }}</span>
-                  {% endfor %}
-                </div>
-                <details>
-                  <summary>Roh-Vektor</summary>
-                  <pre class="mono">{{ s.x }}</pre>
-                </details>
-              </div>
-            {% endfor %}
-          </div>
-        {% endif %}
-      </section>
-    {% endif %}
+    <section class="results-section" data-results hidden style="margin-top: 32px;">
+      <h2 class="section-title" data-results-title>Ergebnisse</h2>
+      <p class="hint" data-results-summary></p>
+      <p class="hint" data-status-message hidden></p>
+      <p data-results-empty hidden><strong>Keine Lösung</strong> unter den gegebenen Regeln gefunden.</p>
+      <div class="grid-two" data-results-list></div>
+    </section>
 
-    <section style="margin-top: 36px;" class="card">
-      <details>
-        <summary>JSON ansehen</summary>
-        <h3 style="margin-top:16px;">Zutaten</h3>
-        <pre class="mono">{{ ingredients_json }}</pre>
-        <h3>Bierstile</h3>
-        <pre class="mono">{{ styles_json }}</pre>
-      </details>
-      {% if debug_info %}
-        <hr>
-        <details open>
-          <summary>Debug</summary>
-          <pre class="mono">{{ debug_info | join('\n') }}</pre>
+    <section style="margin-top: 36px;" class="card" data-debug-container>
+      <label class="checkbox-inline">
+        <input type="checkbox" id="debug-toggle">
+        <span>Debug anzeigen</span>
+      </label>
+      <div class="debug-content" data-debug-content hidden>
+        <details>
+          <summary>JSON ansehen</summary>
+          <h3 style="margin-top:16px;">Zutaten</h3>
+          <pre class="mono">{{ ingredients_json }}</pre>
+          <h3>Bierstile</h3>
+          <pre class="mono">{{ styles_json }}</pre>
         </details>
-      {% endif %}
+        <hr>
+        <div class="debug-panel" data-debug-panel hidden>
+          <h3>Debug</h3>
+          <pre class="mono" data-debug-output></pre>
+        </div>
+      </div>
     </section>
   </div>
 
+  <script id="ingredients-data" type="application/json">{{ ingredients_data | tojson }}</script>
+  <script id="styles-data" type="application/json">{{ styles_data | tojson }}</script>
+  <script id="meta-data" type="application/json">{{ {'attrs': attrs, 'attr_labels': attr_labels, 'band_labels': band_labels} | tojson }}</script>
   <script id="style-min-data" type="application/json">{{ style_min_map | tojson }}</script>
-  <script>
-    window.addEventListener('DOMContentLoaded', () => {
-      const attrCards = Array.from(document.querySelectorAll('[data-attr-card]'));
-      const submitBtn = document.querySelector('[data-submit-button]');
-      const setAllGreenBtn = document.querySelector('[data-set-all-green]');
-      const styleSelect = document.querySelector('select[name="style"]');
-      const styleMinDataEl = document.getElementById('style-min-data');
-      const ingredientRows = Array.from(document.querySelectorAll('[data-ingredient-row]'));
-      const styleMinMap = (() => {
-        if (!styleMinDataEl) return {};
-        try {
-          return JSON.parse(styleMinDataEl.textContent || '{}');
-        } catch (err) {
-          console.error('Konnte Style-Daten nicht lesen', err);
-          return {};
-        }
-      })();
-
-      const updateSubmitState = () => {
-        if (!submitBtn) return;
-        const hasConstraint = attrCards.some(card => {
-          const selectedBand = card.querySelector('input[type="radio"]:checked');
-          const modeSelect = card.querySelector('.mode-select');
-          const bandActive = selectedBand && selectedBand.value !== 'any';
-          const modeActive = modeSelect && modeSelect.value !== 'any';
-          return bandActive || modeActive;
-        });
-        submitBtn.disabled = !hasConstraint;
-      };
-
-      attrCards.forEach(card => {
-        const modeSelect = card.querySelector('.mode-select');
-        const minInput = card.querySelector('.min-input');
-        const maxInput = card.querySelector('.max-input');
-
-        const toggle = () => {
-          const mode = modeSelect.value;
-          if (mode === 'any') {
-            minInput.disabled = true;
-            maxInput.disabled = true;
-          } else if (mode === 'ge') {
-            minInput.disabled = false;
-            maxInput.disabled = true;
-          } else if (mode === 'le') {
-            minInput.disabled = true;
-            maxInput.disabled = false;
-          } else {
-            minInput.disabled = false;
-            maxInput.disabled = false;
-          }
-          updateSubmitState();
-        };
-
-        toggle();
-        modeSelect.addEventListener('change', toggle);
-        card.querySelectorAll('input[type="radio"]').forEach(radio => {
-          radio.addEventListener('change', updateSubmitState);
-        });
-      });
-
-      if (setAllGreenBtn) {
-        setAllGreenBtn.addEventListener('click', () => {
-          attrCards.forEach(card => {
-            const greenRadio = card.querySelector('input[type="radio"][value="green"]');
-            if (greenRadio) {
-              greenRadio.checked = true;
-            }
-          });
-          updateSubmitState();
-        });
-      }
-
-      ingredientRows.forEach(row => {
-        const checkbox = row.querySelector('input[type="checkbox"]');
-        if (!checkbox) return;
-        checkbox.addEventListener('change', () => {
-          checkbox.dataset.userSelected = checkbox.checked ? 'true' : 'false';
-        });
-      });
-
-      const applyStyleRequirements = (styleName) => {
-        if (!styleName) return;
-        const activeMins = styleMinMap[styleName] || {};
-
-        ingredientRows.forEach(row => {
-          const ingredientName = row.dataset.ingredientName;
-          const checkbox = row.querySelector('input[type="checkbox"]');
-          const label = row.querySelector('.ingredient-option');
-          const badge = row.querySelector('[data-required-badge]');
-          if (!checkbox || !ingredientName) {
-            return;
-          }
-          const requiredCount = activeMins[ingredientName] || 0;
-          if (requiredCount > 0) {
-            row.classList.add('ingredient-locked');
-            checkbox.checked = true;
-            checkbox.disabled = true;
-            checkbox.dataset.userSelected = 'false';
-            if (label) {
-              label.title = 'Diese Zutat ist vorgegeben.';
-            }
-            if (badge) {
-              badge.hidden = false;
-              badge.textContent = requiredCount > 1 ? `Pflicht × ${requiredCount}` : 'Pflicht';
-            }
-          } else {
-            row.classList.remove('ingredient-locked');
-            checkbox.disabled = false;
-            const userSelected = checkbox.dataset.userSelected === 'true';
-            checkbox.checked = userSelected;
-            if (label) {
-              label.removeAttribute('title');
-            }
-            if (badge) {
-              badge.hidden = true;
-            }
-          }
-        });
-      };
-
-      if (styleSelect) {
-        styleSelect.addEventListener('change', () => {
-          applyStyleRequirements(styleSelect.value);
-        });
-        applyStyleRequirements(styleSelect.value);
-      }
-
-      updateSubmitState();
-    });
-  </script>
+  <script type="module" src="{{ url_for('static', filename='solver.js') }}"></script>
 </body>
 </html>

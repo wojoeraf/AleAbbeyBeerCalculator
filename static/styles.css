@@ -206,6 +206,30 @@ input[type="number"]:focus {
 .btn-primary:disabled:hover {
   background: rgba(15, 23, 42, 0.18);
 }
+.checkbox-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-inline input {
+  width: 18px;
+  height: 18px;
+}
+
+.debug-content {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.debug-panel h3 {
+  margin-top: 0;
+}
 .btn-secondary {
   background: rgba(249, 115, 22, 0.1);
   color: var(--primary);
