@@ -1,0 +1,142 @@
+{
+  "de": {
+    "language_name": "Deutsch",
+    "ui": {
+      "page_title": "Ale Abbey – Rezept-Solver",
+      "header_title": "🍺 Ale Abbey – Rezept-Solver",
+      "header_description": "Wähle für jede Eigenschaft die gewünschte Farbzone und lege exakte Wertebereiche fest. Die Berechnung berücksichtigt Pflichtzutaten, Mengenlimits und optionale Wünsche.",
+      "language_label": "Sprache",
+      "section_base": "Grunddaten",
+      "field_style": "Bierstil",
+      "field_total_cap": "Gesamtanzahl Zutaten (Cap)",
+      "field_per_cap": "Max pro Zutat",
+      "section_attributes": "Attribute",
+      "button_all_green": "Alle Attribute auf Grün",
+      "label_mode": "Modus",
+      "label_min": "Untergrenze",
+      "label_max": "Obergrenze",
+      "section_ingredients": "Zutatenübersicht",
+      "table_name": "Name",
+      "table_taste": "Geschmack",
+      "table_color": "Farbe",
+      "table_strength": "Stärke",
+      "table_foam": "Schaum",
+      "badge_required_single": "Pflicht",
+      "badge_required_multiple": "Pflicht × {count}",
+      "tooltip_required": "Diese Zutat ist vorgegeben.",
+      "button_submit": "Rezept berechnen",
+      "section_results": "Ergebnisse",
+      "results_empty": "Keine Lösung unter den gegebenen Regeln gefunden.",
+      "language_submit": "Sprache ändern"
+    },
+    "attr_labels": {
+      "taste": "Geschmack",
+      "color": "Farbe",
+      "strength": "Stärke",
+      "foam": "Schaum"
+    },
+    "band_labels": {
+      "any": "Egal",
+      "green": "Grün",
+      "yellow": "Gelb",
+      "red": "Rot",
+      "n/a": "Keine Angabe"
+    },
+    "modes": {
+      "any": "Egal",
+      "ge": "Mindestens",
+      "le": "Höchstens",
+      "between": "Zwischen"
+    },
+    "messages": {
+      "parse_error": "Konnte {id} nicht parsen",
+      "unknown_style": "Unbekannter Stil: {style}",
+      "min_exceeds_cap": "Pflichtanzahl übersteigt das Zutatencap.",
+      "no_intervals": "Keine passenden Intervalle für die gewählten Bänder.",
+      "cap_too_small": "Gesamtcap ist kleiner als die Summe der Pflichtzutaten.",
+      "results_title": "Ergebnisse ({count})",
+      "results_heading": "Ergebnisse",
+      "results_mix_title": "Zutatenmix",
+      "solutions_total": "Gesamtzutaten: {count}",
+      "raw_vector_title": "Roh-Vektor",
+      "summary_style": "Stil: {style}",
+      "summary_caps": "Cap gesamt {total}, pro Zutat {per}",
+      "debug_style": "Stil: {style}",
+      "debug_caps": "Gesamt-Cap: {total}, Pro-Zutat-Cap: {per}",
+      "debug_attr_heading": "Einstellungen je Attribut:",
+      "debug_attr_entry": "  {label} → Band: {band}, Intervall: [{min}, {max}]",
+      "debug_optional": "Zusätzliche gewünschte Zutaten: {list}",
+      "style_unknown": "—"
+    }
+  },
+  "en": {
+    "language_name": "English",
+    "ui": {
+      "page_title": "Ale Abbey – Recipe Solver",
+      "header_title": "🍺 Ale Abbey – Recipe Solver",
+      "header_description": "Choose the desired band for each attribute and define the value ranges. The solver respects required ingredients, quantity caps and optional wishes.",
+      "language_label": "Language",
+      "section_base": "Basics",
+      "field_style": "Beer style",
+      "field_total_cap": "Total ingredients (cap)",
+      "field_per_cap": "Max per ingredient",
+      "section_attributes": "Attributes",
+      "button_all_green": "Set all attributes to green",
+      "label_mode": "Mode",
+      "label_min": "Lower bound",
+      "label_max": "Upper bound",
+      "section_ingredients": "Ingredient overview",
+      "table_name": "Name",
+      "table_taste": "Taste",
+      "table_color": "Color",
+      "table_strength": "Strength",
+      "table_foam": "Foam",
+      "badge_required_single": "Required",
+      "badge_required_multiple": "Required × {count}",
+      "tooltip_required": "This ingredient is mandatory.",
+      "button_submit": "Calculate recipe",
+      "section_results": "Results",
+      "results_empty": "No solution found for the current constraints.",
+      "language_submit": "Change language"
+    },
+    "attr_labels": {
+      "taste": "Taste",
+      "color": "Color",
+      "strength": "Strength",
+      "foam": "Foam"
+    },
+    "band_labels": {
+      "any": "Any",
+      "green": "Green",
+      "yellow": "Yellow",
+      "red": "Red",
+      "n/a": "N/A"
+    },
+    "modes": {
+      "any": "Any",
+      "ge": "At least",
+      "le": "At most",
+      "between": "Between"
+    },
+    "messages": {
+      "parse_error": "Failed to parse {id}",
+      "unknown_style": "Unknown style: {style}",
+      "min_exceeds_cap": "Required amount exceeds the per-ingredient cap.",
+      "no_intervals": "No matching intervals for the selected bands.",
+      "cap_too_small": "Total cap is smaller than the sum of required ingredients.",
+      "results_title": "Results ({count})",
+      "results_heading": "Results",
+      "results_mix_title": "Ingredient mix",
+      "solutions_total": "Total ingredients: {count}",
+      "raw_vector_title": "Raw vector",
+      "summary_style": "Style: {style}",
+      "summary_caps": "Cap total {total}, per ingredient {per}",
+      "debug_style": "Style: {style}",
+      "debug_caps": "Total cap: {total}, per ingredient cap: {per}",
+      "debug_attr_heading": "Attribute settings:",
+      "debug_attr_entry": "  {label} → Band: {band}, Range: [{min}, {max}]",
+      "debug_optional": "Additional desired ingredients: {list}",
+      "style_unknown": "—"
+    }
+  }
+}

@@ -1,7 +1,8 @@
 {
-  "Leichtes Ale": {
+  "light_ale": {
+    "names": {"de": "Leichtes Ale", "en": "Light Ale"},
     "base": [0.0, 0.0, 0.0, 0.0],
-    "min_counts": {"Helles Malz": 1, "Standardhefe": 1},
+    "min_counts": {"pale_malt": 1, "standard_yeast": 1},
     "bands": {
       "taste": [
         {"band": "red", "min": 0.0, "max": 0.99},
@@ -28,9 +29,10 @@
       ]
     }
   },
-  "Blonde Ale": {
+  "blonde_ale": {
+    "names": {"de": "Blonde Ale", "en": "Blonde Ale"},
     "base": [0.0, 0.0, 0.0, 0.0],
-    "min_counts": {"Grut": 1, "Helles Malz": 1, "Standardhefe": 1},
+    "min_counts": {"grut": 1, "pale_malt": 1, "standard_yeast": 1},
     "bands": {
       "taste": [
         {"band": "red", "min": 0.0, "max": 0.99},
@@ -59,9 +61,10 @@
       ]
     }
   },
-  "Old Ale": {
+  "old_ale": {
+    "names": {"de": "Old Ale", "en": "Old Ale"},
     "base": [0.0, 0.0, 0.0, 0.0],
-    "min_counts": {"Grut": 1, "Braunes Malz": 1, "Helles Malz": 1, "Standardhefe": 1},
+    "min_counts": {"grut": 1, "brown_malt": 1, "pale_malt": 1, "standard_yeast": 1},
     "bands": {
       "taste": [
         {"band": "red", "min": 0.0, "max": 1.99},
@@ -91,9 +94,17 @@
       ]
     }
   },
-  "Kräuterbier": {
+  "herbal_beer": {
+    "names": {"de": "Kräuterbier", "en": "Herbal Beer"},
     "base": [0.0, 0.0, 0.0, 0.0],
-    "min_counts": {"Eukalyptus": 1, "Grut": 1, "Honig": 1, "Bernsteinfarbenes Malz": 1, "Helles Malz": 1, "Standardhefe": 1},
+    "min_counts": {
+      "eucalyptus": 1,
+      "grut": 1,
+      "honey": 1,
+      "amber_malt": 1,
+      "pale_malt": 1,
+      "standard_yeast": 1
+    },
     "bands": {
       "taste": [
         {"band": "red", "min": 0.0, "max": 3.99},
