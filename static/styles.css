@@ -444,8 +444,119 @@ details summary {
 .collapsible > .table-wrapper {
   margin-top: 12px;
 }
+.support-section {
+  margin-top: 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  text-align: left;
+}
+.support-section h2 {
+  margin: 0;
+  font-size: clamp(1.5rem, 2.5vw, 1.9rem);
+}
+.support-section p {
+  margin: 0;
+  line-height: 1.6;
+}
+.support-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.support-note {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.support-buttons {
+  display: flex;
+  align-items: center;
+}
+.support-buttons a {
+  display: inline-flex;
+  transition: transform 0.2s ease;
+}
+.support-buttons a:hover {
+  transform: translateY(-2px);
+}
+.site-footer {
+  background: rgba(15, 23, 42, 0.92);
+  color: #f8fafc;
+  padding: 32px 20px;
+}
+.footer-inner {
+  max-width: 1140px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+.footer-tagline {
+  margin: 6px 0 0;
+  color: rgba(248, 250, 252, 0.7);
+}
+.footer-links {
+  list-style: none;
+  display: flex;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+}
+.footer-links a {
+  color: #facc15;
+  text-decoration: none;
+  font-weight: 600;
+}
+.footer-links a:hover {
+  text-decoration: underline;
+}
+.legal-page {
+  min-height: 100vh;
+  margin: 0;
+  background: var(--bg-gradient);
+  font-family: "Inter", "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+  color: #0f172a;
+}
+.legal-page .legal-container {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 48px 20px 64px;
+}
+.legal-page a {
+  color: var(--primary);
+}
+.legal-page h1 {
+  font-size: clamp(2rem, 3vw, 2.4rem);
+  margin-bottom: 12px;
+}
+.legal-page h2 {
+  margin-top: 32px;
+  margin-bottom: 12px;
+}
+.legal-page p {
+  line-height: 1.7;
+}
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 24px;
+  text-decoration: none;
+  color: var(--primary-dark);
+  font-weight: 600;
+}
+.back-link:hover {
+  text-decoration: underline;
+}
 @media (max-width: 640px) {
   .range-inputs {
     grid-template-columns: 1fr;
+  }
+  .footer-links {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
   }
 }

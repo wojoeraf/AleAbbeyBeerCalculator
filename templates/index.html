@@ -162,7 +162,41 @@
       <p data-results-empty hidden><strong>{{ ui.section_results }}</strong> {{ ui.results_empty }}</p>
       <div class="grid-two" data-results-list></div>
     </section>
+
+    <section class="card support-section" id="support">
+      <h2>Unterstütze Ale Abbey</h2>
+      <p>
+        Hallo, ich bin der Braumeister hinter Ale Abbey. Diese Seite bleibt bewusst frei von
+        Werbung, damit du ohne Ablenkung deine perfekte Bierkreation planen kannst. Wenn dir das
+        Projekt gefällt, freue ich mich über deine Unterstützung – damit bleibt Ale Abbey am
+        Köcheln!
+      </p>
+      <div class="support-actions">
+        <p class="support-note">Jeder Beitrag hilft – vielen Dank fürs Mitbrauen!</p>
+        <div class="support-buttons">
+          <a href="https://www.buymeacoffee.com/honigbartstudios" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;"></a>
+        </div>
+      </div>
+    </section>
   </div>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div>
+        <strong>Ale Abbey Beer Calculator</strong>
+        <p class="footer-tagline">Braue smarter – ganz ohne Werbung.</p>
+      </div>
+      <nav aria-label="Rechtliches">
+        <ul class="footer-links">
+          <li><a href="{{ url_for('impressum') }}">Impressum</a></li>
+          <li><a href="{{ url_for('datenschutz') }}">Datenschutz</a></li>
+          <li><a href="{{ url_for('agb') }}">AGB</a></li>
+          <li><a href="{{ url_for('widerruf') }}">Widerrufsbelehrung</a></li>
+          <li><a href="{{ url_for('kontakt') }}">Kontakt</a></li>
+        </ul>
+      </nav>
+    </div>
+  </footer>
 
   <script id="ingredients-data" type="application/json">{{ ingredients_data | tojson }}</script>
   <script id="styles-data" type="application/json">{{ styles_data | tojson }}</script>
@@ -170,5 +204,6 @@
   <script id="i18n-data" type="application/json">{{ i18n_payload | tojson }}</script>
   <script id="style-min-data" type="application/json">{{ style_min_map | tojson }}</script>
   <script type="module" src="{{ url_for('static', filename='solver.js') }}"></script>
+  <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="honigbartstudios" data-color="#FFDD00" data-emoji="🍺"  data-font="Cookie" data-text="Buy me an Ale" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff" ></script>
 </body>
 </html>
