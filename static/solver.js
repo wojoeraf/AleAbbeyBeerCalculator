@@ -641,7 +641,6 @@ const initSolver = () => {
         summaryLines.push(`Stil: ${styleName}`);
       }
       summaryLines.push(`Cap gesamt ${totalCap}, pro Zutat ${perCap}`);
-      summaryLines.push('Berechnung clientseitig');
 
       renderSolutions(solutions, summaryLines, info);
       renderDebug(debugLines);

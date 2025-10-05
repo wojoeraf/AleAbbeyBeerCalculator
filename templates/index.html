@@ -10,7 +10,7 @@
   <div class="page">
     <header>
       <h1>🍺 Ale Abbey – Rezept-Solver</h1>
-      <p>Wähle für jede Eigenschaft die gewünschte Farbzone und lege exakte Wertebereiche fest. Die Berechnung läuft vollständig im Browser und berücksichtigt Pflichtzutaten, Mengenlimits und optionale Wünsche.</p>
+      <p>Wähle für jede Eigenschaft die gewünschte Farbzone und lege exakte Wertebereiche fest. Die Berechnung berücksichtigt Pflichtzutaten, Mengenlimits und optionale Wünsche.</p>
     </header>
 
     <form class="card form-card" data-solver-form>
@@ -140,27 +140,6 @@
       <p class="hint" data-status-message hidden></p>
       <p data-results-empty hidden><strong>Keine Lösung</strong> unter den gegebenen Regeln gefunden.</p>
       <div class="grid-two" data-results-list></div>
-    </section>
-
-    <section style="margin-top: 36px;" class="card" data-debug-container>
-      <label class="checkbox-inline">
-        <input type="checkbox" id="debug-toggle">
-        <span>Debug anzeigen</span>
-      </label>
-      <div class="debug-content" data-debug-content hidden>
-        <details>
-          <summary>JSON ansehen</summary>
-          <h3 style="margin-top:16px;">Zutaten</h3>
-          <pre class="mono">{{ ingredients_json }}</pre>
-          <h3>Bierstile</h3>
-          <pre class="mono">{{ styles_json }}</pre>
-        </details>
-        <hr>
-        <div class="debug-panel" data-debug-panel hidden>
-          <h3>Debug</h3>
-          <pre class="mono" data-debug-output></pre>
-        </div>
-      </div>
     </section>
   </div>
 
