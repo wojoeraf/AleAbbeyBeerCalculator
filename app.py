@@ -1,149 +1,22 @@
 
 import json
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Dict, Optional, Set
+
 from flask import Flask, request, render_template
 
 app = Flask(__name__)
+DATA_DIR = Path(__file__).resolve().parent / "data"
 
-BEER_STYLES = {
-    "Leichtes Ale": {
-        "base": [0.0, 0.0, 0.0, 0.0],
-        "min_counts": {"Helles Malz":1,"Standardhefe":1},
-        "bands": {
-            "taste": [
-                {"band": "red",    "min":0.0, "max":0.99},
-                {"band": "green",  "min":1.0, "max":2.99},
-                {"band": "yellow", "min":3.0, "max": 3.99},
-                {"band": "red",    "min":4.0, "max":1000.0},
-            ],
-            "color": [
-                {"band": "red", "min": 0.0, "max": 0.99},
-                {"band": "green", "min": 1.0, "max": 3.99},
-                {"band": "yellow", "min": 4.0, "max": 4.99},
-                {"band": "red", "min": 5.0, "max": 1000.0},
-            ],
-            "strength": [
-                {"band": "red", "min": 0.0, "max": 0.99},
-                {"band": "green", "min": 1.0, "max": 2.99},
-                {"band": "yellow", "min": 3.0, "max": 3.99},
-                {"band": "red", "min": 4.0, "max": 1000.0},
-            ],
-            "foam": [
-                {"band": "yellow", "min": 0.0, "max": 0.99},
-                {"band": "green", "min": 1.0, "max": 3.99},
-                {"band": "yellow", "min": 4.0, "max": 1000.0},
-            ],
-        },
-    },
-    "Blonde Ale": {
-        "base": [0.0, 0.0, 0.0, 0.0],
-        "min_counts": {"Grut":1,"Helles Malz":1,"Standardhefe":1},
-        "bands": {
-            "taste": [
-                {"band":"red",    "min":0.0, "max":0.99},
-                {"band":"yellow", "min":1.0, "max":1.99},
-                {"band":"green",  "min":2.0, "max":3.99},
-                {"band":"yellow", "min":4.0, "max":4.99},
-                {"band":"red",    "min":5.0, "max":1000.0},
-            ],
-            "color": [
-                {"band": "red", "min": 0.0, "max": 0.99},
-                {"band": "green", "min": 1.0, "max": 3.99},
-                {"band": "yellow", "min": 4.0, "max": 4.99},
-                {"band": "red", "min": 5.0, "max": 1000.0},
-            ],
-            "strength": [
-                {"band": "red", "min": 0.0, "max": 0.99},
-                {"band": "yellow", "min": 1.0, "max": 1.99},
-                {"band": "green", "min": 2.0, "max": 3.99},
-                {"band": "yellow", "min": 4.0, "max": 4.99},
-                {"band": "red", "min": 5.0, "max": 1000.0},
-            ],
-            "foam": [
-                {"band": "yellow", "min": 0.0, "max": 0.99},
-                {"band": "green", "min": 1.0, "max": 3.99},
-                {"band": "yellow", "min": 4.0, "max": 1000.0},
-            ],
-        },
-    },
-    "Old Ale": {
-        "base": [0.0, 0.0, 0.0, 0.0],
-        "min_counts": {"Grut":1,"Braunes Malz":1,"Helles Malz":1,"Standardhefe":1},
-        "bands": {
-            "taste": [
-                {"band": "red",    "min":0.0, "max":1.99},
-                {"band": "yellow", "min":2.0, "max": 2.99},
-                {"band": "green",  "min":3.0, "max":5.99},
-                {"band": "yellow", "min":6.0, "max": 7.99},
-                {"band": "red",    "min":8.0, "max":1000.0},
-            ],
-            "color": [
-                {"band": "red", "min": 0.0, "max": 2.99},
-                {"band": "yellow", "min": 3.0, "max": 3.99},
-                {"band": "green", "min": 4.0, "max": 5.99},
-                {"band": "yellow", "min": 6.0, "max": 6.99},
-                {"band": "red", "min": 7.0, "max": 1000.0},
-            ],
-            "strength": [
-                {"band": "red", "min": 0.0, "max": 0.99},
-                {"band": "yellow", "min": 1.0, "max": 1.99},
-                {"band": "green", "min": 2.0, "max": 3.99},
-                {"band": "yellow", "min": 4.0, "max": 4.99},
-                {"band": "red", "min": 5.0, "max": 1000.0},
-            ],
-            "foam": [
-                {"band": "yellow", "min": 0.0, "max": 0.99},
-                {"band": "green", "min": 1.0, "max": 3.99},
-                {"band": "yellow", "min": 4.0, "max": 1000.0},
-            ],
-        },
-    },
-    "Kräuterbier": {
-        "base": [0.0, 0.0, 0.0, 0.0],
-        "min_counts": {"Eukalyptus":1,"Grut":1,"Honig":1,"Bernsteinfarbenes Malz":1,"Helles Malz":1,"Standardhefe":1},
-        "bands": {
-            "taste": [
-                {"band": "red",    "min":0.0, "max":3.99},
-                {"band": "yellow", "min":4.0, "max": 4.99},
-                {"band": "green",  "min":5.0, "max":8.99},
-                {"band": "yellow", "min":9.0, "max": 9.99},
-                {"band": "red",    "min":10.0, "max":1000.0},
-            ],
-            "color": [
-                {"band": "red", "min": 0.0, "max": 2.99},
-                {"band": "yellow", "min": 3.0, "max": 3.99},
-                {"band": "green", "min": 4.0, "max": 5.99},
-                {"band": "yellow", "min": 6.0, "max": 6.99},
-                {"band": "red", "min": 7.0, "max": 1000.0},
-            ],
-            "strength": [
-                {"band": "red", "min": 0.0, "max": 1.99},
-                {"band": "yellow", "min": 2.0, "max": 2.99},
-                {"band": "green", "min": 3.0, "max": 6.99},
-                {"band": "yellow", "min": 7.0, "max": 7.99},
-                {"band": "red", "min": 8.0, "max": 1000.0},
-            ],
-            "foam": [
-                {"band": "yellow", "min": 0.0, "max": 0.99},
-                {"band": "green", "min": 1.0, "max": 3.99},
-                {"band": "yellow", "min": 4.0, "max": 1000.0},
-            ],
-        },
-    },
-}
-# ================= DATA =================
-INGREDIENTS = [
-    # name, (taste, color, strength, foam)
-    {"name": "Standardhefe", "vec": [0.5, 0.0, -1.0, -0.5]},
-    {"name": "Helles Malz", "vec": [0.4, 0.3, 1.0, 0.5]},
-    {"name": "Grut", "vec": [0.5, -0.3, 0.0, 0.0]},
-    {"name": "Braunes Malz", "vec": [1.6, 2.0, 0.0, 0.0]},
-    {"name": "Eukalyptus", "vec": [1.0, 0.0, -0.2, -0.5]},
-    {"name": "Bernsteinfarbenes Malz", "vec": [0.8, 1.2, 0.5, 0.8]},
-    {"name": "Honig", "vec": [1, 0.3, 1.0, 0.0]},
-    # Add more here...
-]
+
+def load_json(filename: str):
+    with (DATA_DIR / filename).open("r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+BEER_STYLES = load_json("beer_styles.json")
+INGREDIENTS = load_json("ingredients.json")
 
 
 ATTRS = ["taste","color","strength","foam"]
