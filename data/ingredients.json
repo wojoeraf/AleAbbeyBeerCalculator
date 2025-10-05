@@ -1,0 +1,9 @@
+[
+  {"name": "Standardhefe", "vec": [0.5, 0.0, -1.0, -0.5]},
+  {"name": "Helles Malz", "vec": [0.4, 0.3, 1.0, 0.5]},
+  {"name": "Grut", "vec": [0.5, -0.3, 0.0, 0.0]},
+  {"name": "Braunes Malz", "vec": [1.6, 2.0, 0.0, 0.0]},
+  {"name": "Eukalyptus", "vec": [1.0, 0.0, -0.2, -0.5]},
+  {"name": "Bernsteinfarbenes Malz", "vec": [0.8, 1.2, 0.5, 0.8]},
+  {"name": "Honig", "vec": [1.0, 0.3, 1.0, 0.0]}
+]
