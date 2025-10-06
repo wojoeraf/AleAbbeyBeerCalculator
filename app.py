@@ -209,16 +209,6 @@ def datenschutz():
     return render_template("legal/datenschutz.html")
 
 
-@app.route("/agb")
-def agb():
-    return render_template("legal/agb.html")
-
-
-@app.route("/widerruf")
-def widerruf():
-    return render_template("legal/widerruf.html")
-
-
 @app.route("/kontakt")
 def kontakt():
     return render_template("legal/kontakt.html")
