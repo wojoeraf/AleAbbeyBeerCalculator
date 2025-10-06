@@ -199,5 +199,20 @@ def index():
     )
 
 
+@app.route("/impressum")
+def impressum():
+    return render_template("legal/impressum.html")
+
+
+@app.route("/datenschutz")
+def datenschutz():
+    return render_template("legal/datenschutz.html")
+
+
+@app.route("/kontakt")
+def kontakt():
+    return render_template("legal/kontakt.html")
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
