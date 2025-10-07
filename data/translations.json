@@ -33,13 +33,14 @@
       "results_sort_order_label": "Reihenfolge",
       "results_sort_desc": "Absteigend",
       "results_sort_asc": "Aufsteigend",
-      "support_header": "Unterstütze Ale Abbey",
+      "support_header": "Unterstütze mich",
       "support": "Hallo, ich bin der B(r)aumeister hinter Ale Abbey Rezeptrechner. Diese Seite bleibt bewusst frei von Werbung, damit du ohne Ablenkung deine perfekte Bierkreation planen kannst. Wenn dir das Projekt gefällt, freue ich mich über deine Unterstützung für Hosting und Domainkosten.",
       "support_note": "Jeder Beitrag hilft. Vielen Dank fürs Mitbrauen!",
       "footer_tagline": "Braue smarter.",
       "site_notice": "Impressum",
       "privacy_policy": "Datenschutzerklärung",
-      "report_bug": "Fehler melden"
+      "report_bug": "Fehler melden",
+      "disclaimer": "Diese Website ist ein nicht-kommerzielles Fanprojekt und steht in keiner Verbindung mit den Entwicklern oder dem Publisher des Spiels Ale Abbey.\nAlle Marken, Grafiken, Spielinhalte und urheberrechtlich geschützten Materialien gehören ihren jeweiligen Eigentümern.\nDer hier bereitgestellte Code und die Anwendung sind eigenständige Fan-Entwicklungen und kein offizieller Bestandteil des Spiels."
     },
     "attr_labels": {
       "taste": "Geschmack",
@@ -115,13 +116,14 @@
       "results_sort_order_label": "Order",
       "results_sort_desc": "High to low",
       "results_sort_asc": "Low to high",
-      "support_header": "Support Ale Abbey",
+      "support_header": "Support me",
       "support": "Hello, I am the creator behind Ale Abbey Recipe Solver. This site is intentionally free of advertising so that you can plan your perfect beer creation without distractions. If you like the project, I would appreciate your support for hosting and domain costs.",
       "support_note": "Every contribution helps. Thank you for joining us!",
       "footer_tagline": "Brew smarter.",
       "site_notice": "Site Notice",
       "privacy_policy": "Privacy Policy",
-      "report_bug": "Report a bug"
+      "report_bug": "Report a bug",
+      "disclaimer": "This website is a non-commercial fan project created for educational and entertainment purposes.\nIt is not affiliated with, endorsed by, or sponsored by the developer or publisher of Ale Abbey.\nAll trademarks, game content, and related materials remain the property of their respective owners.\nThe code and web application itself are fan-made and not part of the original game."
     },
     "attr_labels": {
       "taste": "Flavor",
