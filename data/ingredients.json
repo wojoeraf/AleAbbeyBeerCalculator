@@ -1,92 +1,171 @@
-[
-  {
-    "id": "standard_yeast",
-    "names": {"de": "Standardhefe", "en": "Standard Yeast"},
-    "vec": [0.5, 0.0, -1.0, -0.5]
-  },
-  {
-    "id": "pale_malt",
-    "names": {"de": "Helles Malz", "en": "Pale Malt"},
-    "vec": [0.4, 0.3, 1.0, 0.5]
-  },
-  {
-    "id": "grut",
-    "names": {"de": "Grut", "en": "Gruit"},
-    "vec": [0.5, -0.3, 0.0, 0.0]
-  },
-  {
-    "id": "brown_malt",
-    "names": {"de": "Braunes Malz", "en": "Brown Malt"},
-    "vec": [1.6, 2.0, 0.0, 0.0]
-  },
-  {
-    "id": "eucalyptus",
-    "names": {"de": "Eukalyptus", "en": "Eucalyptus"},
-    "vec": [1.0, 0.0, -0.2, -0.5]
-  },
-  {
-    "id": "amber_malt",
-    "names": {"de": "Bernsteinfarbenes Malz", "en": "Amber Malt"},
-    "vec": [0.8, 1.2, 0.5, 0.8]
-  },
-  {
-    "id": "honey",
-    "names": {"de": "Honig", "en": "Honey"},
-    "vec": [1.0, 0.3, 1.0, 0.0]
-  },
-  {
-    "id": "strong_yeast",
-    "names": {"de": "Starke Hefe TODO", "en": "Strong Yeast"},
-    "vec": [1.0, 0.3, 1.0, 0.0]
-  },
-  {
-    "id": "wheat_malt",
-    "names": {"de": "Weizenmalz TODO", "en": "Wheat Malt"},
-    "vec": [1.0, 0.3, 1.0, 0.0]
-  },
-  {
-    "id": "classic_hopes",
-    "names": {"de": "Klassischer Hopfen TODO", "en": "Classic Hopes"},
-    "vec": [1.0, 0.3, 1.0, 0.0]
-  },
-  {
-    "id": "estery_yeast",
-    "names": {"de": "Estery Hefe TODO", "en": "Estery Yeast"},
-    "vec": [1.0, 0.3, 1.0, 0.0]
-  },
-  {
-    "id": "berries",
-    "names": {"de": "Beeren TODO", "en": "Berries"},
-    "vec": [1.0, 0.3, 1.0, 0.0]
-  },
-  {
-    "id": "cherries",
-    "names": {"de": "Kirschen TODO", "en": "Cherries"},
-    "vec": [1.0, 0.3, 1.0, 0.0]
-  },
-  {
-    "id": "pepper",
-    "names": {"de": "Pfeffer TODO", "en": "Pepper"},
-    "vec": [1.0, 0.3, 1.0, 0.0]
-  },
-  {
-    "id": "cascade_hopes",
-    "names": {"de": "Kaskaden Hopfen TODO", "en": "Cascade Hopes"},
-    "vec": [1.0, 0.3, 1.0, 0.0]
-  },
-  {
-    "id": "magnum_hopes",
-    "names": {"de": "Magnum Hopfen TODO", "en": "Magnum Hopes"},
-    "vec": [1.0, 0.3, 1.0, 0.0]
-  },
-  {
-    "id": "brown_candy_sugar",
-    "names": {"de": "Brauner Kandiszucker TODO", "en": "Brown Candy Sugar"},
-    "vec": [1.0, 0.3, 1.0, 0.0]
-  },
-  {
-    "id": "wheat_starch",
-    "names": {"de": "Weizenstärke TODO", "en": "Wheat Starch"},
-    "vec": [1.0, 0.3, 1.0, 0.0]
-  }
-]
+{
+  "categories": [
+    {
+      "category": {
+        "id": "yeasts",
+        "name": "Yeasts",
+        "list": [
+          {
+            "id": "standard_yeast",
+            "names": { "de": "Standardhefe (ToDo verify translation)", "en": "Standard Yeast" },
+            "vec": [0.5, 0.0, -1.0, -0.5]
+          },
+          {
+            "id": "estery_yeast",
+            "names": { "de": "Esterbetonte Hefe (ToDo verify translation)", "en": "Estery Yeast" },
+            "vec": [1.5, 0.0, -1.0, 0.0]
+          },
+          {
+            "id": "strong_yeast",
+            "names": { "de": "Starke Hefe (ToDo verify translation)", "en": "Strong Yeast" },
+            "vec": [0.3, 0.0, 2.0, 0.5]
+          }
+        ]
+      }
+    },
+    {
+      "category": {
+        "id": "malts_grains",
+        "name": "Malts & Grains",
+        "list": [
+          {
+            "id": "amber_malt",
+            "names": { "de": "Bernsteinmalz (ToDo verify translation)", "en": "Amber Malt" },
+            "vec": [0.8, 1.2, 0.5, 0.8]
+          },
+          {
+            "id": "pale_malt",
+            "names": { "de": "Pale-Ale-Malz (ToDo verify translation)", "en": "Pale Malt" },
+            "vec": [0.4, 0.3, 1.0, 0.5]
+          },
+          {
+            "id": "brown_malt",
+            "names": { "de": "Braunmalz (ToDo verify translation)", "en": "Brown Malt" },
+            "vec": [1.6, 2.0, 0.0, 0.0]
+          },
+          {
+            "id": "wheat_malt",
+            "names": { "de": "Weizenmalz (ToDo verify translation)", "en": "Wheat Malt" },
+            "vec": [0.8, -0.3, 0.4, 2.0]
+          },
+          {
+            "id": "wheat_starch",
+            "names": { "de": "Weizenstärke (ToDo verify translation)", "en": "Wheat Starch" },
+            "vec": [-0.5, 0.0, -1.0, 1.5]
+          },
+          {
+            "id": "wheat_flakes",
+            "names": { "de": "Weizenflocken (ToDo verify translation)", "en": "Wheat Flakes" },
+            "vec": [0.5, -0.5, 0.2, 2.0]
+          },
+          {
+            "id": "rye_malt",
+            "names": { "de": "Roggenmalz (ToDo verify translation)", "en": "Rye Malt" },
+            "vec": [2.0, 1.0, -0.5, 1.5]
+          }
+        ]
+      }
+    },
+    {
+      "category": {
+        "id": "hops",
+        "name": "Hops",
+        "list": [
+          {
+            "id": "cascadus_hops",
+            "names": { "de": "Cascadus-Hopfen (ToDo verify translation)", "en": "Cascadus Hops" },
+            "vec": [1.2, 0.0, 0.0, 0.5]
+          },
+          {
+            "id": "classic_hops",
+            "names": { "de": "Klassischer Hopfen (ToDo verify translation)", "en": "Classic Hops" },
+            "vec": [0.8, 0.0, 0.0, 0.5]
+          },
+          {
+            "id": "magnim_hops",
+            "names": { "de": "Magnim-Hopfen (ToDo verify translation)", "en": "Magnim Hops" },
+            "vec": [1.6, 0.0, 0.0, 1.0]
+          }
+        ]
+      }
+    },
+    {
+      "category": {
+        "id": "adjuncts_spices_additions",
+        "name": "Adjuncts, Spices & Additions",
+        "list": [
+          {
+            "id": "eucalyptus",
+            "names": { "de": "Eukalyptus (ToDo verify translation)", "en": "Eucalyptus" },
+            "vec": [1.0, 0.0, -0.2, -0.5]
+          },
+          {
+            "id": "gruit",
+            "names": { "de": "Gruit (ToDo verify translation)", "en": "Gruit" },
+            "vec": [0.5, -0.3, 0.0, 0.0]
+          },
+          {
+            "id": "honey",
+            "names": { "de": "Honig (ToDo verify translation)", "en": "Honey" },
+            "vec": [1.0, 0.3, 1.0, 0.0]
+          },
+          {
+            "id": "coffee",
+            "names": { "de": "Kaffee (ToDo verify translation)", "en": "Coffee" },
+            "vec": [1.0, 2.0, 0.0, 0.0]
+          },
+          {
+            "id": "pepper",
+            "names": { "de": "Pfeffer (ToDo verify translation)", "en": "Pepper" },
+            "vec": [1.0, 0.0, 0.0, -1.0]
+          },
+          {
+            "id": "pumpkin",
+            "names": { "de": "Kürbis (ToDo verify translation)", "en": "Pumpkin" },
+            "vec": [1.5, 1.0, 0.0, -1.0]
+          },
+          {
+            "id": "yeast_nutritionals",
+            "names": { "de": "Hefenährstoffe (ToDo verify translation)", "en": "Yeast Nutritionals" },
+            "vec": [0.0, 0.0, 1.0, 0.0]
+          },
+          {
+            "id": "berries",
+            "names": { "de": "Beeren (ToDo verify translation)", "en": "Berries" },
+            "vec": [2.0, 2.0, 0.5, 0.5]
+          },
+          {
+            "id": "cherries",
+            "names": { "de": "Kirschen (ToDo verify translation)", "en": "Cherries" },
+            "vec": [1.5, 1.5, 0.5, 0.0]
+          },
+          {
+            "id": "grapes",
+            "names": { "de": "Trauben (ToDo verify translation)", "en": "Grapes" },
+            "vec": [1.5, 1.0, 0.5, 0.5]
+          },
+          {
+            "id": "brown_candi_sugar",
+            "names": { "de": "Brauner Kandiszucker (ToDo verify translation)", "en": "Brown Candi Sugar" },
+            "vec": [0.5, 1.0, 1.5, -0.5]
+          },
+          {
+            "id": "sugar",
+            "names": { "de": "Zucker (ToDo verify translation)", "en": "Sugar" },
+            "vec": [-1.0, -0.5, 2.0, -1.0]
+          },
+          {
+            "id": "coriander_seeds",
+            "names": { "de": "Koriandersamen (ToDo verify translation)", "en": "Coriander Seeds" },
+            "vec": [1.0, 0.0, -0.2, 0.0]
+          },
+          {
+            "id": "orange_peel",
+            "names": { "de": "Orangenschale (ToDo verify translation)", "en": "Orange Peel" },
+            "vec": [0.5, 0.5, 0.0, 0.0]
+          }
+        ]
+      }
+    }
+  ]
+}
