@@ -416,6 +416,24 @@ input[type="number"]:focus {
   gap: 16px;
 }
 
+.results-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.results-control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 180px;
+}
+
+.results-control select {
+  min-width: 160px;
+}
+
 .results-list {
   display: flex;
   flex-direction: column;
