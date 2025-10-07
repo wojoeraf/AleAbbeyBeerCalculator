@@ -51,7 +51,7 @@ body::after {
   z-index: -1;
 }
 .page {
-  max-width: 1140px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 40px 20px 64px;
 }
@@ -208,7 +208,7 @@ input[type="number"]:focus {
 }
 .attributes-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
+  grid-template-columns: minmax(0, 1fr) minmax(500px, 600px);
   gap: 24px;
   align-items: flex-start;
 }
@@ -280,6 +280,7 @@ input[type="number"]:focus {
 }
 .mode-toggle {
   display: inline-flex;
+  justify-content: center;
   gap: 10px;
 }
 .mode-btn {

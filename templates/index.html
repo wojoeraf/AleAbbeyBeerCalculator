@@ -100,16 +100,17 @@
                                                 aria-label="{{ mode_labels.get('le', '≤') }}"
                                                 title="{{ mode_labels.get('le', '≤') }}"
                                                 aria-pressed="{{ 'true' if constraints[a].mode == 'le' else 'false' }}">≤</button>
+                                        <div class="slider-value">
+                                            <span class="slider-value-label">{{ ui.label_value_display }}</span>
+                                            <span class="slider-value-number" data-slider-value>{{ '%.1f'|format(slider_value) }}</span>
+                                        </div>
                                     </div>
                                     <div class="slider-row">
                                         <input type="range" min="0" max="110" step="1" value="{{ slider_step }}"
                                                data-attr-range data-initial-value="{{ '%.1f'|format(slider_value) }}"
                                                aria-valuemin="0" aria-valuemax="11" aria-valuenow="{{ '%.1f'|format(slider_value) }}"
                                                aria-label="{{ attr_labels[a] }}">
-                                        <div class="slider-value">
-                                            <span class="slider-value-label">{{ ui.label_value_display }}</span>
-                                            <span class="slider-value-number" data-slider-value>{{ '%.1f'|format(slider_value) }}</span>
-                                        </div>
+
                                     </div>
                                 </div>
                             </div>
