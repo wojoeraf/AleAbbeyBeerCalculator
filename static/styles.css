@@ -311,6 +311,7 @@ input[type="number"]:focus {
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+  margin-bottom: 0.5em;
 }
 .section-header .section-title {
   margin-bottom: 0;
