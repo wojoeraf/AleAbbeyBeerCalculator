@@ -16,7 +16,7 @@ def load_json(filename: str):
 
 TRANSLATIONS = load_json("translations.json")
 LANGUAGE_NAMES = {code: data.get("language_name", code) for code, data in TRANSLATIONS.items()}
-DEFAULT_LANG = "de" if "de" in TRANSLATIONS else next(iter(TRANSLATIONS))
+DEFAULT_LANG = "en" if "en" in TRANSLATIONS else next(iter(TRANSLATIONS))
 
 INGREDIENTS = load_json("ingredients.json")
 INGREDIENT_MAP = {ing["id"]: ing for ing in INGREDIENTS}
