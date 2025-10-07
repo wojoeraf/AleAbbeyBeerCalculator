@@ -32,7 +32,7 @@
   "blonde_ale": {
     "names": {"de": "Blonde Ale", "en": "Blonde Ale"},
     "base": [0.0, 0.0, 0.0, 0.0],
-    "min_counts": {"grut": 1, "pale_malt": 1, "standard_yeast": 1},
+    "min_counts": {"gruit": 1, "pale_malt": 1, "standard_yeast": 1},
     "bands": {
       "taste": [
         {"band": "red", "min": 0.0, "max": 0.99},
@@ -64,7 +64,7 @@
   "old_ale": {
     "names": {"de": "Old Ale", "en": "Old Ale"},
     "base": [0.0, 0.0, 0.0, 0.0],
-    "min_counts": {"grut": 1, "brown_malt": 1, "pale_malt": 1, "standard_yeast": 1},
+    "min_counts": {"gruit": 1, "brown_malt": 1, "pale_malt": 1, "standard_yeast": 1},
     "bands": {
       "taste": [
         {"band": "red", "min": 0.0, "max": 1.99},
@@ -99,7 +99,7 @@
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "eucalyptus": 1,
-      "grut": 1,
+      "gruit": 1,
       "honey": 1,
       "amber_malt": 1,
       "pale_malt": 1,
@@ -141,7 +141,7 @@
       "pale_malt": 1,
       "strong_yeast": 1,
       "wheat_malt": 1,
-      "classic_hopes": 1,
+      "classic_hops": 1,
       "amber_malt": 1
     },
     "bands": {
@@ -220,7 +220,7 @@
       "estery_yeast": 1,
       "wheat_malt": 1,
       "pepper": 1,
-      "classic_hopes": 1
+      "classic_hops": 1
     },
     "bands": {
       "taste": [
@@ -258,8 +258,8 @@
       "pale_malt": 1,
       "amber_malt": 1,
       "standard_yeast": 1,
-      "cascade_hopes": 1,
-      "magnum_hopes": 1
+      "cascadus_hops": 1,
+      "magnum_hops": 1
     },
     "bands": {
       "taste": [
@@ -298,7 +298,7 @@
       "strong_yeast": 1,
       "brown_candi_sugar": 1,
       "wheat_starch": 1,
-      "classic_hopes": 1
+      "classic_hops": 1
     },
     "bands": {
       "taste": [

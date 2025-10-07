@@ -82,8 +82,8 @@
             "vec": [0.8, 0.0, 0.0, 0.5]
           },
           {
-            "id": "magnim_hops",
-            "names": { "de": "Magnim-Hopfen (ToDo verify translation)", "en": "Magnim Hops" },
+            "id": "magnum_hops",
+            "names": { "de": "Magnum-Hopfen (ToDo verify translation)", "en": "Magnum Hops" },
             "vec": [1.6, 0.0, 0.0, 1.0]
           }
         ]
@@ -101,7 +101,7 @@
           },
           {
             "id": "gruit",
-            "names": { "de": "Gruit (ToDo verify translation)", "en": "Gruit" },
+            "names": { "de": "Grut (ToDo verify translation)", "en": "Gruit" },
             "vec": [0.5, -0.3, 0.0, 0.0]
           },
           {
