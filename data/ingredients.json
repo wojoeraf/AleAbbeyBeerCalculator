@@ -33,5 +33,60 @@
     "id": "honey",
     "names": {"de": "Honig", "en": "Honey"},
     "vec": [1.0, 0.3, 1.0, 0.0]
+  },
+  {
+    "id": "strong_yeast",
+    "names": {"de": "Starke Hefe TODO", "en": "Strong Yeast"},
+    "vec": [1.0, 0.3, 1.0, 0.0]
+  },
+  {
+    "id": "wheat_malt",
+    "names": {"de": "Weizenmalz TODO", "en": "Wheat Malt"},
+    "vec": [1.0, 0.3, 1.0, 0.0]
+  },
+  {
+    "id": "classic_hopes",
+    "names": {"de": "Klassischer Hopfen TODO", "en": "Classic Hopes"},
+    "vec": [1.0, 0.3, 1.0, 0.0]
+  },
+  {
+    "id": "estery_yeast",
+    "names": {"de": "Estery Hefe TODO", "en": "Estery Yeast"},
+    "vec": [1.0, 0.3, 1.0, 0.0]
+  },
+  {
+    "id": "berries",
+    "names": {"de": "Beeren TODO", "en": "Berries"},
+    "vec": [1.0, 0.3, 1.0, 0.0]
+  },
+  {
+    "id": "cherries",
+    "names": {"de": "Kirschen TODO", "en": "Cherries"},
+    "vec": [1.0, 0.3, 1.0, 0.0]
+  },
+  {
+    "id": "pepper",
+    "names": {"de": "Pfeffer TODO", "en": "Pepper"},
+    "vec": [1.0, 0.3, 1.0, 0.0]
+  },
+  {
+    "id": "cascade_hopes",
+    "names": {"de": "Kaskaden Hopfen TODO", "en": "Cascade Hopes"},
+    "vec": [1.0, 0.3, 1.0, 0.0]
+  },
+  {
+    "id": "magnum_hopes",
+    "names": {"de": "Magnum Hopfen TODO", "en": "Magnum Hopes"},
+    "vec": [1.0, 0.3, 1.0, 0.0]
+  },
+  {
+    "id": "brown_candy_sugar",
+    "names": {"de": "Brauner Kandiszucker TODO", "en": "Brown Candy Sugar"},
+    "vec": [1.0, 0.3, 1.0, 0.0]
+  },
+  {
+    "id": "wheat_starch",
+    "names": {"de": "Weizenstärke TODO", "en": "Wheat Starch"},
+    "vec": [1.0, 0.3, 1.0, 0.0]
   }
 ]
