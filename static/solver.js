@@ -113,10 +113,18 @@ const initSolver = () => {
   const resultsList = document.querySelector('[data-results-list]');
   const resultsEmpty = document.querySelector('[data-results-empty]');
   const statusMessage = document.querySelector('[data-status-message]');
+  const resultsControls = document.querySelector('[data-results-controls]');
+  const sortAttrSelect = document.querySelector('[data-sort-attr]');
+  const sortOrderSelect = document.querySelector('[data-sort-order]');
   const debugPanel = document.querySelector('[data-debug-panel]');
   const debugOutput = document.querySelector('[data-debug-output]');
   const debugToggle = document.getElementById('debug-toggle');
   const debugContent = document.querySelector('[data-debug-content]');
+
+  let latestSolutions = [];
+  let latestSummaryLines = [];
+  let latestInfoMessages = [];
+  let hasRenderedResults = false;
 
   const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
@@ -293,12 +301,14 @@ const initSolver = () => {
             });
 
             const totalsRounded = totals.map((val) => Math.round(val * 1000) / 1000);
+            const ingredientCount = Object.keys(countsById).length;
             solutions.push({
               x: counts.slice(),
               sum: counts.reduce((acc, val) => acc + val, 0),
               totals: totalsRounded,
               bands,
               countsById,
+              ingredientCount,
             });
             return;
           }
@@ -525,14 +535,108 @@ const initSolver = () => {
     return value.toFixed(2);
   };
 
-  const renderSolutions = (solutions, summaryLines, infoMessages) => {
-    if (!resultsSection) return;
+  const formatResultValue = (value) => {
+    if (!Number.isFinite(value)) {
+      return '0';
+    }
+    const rounded = Math.round(value * 10) / 10;
+    if (Math.abs(rounded - Math.round(rounded)) < 1e-6) {
+      return String(Math.round(rounded));
+    }
+    return rounded.toFixed(1);
+  };
+
+  const sanitizeBand = (band) => {
+    const safe = String(band || 'n/a')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    return safe || 'n-a';
+  };
+
+  const numericValue = (value) => {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : 0;
+  };
+
+  const getSelectedSortAttr = () => {
+    if (sortAttrSelect && ATTRS.includes(sortAttrSelect.value)) {
+      return sortAttrSelect.value;
+    }
+    return ATTRS.length ? ATTRS[0] : null;
+  };
+
+  const getSelectedSortOrder = () => {
+    if (sortOrderSelect && sortOrderSelect.value === 'asc') {
+      return 'asc';
+    }
+    return 'desc';
+  };
+
+  const sortSolutionsForDisplay = (solutions) => {
+    if (!Array.isArray(solutions)) return [];
+    const attr = getSelectedSortAttr();
+    const attrIndexRaw = attr ? ATTRS.indexOf(attr) : -1;
+    const attrIndex = attrIndexRaw >= 0 ? attrIndexRaw : 0;
+    const order = getSelectedSortOrder();
+
+    const sorted = [...solutions];
+    sorted.sort((a, b) => {
+      const totalsA = Array.isArray(a.totals) ? a.totals : [];
+      const totalsB = Array.isArray(b.totals) ? b.totals : [];
+      const aVal = numericValue(totalsA[attrIndex]);
+      const bVal = numericValue(totalsB[attrIndex]);
+      const primaryDiff = aVal - bVal;
+      if (Math.abs(primaryDiff) > EPS) {
+        return order === 'asc' ? primaryDiff : -primaryDiff;
+      }
+
+      const countA = Number.isFinite(a.ingredientCount)
+        ? a.ingredientCount
+        : Object.keys(a.countsById || {}).length;
+      const countB = Number.isFinite(b.ingredientCount)
+        ? b.ingredientCount
+        : Object.keys(b.countsById || {}).length;
+      if (countA !== countB) {
+        return countA - countB;
+      }
+
+      if (a.sum !== b.sum) {
+        return a.sum - b.sum;
+      }
+
+      for (let idx = 0; idx < ATTRS.length; idx += 1) {
+        if (idx === attrIndex) continue;
+        const diff = numericValue(totalsA[idx]) - numericValue(totalsB[idx]);
+        if (Math.abs(diff) > EPS) {
+          return diff;
+        }
+      }
+
+      const keyA = Array.isArray(a.x) ? a.x.join('|') : '';
+      const keyB = Array.isArray(b.x) ? b.x.join('|') : '';
+      if (keyA || keyB) {
+        return keyA.localeCompare(keyB);
+      }
+      return 0;
+    });
+    return sorted;
+  };
+
+  const applyResultsState = () => {
+    if (!resultsSection || !hasRenderedResults) return;
+    const summaryLines = Array.isArray(latestSummaryLines) ? latestSummaryLines : [];
+    const infoMessages = Array.isArray(latestInfoMessages) ? latestInfoMessages : [];
+    const sortedSolutions = sortSolutionsForDisplay(latestSolutions);
+    const count = sortedSolutions.length;
+
     resultsSection.hidden = false;
-    const count = solutions.length;
+
     if (resultsTitle) {
       const titleText = translate('results_title', { count });
       resultsTitle.textContent = typeof titleText === 'string' ? titleText : translate('results_heading');
     }
+
     if (resultsSummary) {
       if (summaryLines.length) {
         resultsSummary.hidden = false;
@@ -542,6 +646,7 @@ const initSolver = () => {
         resultsSummary.textContent = '';
       }
     }
+
     if (statusMessage) {
       if (infoMessages.length > 0) {
         statusMessage.hidden = false;
@@ -551,36 +656,24 @@ const initSolver = () => {
         statusMessage.textContent = '';
       }
     }
+
     if (resultsEmpty) {
       resultsEmpty.hidden = count !== 0;
     }
+
+    if (resultsControls) {
+      resultsControls.hidden = count === 0;
+    }
+
     if (resultsList) {
       resultsList.innerHTML = '';
     }
+
     if (count === 0) {
       return;
     }
 
-    const formatValue = (value) => {
-      if (!Number.isFinite(value)) {
-        return '0';
-      }
-      const rounded = Math.round(value * 10) / 10;
-      if (Math.abs(rounded - Math.round(rounded)) < 1e-6) {
-        return String(Math.round(rounded));
-      }
-      return rounded.toFixed(1);
-    };
-
-    const sanitizeBand = (band) => {
-      const safe = String(band || 'n/a')
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '');
-      return safe || 'n-a';
-    };
-
-    solutions.forEach((solution, index) => {
+    sortedSolutions.forEach((solution, index) => {
       const card = document.createElement('article');
       card.className = 'card result-card';
 
@@ -647,19 +740,19 @@ const initSolver = () => {
       ATTRS.forEach((attr, idx) => {
         const value = Number(solution.totals[idx]) || 0;
         const band = solution.bands[attr];
-        const sanitizedBand = sanitizeBand(band);
+        const sanitized = sanitizeBand(band);
 
         const bar = document.createElement('div');
         bar.className = 'result-attr-bar';
         bar.setAttribute('role', 'group');
         bar.setAttribute(
           'aria-label',
-          `${attrLabels[attr] || attr}: ${formatValue(value)} (${bandLabels[band] || band || 'n/a'})`,
+          `${attrLabels[attr] || attr}: ${formatResultValue(value)} (${bandLabels[band] || band || 'n/a'})`,
         );
 
         const valueLabel = document.createElement('span');
         valueLabel.className = 'result-attr-value';
-        valueLabel.textContent = formatValue(value);
+        valueLabel.textContent = formatResultValue(value);
         bar.appendChild(valueLabel);
 
         const track = document.createElement('div');
@@ -667,10 +760,10 @@ const initSolver = () => {
 
         const fill = document.createElement('div');
         fill.className = 'result-attr-fill';
-        fill.dataset.band = sanitizedBand;
+        fill.dataset.band = sanitized;
         const percent = scaleMax > 0 ? clamp((value / scaleMax) * 100, 0, 100) : 0;
         fill.style.height = `${percent}%`;
-        fill.title = `${attrLabels[attr] || attr}: ${formatValue(value)}`;
+        fill.title = `${attrLabels[attr] || attr}: ${formatResultValue(value)}`;
         track.appendChild(fill);
         bar.appendChild(track);
 
@@ -686,9 +779,9 @@ const initSolver = () => {
 
       ATTRS.forEach((attr) => {
         const band = solution.bands[attr];
-        const sanitizedBand = sanitizeBand(band);
+        const sanitized = sanitizeBand(band);
         const pill = document.createElement('span');
-        pill.className = `pill ${sanitizedBand}`;
+        pill.className = `pill ${sanitized}`;
         const label = attrLabels[attr] || attr;
         const bandLabel = bandLabels[band] || band || 'n/a';
         pill.textContent = `${label}: ${bandLabel}`;
@@ -700,6 +793,22 @@ const initSolver = () => {
       }
     });
   };
+
+  const renderSolutions = (solutions, summaryLines, infoMessages) => {
+    latestSolutions = Array.isArray(solutions) ? [...solutions] : [];
+    latestSummaryLines = Array.isArray(summaryLines) ? [...summaryLines] : [];
+    latestInfoMessages = Array.isArray(infoMessages) ? [...infoMessages] : [];
+    hasRenderedResults = true;
+    applyResultsState();
+  };
+
+  if (sortAttrSelect) {
+    sortAttrSelect.addEventListener('change', applyResultsState);
+  }
+
+  if (sortOrderSelect) {
+    sortOrderSelect.addEventListener('change', applyResultsState);
+  }
 
   const renderDebug = (lines) => {
     if (!debugPanel || !debugOutput) return;

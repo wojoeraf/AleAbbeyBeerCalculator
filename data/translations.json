@@ -27,7 +27,11 @@
       "button_submit": "Rezept berechnen",
       "section_results": "Ergebnisse",
       "results_empty": "Keine Lösung unter den gegebenen Regeln gefunden.",
-      "language_submit": "Sprache ändern"
+      "language_submit": "Sprache ändern",
+      "results_sort_label": "Ergebnisse sortieren nach",
+      "results_sort_order_label": "Reihenfolge",
+      "results_sort_desc": "Absteigend",
+      "results_sort_asc": "Aufsteigend"
     },
     "attr_labels": {
       "taste": "Geschmack",
@@ -97,7 +101,11 @@
       "button_submit": "Calculate recipe",
       "section_results": "Results",
       "results_empty": "No solution found for the current constraints.",
-      "language_submit": "Change language"
+      "language_submit": "Change language",
+      "results_sort_label": "Sort results by",
+      "results_sort_order_label": "Order",
+      "results_sort_desc": "High to low",
+      "results_sort_asc": "Low to high"
     },
     "attr_labels": {
       "taste": "Taste",
