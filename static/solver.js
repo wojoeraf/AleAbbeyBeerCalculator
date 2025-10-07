@@ -371,11 +371,34 @@ const initSolver = () => {
       });
     }
 
-    if (minCounts.some((cnt) => cnt > perCap)) {
+    const magnitudeByIndex = vectors.map((vec) => {
+      if (!Array.isArray(vec)) {
+        return 0;
+      }
+      return vec.reduce((acc, val) => acc + Math.abs(Number(val) || 0), 0);
+    });
+    const orderedIndices = ingredients.map((_, idx) => idx);
+    orderedIndices.sort((a, b) => {
+      const requiredDiff = minCounts[b] - minCounts[a];
+      if (requiredDiff !== 0) {
+        return requiredDiff;
+      }
+      const magnitudeDiff = magnitudeByIndex[b] - magnitudeByIndex[a];
+      if (Math.abs(magnitudeDiff) > EPS) {
+        return magnitudeDiff;
+      }
+      return a - b;
+    });
+
+    const orderedVectors = orderedIndices.map((idx) => vectors[idx]);
+    const orderedMinCounts = orderedIndices.map((idx) => minCounts[idx]);
+    const orderedIds = orderedIndices.map((idx) => getIngredientId(ingredients[idx], idx));
+
+    if (orderedMinCounts.some((cnt) => cnt > perCap)) {
       return { solutions: [], info: [translate('min_exceeds_cap')] };
     }
 
-    const minSum = minCounts.reduce((acc, val) => acc + val, 0);
+    const minSum = orderedMinCounts.reduce((acc, val) => acc + val, 0);
     const adjustedTotalCap = Math.max(totalCap, minSum);
 
     const perAttrIntervals = ATTRS.map((attr) => numericIntervals[attr]);
@@ -417,7 +440,7 @@ const initSolver = () => {
 
     const suffixMinCounts = new Array(n + 1).fill(0);
     for (let idx = n - 1; idx >= 0; idx -= 1) {
-      suffixMinCounts[idx] = minCounts[idx] + suffixMinCounts[idx + 1];
+      suffixMinCounts[idx] = orderedMinCounts[idx] + suffixMinCounts[idx + 1];
     }
     if (suffixMinCounts[0] > adjustedTotalCap) {
       return { solutions: [], info: [translate('cap_too_small')] };
@@ -426,8 +449,8 @@ const initSolver = () => {
     const suffixLo = Array.from({ length: n + 1 }, () => new Array(ATTRS.length).fill(0));
     const suffixHi = Array.from({ length: n + 1 }, () => new Array(ATTRS.length).fill(0));
     for (let idx = n - 1; idx >= 0; idx -= 1) {
-      const vec = vectors[idx];
-      const loCnt = minCounts[idx];
+      const vec = orderedVectors[idx];
+      const loCnt = orderedMinCounts[idx];
       const hiCnt = perCap;
       for (let k = 0; k < ATTRS.length; k += 1) {
         const coef = vec[k] || 0;
@@ -460,7 +483,15 @@ const initSolver = () => {
                 return;
               }
             }
-            const key = counts.join('|');
+            const countsInOriginalOrder = new Array(n).fill(0);
+            counts.forEach((cnt, orderedIdx) => {
+              if (cnt > 0) {
+                const originalIdx = orderedIndices[orderedIdx];
+                countsInOriginalOrder[originalIdx] = cnt;
+              }
+            });
+
+            const key = countsInOriginalOrder.join('|');
             if (seenCombos.has(key)) {
               return;
             }
@@ -475,7 +506,7 @@ const initSolver = () => {
             const countsById = {};
             counts.forEach((cnt, ingredientIdx) => {
               if (cnt > 0) {
-                const id = getIngredientId(ingredients[ingredientIdx], ingredientIdx);
+                const id = orderedIds[ingredientIdx];
                 countsById[id] = cnt;
               }
             });
@@ -483,8 +514,8 @@ const initSolver = () => {
             const totalsRounded = totals.map((val) => Math.round(val * 1000) / 1000);
             const ingredientCount = Object.keys(countsById).length;
             solutions.push({
-              x: counts.slice(),
-              sum: counts.reduce((acc, val) => acc + val, 0),
+              x: countsInOriginalOrder,
+              sum: countsInOriginalOrder.reduce((acc, val) => acc + val, 0),
               totals: totalsRounded,
               bands,
               countsById,
@@ -510,12 +541,12 @@ const initSolver = () => {
 
           const remainingMinAfter = suffixMinCounts[idx + 1];
           const maxC = Math.min(perCap, adjustedTotalCap - used - remainingMinAfter);
-          const minC = minCounts[idx];
+          const minC = orderedMinCounts[idx];
           if (maxC < minC) {
             return;
           }
 
-          const vec = vectors[idx];
+          const vec = orderedVectors[idx];
           for (let c = minC; c <= maxC; c += 1) {
             if (shouldAbort()) {
               return;
