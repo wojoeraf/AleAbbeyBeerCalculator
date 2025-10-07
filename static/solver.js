@@ -312,6 +312,13 @@ const initSolver = () => {
 
   const styleIds = Object.keys(stylesData);
 
+  const getNow = () => {
+    if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+      return performance.now();
+    }
+    return Date.now();
+  };
+
   const solveRecipe = ({
     styleName,
     numericIntervals,
@@ -321,6 +328,23 @@ const initSolver = () => {
     extraMinCounts,
     topK = 10,
   }) => {
+    const startTime = getNow();
+    const MAX_SOLUTIONS = Math.max(topK * 25, 250);
+    const TIME_LIMIT_MS = 1500;
+    let abortedEarly = false;
+
+    const shouldAbort = () => {
+      if (abortedEarly) {
+        return true;
+      }
+      const elapsed = getNow() - startTime;
+      if (elapsed > TIME_LIMIT_MS) {
+        abortedEarly = true;
+        return true;
+      }
+      return false;
+    };
+
     const style = stylesData[styleName];
     if (!style) {
       return { solutions: [], info: [translate('unknown_style', { style: displayStyleName(styleName) })] };
@@ -419,11 +443,17 @@ const initSolver = () => {
     const solutions = [];
 
     const iterateBoxes = (attrIdx, lower, upper) => {
+      if (shouldAbort()) {
+        return;
+      }
       if (attrIdx === ATTRS.length) {
         const lowerBounds = lower.slice();
         const upperBounds = upper.slice();
 
         const dfs = (idx, used, totals) => {
+          if (shouldAbort()) {
+            return;
+          }
           if (idx >= n) {
             for (let k = 0; k < ATTRS.length; k += 1) {
               if (totals[k] < lowerBounds[k] - EPS || totals[k] > upperBounds[k] + EPS) {
@@ -460,6 +490,9 @@ const initSolver = () => {
               countsById,
               ingredientCount,
             });
+            if (solutions.length >= MAX_SOLUTIONS) {
+              abortedEarly = true;
+            }
             return;
           }
 
@@ -484,6 +517,9 @@ const initSolver = () => {
 
           const vec = vectors[idx];
           for (let c = minC; c <= maxC; c += 1) {
+            if (shouldAbort()) {
+              return;
+            }
             counts[idx] = c;
             const newTotals = totals.map((val, k) => val + (vec[k] || 0) * c);
             let feasible = true;
@@ -498,6 +534,9 @@ const initSolver = () => {
             if (feasible) {
               dfs(idx + 1, used + c, newTotals);
             }
+            if (abortedEarly) {
+              return;
+            }
           }
           counts[idx] = 0;
         };
@@ -507,9 +546,15 @@ const initSolver = () => {
       }
 
       for (const interval of perAttrLists[attrIdx]) {
+        if (shouldAbort()) {
+          return;
+        }
         lower[attrIdx] = interval[0];
         upper[attrIdx] = interval[1];
         iterateBoxes(attrIdx + 1, lower, upper);
+        if (abortedEarly) {
+          return;
+        }
       }
     };
 
@@ -541,7 +586,12 @@ const initSolver = () => {
       if (uniq.length >= topK) break;
     }
 
-    return { solutions: uniq, info: [] };
+    const infoMessages = [];
+    if (abortedEarly) {
+      infoMessages.push(translate('search_limited'));
+    }
+
+    return { solutions: uniq, info: infoMessages };
   };
 
   const sliderStepToNumber = (raw) => {
