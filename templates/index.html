@@ -12,7 +12,7 @@
         <div class="header-row">
             <h1>{{ ui.header_title }}</h1>
             <form class="language-switcher" method="get">
-                <label for="language-select">{{ ui.language_label }}</label>
+{#                <label for="language-select">{{ ui.language_label }}</label>#}
                 <div class="language-switcher-controls">
                     <select id="language-select" name="lang" onchange="this.form.submit()">
                         {% for entry in languages %}
@@ -198,18 +198,13 @@
     </section>
 
     <section class="card support-section" id="support">
-        <h2>Unterstütze Ale Abbey</h2>
-        <p>
-            Hallo, ich bin der Braumeister hinter Ale Abbey. Diese Seite bleibt bewusst frei von
-            Werbung, damit du ohne Ablenkung deine perfekte Bierkreation planen kannst. Wenn dir das
-            Projekt gefällt, freue ich mich über deine Unterstützung – damit bleibt Ale Abbey am
-            Köcheln!
-        </p>
+        <h2>{{ ui.support_header }}</h2>
+        <p>{{ ui.support }}</p>
         <div class="support-actions">
-            <p class="support-note">Jeder Beitrag hilft – vielen Dank fürs Mitbrauen!</p>
+            <p class="support-note">{{ ui.support_note }}</p>
             <div class="support-buttons">
                 <a href="https://www.buymeacoffee.com/honigbartstudios" target="_blank"><img
-                        src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee"
+                        src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me an Ale"
                         style="height: 60px !important;width: 217px !important;"></a>
             </div>
         </div>
@@ -219,14 +214,14 @@
 <footer class="site-footer">
     <div class="footer-inner">
         <div>
-            <strong>Ale Abbey Beer Calculator</strong>
-            <p class="footer-tagline">Braue smarter – ganz ohne Werbung.</p>
+            <strong>{{ ui.header_title }}</strong>
+            <p class="footer-tagline"></p>
         </div>
         <nav aria-label="Rechtliches">
             <ul class="footer-links">
-                <li><a href="{{ url_for('impressum') }}">Impressum</a></li>
-                <li><a href="{{ url_for('datenschutz') }}">Datenschutz</a></li>
-                <li><a href="{{ url_for('kontakt') }}">Kontakt</a></li>
+                <li><a href="{{ url_for('impressum') }}">{{ ui.site_notice }}</a></li>
+                <li><a href="{{ url_for('datenschutz') }}">{{ ui.privacy_policy }}</a></li>
+{#                <li><a href="{{ url_for('kontakt') }}">{{ ui.report_bug }}</a></li>#}
             </ul>
         </nav>
     </div>

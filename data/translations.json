@@ -31,7 +31,14 @@
       "results_sort_label": "Ergebnisse sortieren nach",
       "results_sort_order_label": "Reihenfolge",
       "results_sort_desc": "Absteigend",
-      "results_sort_asc": "Aufsteigend"
+      "results_sort_asc": "Aufsteigend",
+      "support_header": "Unterstütze Ale Abbey",
+      "support": "Hallo, ich bin der B(r)aumeister hinter Ale Abbey Rezeptrechner. Diese Seite bleibt bewusst frei von Werbung, damit du ohne Ablenkung deine perfekte Bierkreation planen kannst. Wenn dir das Projekt gefällt, freue ich mich über deine Unterstützung für Hosting und Domainkosten.",
+      "support_note": "Jeder Beitrag hilft. Vielen Dank fürs Mitbrauen!",
+      "footer_tagline": "Braue smarter.",
+      "site_notice": "Impressum",
+      "privacy_policy": "Datenschutzerklärung",
+      "report_bug": "Fehler melden"
     },
     "attr_labels": {
       "taste": "Geschmack",
@@ -105,7 +112,14 @@
       "results_sort_label": "Sort results by",
       "results_sort_order_label": "Order",
       "results_sort_desc": "High to low",
-      "results_sort_asc": "Low to high"
+      "results_sort_asc": "Low to high",
+      "support_header": "Support Ale Abbey",
+      "support": "Hello, I am the creator behind Ale Abbey Recipe Solver. This site is intentionally free of advertising so that you can plan your perfect beer creation without distractions. If you like the project, I would appreciate your support for hosting and domain costs.",
+      "support_note": "Every contribution helps. Thank you for joining us!",
+      "footer_tagline": "Brew smarter.",
+      "site_notice": "Site Notice",
+      "privacy_policy": "Privacy Policy",
+      "report_bug": "Report a bug"
     },
     "attr_labels": {
       "taste": "Taste",
