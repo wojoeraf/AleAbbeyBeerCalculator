@@ -55,100 +55,116 @@
             </div>
         </section>
 
-        <section>
+        <section class="attributes-section">
             <div class="section-header">
                 <h3 class="section-title">{{ ui.section_attributes }}</h3>
                 <button type="button" class="btn-secondary" data-set-all-green>{{ ui.button_all_green }}</button>
             </div>
-            <div class="attr-grid">
-                {% for a in attrs %}
-                    <div class="attr-card" data-attr-card>
-                        <h4>{{ attr_labels[a] }}</h4>
-                        <div class="chips">
-                            {% for band in ['any', 'green', 'yellow', 'red'] %}
-                                {% set label = band_labels.get(band, band) %}
-                                <label class="chip" data-color="{{ band }}">
-                                    <input type="radio" name="band_{{ a }}" value="{{ band }}"
-                                           {% if constraints[a].band == band %}checked{% endif %}>
-                                    <span>{{ label }}</span>
-                                </label>
-                            {% endfor %}
-                        </div>
-
-                        <div>
-                            <label class="label" style="margin-top:12px;">{{ ui.label_mode }}</label>
-                            <select class="mode-select" name="mode_{{ a }}">
-                                <option value="any"
-                                        {% if constraints[a].mode == 'any' %}selected{% endif %}>{{ mode_labels['any'] }}</option>
-                                <option value="ge"
-                                        {% if constraints[a].mode == 'ge' %}selected{% endif %}>{{ mode_labels['ge'] }}</option>
-                                <option value="le"
-                                        {% if constraints[a].mode == 'le' %}selected{% endif %}>{{ mode_labels['le'] }}</option>
-                                <option value="between"
-                                        {% if constraints[a].mode == 'between' %}selected{% endif %}>{{ mode_labels['between'] }}</option>
-                            </select>
-                            <div class="range-inputs">
-                                <label>{{ ui.label_min }}
-                                    <input type="number" class="min-input" name="min_{{ a }}" step="0.1" min="0"
-                                           max="11" value="{{ constraints[a].min }}">
-                                </label>
-                                <label>{{ ui.label_max }}
-                                    <input type="number" class="max-input" name="max_{{ a }}" step="0.1" min="0"
-                                           max="11" value="{{ constraints[a].max }}">
-                                </label>
+            <div class="attributes-layout">
+                <div class="attr-list">
+                    {% for a in attrs %}
+                        {% set constraint = constraints[a] %}
+                        {% set slider_value_str = constraint.value if constraint.value else '5.5' %}
+                        {% set slider_value = slider_value_str|float %}
+                        {% set slider_step = '%.0f'|format(slider_value * 10) %}
+                        <div class="attr-card" data-attr-card data-attr="{{ a }}">
+                            <div class="attr-card-header">
+                                <h4>{{ attr_labels[a] }}</h4>
+                                <button type="button" class="chip chip-clear" data-clear-color title="{{ ui.button_clear_color }}">
+                                    <span>{{ ui.button_clear_color }}</span>
+                                </button>
                             </div>
+                            <div class="attr-card-body">
+                                <div class="chips chips-colors" data-color-group>
+                                    {% for band in ['any', 'green', 'yellow', 'red'] %}
+                                        {% set label = band_labels.get(band, band) %}
+                                        <label class="chip" data-color="{{ band }}">
+                                            <input type="radio" name="band_{{ a }}" value="{{ band }}"
+                                                   data-color-radio
+                                                   {% if constraints[a].band == band %}checked{% endif %}>
+                                            <span>{{ label }}</span>
+                                        </label>
+                                    {% endfor %}
+                                </div>
+                                <div class="attr-controls" data-slider-area data-mode="{{ constraint.mode }}">
+                                    <div class="mode-toggle" role="group" aria-label="{{ ui.label_mode }}">
+                                        <button type="button" class="mode-btn" data-mode-btn data-mode="eq"
+                                                aria-label="{{ mode_labels.get('eq', '=') }}"
+                                                title="{{ mode_labels.get('eq', '=') }}"
+                                                aria-pressed="{{ 'true' if constraints[a].mode == 'eq' else 'false' }}">=</button>
+                                        <button type="button" class="mode-btn" data-mode-btn data-mode="ge"
+                                                aria-label="{{ mode_labels.get('ge', '≥') }}"
+                                                title="{{ mode_labels.get('ge', '≥') }}"
+                                                aria-pressed="{{ 'true' if constraints[a].mode == 'ge' else 'false' }}">≥</button>
+                                        <button type="button" class="mode-btn" data-mode-btn data-mode="le"
+                                                aria-label="{{ mode_labels.get('le', '≤') }}"
+                                                title="{{ mode_labels.get('le', '≤') }}"
+                                                aria-pressed="{{ 'true' if constraints[a].mode == 'le' else 'false' }}">≤</button>
+                                    </div>
+                                    <div class="slider-row">
+                                        <input type="range" min="0" max="110" step="1" value="{{ slider_step }}"
+                                               data-attr-range data-initial-value="{{ '%.1f'|format(slider_value) }}"
+                                               aria-valuemin="0" aria-valuemax="11" aria-valuenow="{{ '%.1f'|format(slider_value) }}"
+                                               aria-label="{{ attr_labels[a] }}">
+                                        <div class="slider-value">
+                                            <span class="slider-value-label">{{ ui.label_value_display }}</span>
+                                            <span class="slider-value-number" data-slider-value>{{ '%.1f'|format(slider_value) }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <input type="hidden" name="mode_{{ a }}" value="{{ constraint.mode }}" data-mode-input>
+                            <input type="hidden" name="min_{{ a }}" value="{{ constraint.min }}" data-min-input>
+                            <input type="hidden" name="max_{{ a }}" value="{{ constraint.max }}" data-max-input>
                         </div>
-                    </div>
-                {% endfor %}
-            </div>
-        </section>
-
-        <section>
-            <details class="collapsible" data-collapsible open>
-                <summary>
-                    <h3 class="section-title">{{ ui.section_ingredients }}</h3>
-                </summary>
-                <div class="mobile-attr-toggle" data-attribute-toggle hidden>
-                    <label>
-                        <input type="checkbox" data-attribute-toggle-input>
-                        <span>{{ ui.toggle_show_attributes }}</span>
-                    </label>
+                    {% endfor %}
                 </div>
-                <div class="table-wrapper" data-ingredients-wrapper data-hide-attributes="false">
-                    <table class="ingredients-table">
-                        <thead>
-                        <tr>
-                            <th class="col-checkbox"></th>
-                            <th>{{ ui.table_name }}</th>
-                            <th>{{ ui.table_taste }}</th>
-                            <th>{{ ui.table_color }}</th>
-                            <th>{{ ui.table_strength }}</th>
-                            <th>{{ ui.table_foam }}</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        {% for ing in ingredients %}
-                            {% set required_count = style_mins.get(ing.id, 0) %}
-                            {% set is_required = required_count > 0 %}
-                            {% set is_locked = is_required %}
-                            {% set is_checked = is_locked or ing.id in selected_optional %}
-                            <tr class="{% if is_locked %}ingredient-locked{% endif %}" data-ingredient-row
-                                data-ingredient-id="{{ ing.id }}">
-                                <td class="checkbox-cell">
-                                    <label class="ingredient-option"
-                                           {% if is_locked %}title="{{ ui.tooltip_required }}"{% endif %}>
-                                        <input type="checkbox" name="optional_ingredients" value="{{ ing.id }}"
-                                               {% if is_checked %}checked{% endif %}
-                                               {% if is_locked %}disabled{% endif %}
-                                               data-user-selected="{{ 'true' if ing.id in selected_optional else 'false' }}">
-                                        <span class="checkbox-visual"></span>
-                                    </label>
-                                </td>
-                                <td data-label="{{ ui.table_name }}">
-                                    <div class="ingredient-name">
-                                        <span>{{ ing.name }}</span>
-                                        <span class="ingredient-badge badge-required" data-required-badge
-                                              {% if not is_required %}hidden{% endif %}>
+                <aside class="ingredients-side">
+                    <details class="collapsible" data-collapsible open>
+                        <summary>
+                            <h3 class="section-title">{{ ui.section_ingredients }}</h3>
+                        </summary>
+                        <div class="mobile-attr-toggle" data-attribute-toggle hidden>
+                            <label>
+                                <input type="checkbox" data-attribute-toggle-input>
+                                <span>{{ ui.toggle_show_attributes }}</span>
+                            </label>
+                        </div>
+                        <div class="table-wrapper" data-ingredients-wrapper data-hide-attributes="false">
+                            <table class="ingredients-table ingredients-table--compact">
+                                <thead>
+                                <tr>
+                                    <th class="col-checkbox"></th>
+                                    <th>{{ ui.table_name }}</th>
+                                    <th>{{ ui.table_taste }}</th>
+                                    <th>{{ ui.table_color }}</th>
+                                    <th>{{ ui.table_strength }}</th>
+                                    <th>{{ ui.table_foam }}</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for ing in ingredients %}
+                                    {% set required_count = style_mins.get(ing.id, 0) %}
+                                    {% set is_required = required_count > 0 %}
+                                    {% set is_locked = is_required %}
+                                    {% set is_checked = is_locked or ing.id in selected_optional %}
+                                    <tr class="{% if is_locked %}ingredient-locked{% endif %}" data-ingredient-row
+                                        data-ingredient-id="{{ ing.id }}">
+                                        <td class="checkbox-cell">
+                                            <label class="ingredient-option"
+                                                   {% if is_locked %}title="{{ ui.tooltip_required }}"{% endif %}>
+                                                <input type="checkbox" name="optional_ingredients" value="{{ ing.id }}"
+                                                       {% if is_checked %}checked{% endif %}
+                                                       {% if is_locked %}disabled{% endif %}
+                                                       data-user-selected="{{ 'true' if ing.id in selected_optional else 'false' }}">
+                                                <span class="checkbox-visual"></span>
+                                            </label>
+                                        </td>
+                                        <td data-label="{{ ui.table_name }}">
+                                            <div class="ingredient-name">
+                                                <span>{{ ing.name }}</span>
+                                                <span class="ingredient-badge badge-required" data-required-badge
+                                                      {% if not is_required %}hidden{% endif %}>
                           {% if is_required %}
                               {% if required_count > 1 %}
                                   {{ ui.badge_required_multiple | replace('{count}', '%d' % required_count) }}
@@ -159,18 +175,20 @@
                               {{ ui.badge_required_single }}
                           {% endif %}
                         </span>
-                                    </div>
-                                </td>
-                                <td data-label="{{ ui.table_taste }}" data-attr-cell>{{ '%.1f'|format(ing.vec[0]) }}</td>
-                                <td data-label="{{ ui.table_color }}" data-attr-cell>{{ '%.1f'|format(ing.vec[1]) }}</td>
-                                <td data-label="{{ ui.table_strength }}" data-attr-cell>{{ '%.1f'|format(ing.vec[2]) }}</td>
-                                <td data-label="{{ ui.table_foam }}" data-attr-cell>{{ '%.1f'|format(ing.vec[3]) }}</td>
-                            </tr>
-                        {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </details>
+                                            </div>
+                                        </td>
+                                        <td data-label="{{ ui.table_taste }}" data-attr-cell>{{ '%.1f'|format(ing.vec[0]) }}</td>
+                                        <td data-label="{{ ui.table_color }}" data-attr-cell>{{ '%.1f'|format(ing.vec[1]) }}</td>
+                                        <td data-label="{{ ui.table_strength }}" data-attr-cell>{{ '%.1f'|format(ing.vec[2]) }}</td>
+                                        <td data-label="{{ ui.table_foam }}" data-attr-cell>{{ '%.1f'|format(ing.vec[3]) }}</td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </details>
+                </aside>
+            </div>
         </section>
 
         <button class="btn-primary" type="submit" data-submit-button

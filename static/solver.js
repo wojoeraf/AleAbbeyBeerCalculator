@@ -451,50 +451,209 @@ const initSolver = () => {
     return { solutions: uniq, info: [] };
   };
 
+  const sliderStepToNumber = (raw) => {
+    const numeric = Number(raw);
+    if (!Number.isFinite(numeric)) {
+      return 0;
+    }
+    return clamp(numeric, 0, 110) / 10;
+  };
+
+  const formatSliderValue = (value) => {
+    if (!Number.isFinite(value)) {
+      return '0.0';
+    }
+    return value.toFixed(1);
+  };
+
+  const updateSliderProgress = (slider) => {
+    if (!slider) return;
+    const max = Number(slider.max) || 1;
+    const value = clamp(Number(slider.value), 0, max);
+    const percent = (value / max) * 100;
+    slider.style.setProperty('--slider-progress', `${percent}%`);
+  };
+
+  const colorStateUpdaters = [];
+
   const updateSubmitState = () => {
     if (!submitBtn) return;
     const hasConstraint = attrCards.some((card) => {
-      const selectedBand = card.querySelector('input[type="radio"]:checked');
-      const modeSelect = card.querySelector('.mode-select');
+      const selectedBand = card.querySelector('input[type="radio"][data-color-radio]:checked');
+      const modeInput = card.querySelector('[data-mode-input]');
       const bandActive = selectedBand && selectedBand.value !== 'any';
-      const modeActive = modeSelect && modeSelect.value !== 'any';
+      const modeActive = modeInput && modeInput.value !== 'any';
       return bandActive || modeActive;
     });
     submitBtn.disabled = !hasConstraint;
   };
 
   attrCards.forEach((card) => {
-    const modeSelect = card.querySelector('.mode-select');
-    const minInput = card.querySelector('.min-input');
-    const maxInput = card.querySelector('.max-input');
+    const slider = card.querySelector('[data-attr-range]');
+    const sliderValueEl = card.querySelector('[data-slider-value]');
+    const modeButtons = Array.from(card.querySelectorAll('[data-mode-btn]'));
+    const modeInput = card.querySelector('[data-mode-input]');
+    const minInput = card.querySelector('[data-min-input]');
+    const maxInput = card.querySelector('[data-max-input]');
+    const attrControls = card.querySelector('[data-slider-area]');
+    const colorRadios = Array.from(card.querySelectorAll('input[type="radio"][data-color-radio]'));
+    const clearBtn = card.querySelector('[data-clear-color]');
 
-    if (!modeSelect || !minInput || !maxInput) {
+    if (!modeInput || !minInput || !maxInput) {
+      colorRadios.forEach((radio) => {
+        radio.addEventListener('change', updateSubmitState);
+      });
       return;
     }
 
-    const toggle = () => {
-      const mode = modeSelect.value;
-      if (mode === 'any') {
-        minInput.disabled = true;
-        maxInput.disabled = true;
-      } else if (mode === 'ge') {
-        minInput.disabled = false;
-        maxInput.disabled = true;
+    const sanitizeMode = (mode) => {
+      if (mode === 'ge' || mode === 'le' || mode === 'eq') {
+        return mode;
+      }
+      return 'eq';
+    };
+
+    const syncSliderDisplay = () => {
+      if (!slider) return;
+      const numeric = sliderStepToNumber(slider.value);
+      if (sliderValueEl) {
+        sliderValueEl.textContent = formatSliderValue(numeric);
+      }
+      slider.setAttribute('aria-valuenow', formatSliderValue(numeric));
+      updateSliderProgress(slider);
+    };
+
+    const syncHiddenValues = () => {
+      if (!slider) return;
+      const formatted = formatSliderValue(sliderStepToNumber(slider.value));
+      const mode = modeInput.value;
+      if (mode === 'ge') {
+        minInput.value = formatted;
+        maxInput.value = '';
       } else if (mode === 'le') {
-        minInput.disabled = true;
-        maxInput.disabled = false;
+        minInput.value = '';
+        maxInput.value = formatted;
+      } else if (mode === 'eq') {
+        minInput.value = formatted;
+        maxInput.value = formatted;
       } else {
-        minInput.disabled = false;
-        maxInput.disabled = false;
+        minInput.value = '';
+        maxInput.value = '';
+      }
+    };
+
+    const setModeButtonsState = () => {
+      modeButtons.forEach((btn) => {
+        const isDisabled = slider ? slider.disabled : false;
+        const isActive = !isDisabled && btn.dataset.mode === modeInput.value;
+        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+      });
+    };
+
+    let storedMode = sanitizeMode(modeInput.value);
+    if (modeInput.value === 'any') {
+      storedMode = 'eq';
+    }
+
+    const setSliderDisabled = (disabled) => {
+      if (slider) {
+        slider.disabled = !!disabled;
+        if (!disabled) {
+          syncSliderDisplay();
+        }
+      }
+      if (attrControls) {
+        attrControls.classList.toggle('is-disabled', !!disabled);
+      }
+      modeButtons.forEach((btn) => {
+        btn.disabled = !!disabled;
+      });
+      setModeButtonsState();
+    };
+
+    const applyMode = (mode) => {
+      const normalized = sanitizeMode(mode);
+      storedMode = normalized;
+      modeInput.value = normalized;
+      setSliderDisabled(slider ? slider.disabled : false);
+      syncHiddenValues();
+      updateSubmitState();
+    };
+
+    const updateColorState = () => {
+      const selected = colorRadios.find((radio) => radio.checked);
+      const isColorActive = selected && selected.value !== 'any';
+      if (clearBtn) {
+        clearBtn.disabled = !isColorActive;
+      }
+      if (isColorActive) {
+        if (modeInput.value !== 'any') {
+          card.dataset.savedMode = modeInput.value;
+        } else {
+          card.dataset.savedMode = storedMode;
+        }
+        modeInput.value = 'any';
+        setSliderDisabled(true);
+        minInput.value = '';
+        maxInput.value = '';
+      } else {
+        setSliderDisabled(false);
+        const saved = card.dataset.savedMode;
+        if (saved) {
+          const restored = sanitizeMode(saved);
+          storedMode = restored;
+          modeInput.value = restored;
+        }
+        syncHiddenValues();
       }
       updateSubmitState();
     };
 
-    toggle();
-    modeSelect.addEventListener('change', toggle);
-    card.querySelectorAll('input[type="radio"]').forEach((radio) => {
-      radio.addEventListener('change', updateSubmitState);
+    colorRadios.forEach((radio) => {
+      radio.addEventListener('change', updateColorState);
     });
+
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        const anyRadio = colorRadios.find((radio) => radio.value === 'any');
+        if (anyRadio) {
+          anyRadio.checked = true;
+          updateColorState();
+        }
+      });
+    }
+
+    modeButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (slider && slider.disabled) {
+          return;
+        }
+        applyMode(btn.dataset.mode || 'eq');
+        setModeButtonsState();
+      });
+    });
+
+    if (slider) {
+      slider.addEventListener('input', () => {
+        syncSliderDisplay();
+        if (modeInput.value === 'any') {
+          applyMode(storedMode || 'eq');
+        } else {
+          syncHiddenValues();
+          updateSubmitState();
+        }
+      });
+      slider.addEventListener('change', () => {
+        syncSliderDisplay();
+        syncHiddenValues();
+      });
+      syncSliderDisplay();
+    }
+
+    syncHiddenValues();
+    setModeButtonsState();
+    updateColorState();
+    colorStateUpdaters.push(updateColorState);
   });
 
   if (setAllGreenBtn) {
@@ -505,6 +664,7 @@ const initSolver = () => {
           greenRadio.checked = true;
         }
       });
+      colorStateUpdaters.forEach((fn) => fn());
       updateSubmitState();
     });
   }
@@ -922,13 +1082,17 @@ const initSolver = () => {
           hi = maxVal === null ? 11 : maxVal;
           debugLo = Number.NEGATIVE_INFINITY;
           debugHi = hi;
-        } else if (mode === 'between') {
-          const lower = Math.min(minVal === null ? 0 : minVal, maxVal === null ? 11 : maxVal);
-          const upper = Math.max(minVal === null ? 0 : minVal, maxVal === null ? 11 : maxVal);
-          lo = lower;
-          hi = upper;
-          debugLo = lower;
-          debugHi = upper;
+        } else if (mode === 'eq') {
+          const target = minVal !== null ? minVal : maxVal;
+          if (target !== null) {
+            lo = target;
+            hi = target;
+            debugLo = target;
+            debugHi = target;
+          } else {
+            debugLo = 0;
+            debugHi = 11;
+          }
         } else {
           debugLo = 0;
           debugHi = 11;
