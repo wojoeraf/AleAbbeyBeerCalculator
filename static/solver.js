@@ -106,6 +106,12 @@ const initSolver = () => {
   const styleSelect = document.querySelector('select[name="style"]');
   const ingredientRows = Array.from(document.querySelectorAll('[data-ingredient-row]'));
   const form = document.querySelector('[data-solver-form]');
+  const ingredientsWrapper = document.querySelector('[data-ingredients-wrapper]');
+  const mobileAttrToggle = document.querySelector('[data-attribute-toggle]');
+  const mobileAttrToggleInput = document.querySelector('[data-attribute-toggle-input]');
+  const stackedLayoutQuery = typeof window !== 'undefined' && window.matchMedia
+    ? window.matchMedia('(max-width: 640px)')
+    : null;
 
   const resultsSection = document.querySelector('[data-results]');
   const resultsTitle = document.querySelector('[data-results-title]');
@@ -127,6 +133,57 @@ const initSolver = () => {
   let hasRenderedResults = false;
 
   const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+  const syncAttributeToggleVisibility = () => {
+    if (!ingredientsWrapper) return;
+    const isStacked = stackedLayoutQuery ? stackedLayoutQuery.matches : false;
+
+    if (mobileAttrToggle) {
+      mobileAttrToggle.hidden = !isStacked;
+    }
+
+    if (!isStacked) {
+      ingredientsWrapper.dataset.hideAttributes = 'false';
+      if (mobileAttrToggleInput) {
+        mobileAttrToggleInput.checked = false;
+      }
+      return;
+    }
+
+    const showAttributes = mobileAttrToggleInput ? mobileAttrToggleInput.checked : false;
+    ingredientsWrapper.dataset.hideAttributes = showAttributes ? 'false' : 'true';
+  };
+
+  if (mobileAttrToggleInput) {
+    mobileAttrToggleInput.addEventListener('change', syncAttributeToggleVisibility);
+  }
+
+  if (stackedLayoutQuery) {
+    if (typeof stackedLayoutQuery.addEventListener === 'function') {
+      stackedLayoutQuery.addEventListener('change', syncAttributeToggleVisibility);
+    } else if (typeof stackedLayoutQuery.addListener === 'function') {
+      stackedLayoutQuery.addListener(syncAttributeToggleVisibility);
+    }
+  }
+
+  syncAttributeToggleVisibility();
+
+  let parallaxTicking = false;
+  const updateParallax = () => {
+    if (!document.body) return;
+    const offset = Math.round(window.scrollY * -0.25);
+    document.body.style.setProperty('--bg-parallax-offset', `${offset}px`);
+    parallaxTicking = false;
+  };
+
+  const handleScroll = () => {
+    if (parallaxTicking) return;
+    parallaxTicking = true;
+    window.requestAnimationFrame(updateParallax);
+  };
+
+  window.addEventListener('scroll', handleScroll, { passive: true });
+  updateParallax();
 
   const syncDebugVisibility = () => {
     if (!debugContent) return;

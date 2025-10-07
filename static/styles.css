@@ -1,5 +1,6 @@
 :root {
   --bg-gradient: linear-gradient(135deg, #f7f4ff 0%, #eef9ff 100%);
+  --bg-parallax-offset: 0px;
   --card-bg: rgba(255, 255, 255, 0.92);
   --border: rgba(255, 255, 255, 0.6);
   --shadow: 0 20px 45px -24px rgba(16, 24, 40, 0.3);
@@ -20,9 +21,34 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: var(--bg-gradient), url("bg.jpg") center / cover no-repeat fixed;
-  background-blend-mode: darken;
+  background: #eef4ff;
   color: #0f172a;
+  position: relative;
+  overflow-x: hidden;
+}
+
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -2;
+}
+
+body::before {
+  background: var(--bg-gradient);
+  z-index: -2;
+}
+
+body::after {
+  background-image: url("bg.jpg");
+  background-repeat: repeat-y;
+  background-size: cover;
+  background-position: center var(--bg-parallax-offset, 0px);
+  mix-blend-mode: multiply;
+  opacity: 0.9;
+  z-index: -1;
 }
 .page {
   max-width: 1140px;
@@ -289,6 +315,28 @@ input[type="number"]:focus {
 .section-header .section-title {
   margin-bottom: 0;
 }
+.table-wrapper {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255, 255, 255, 0.9);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(15, 23, 42, 0.2) transparent;
+}
+
+.table-wrapper::-webkit-scrollbar {
+  height: 8px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.25);
+  border-radius: 999px;
+}
+
+.table-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 .ingredients-table {
   width: 100%;
   border-collapse: collapse;
@@ -618,8 +666,54 @@ details summary {
 .collapsible[open] summary::after {
   transform: rotate(180deg);
 }
+.collapsible > .mobile-attr-toggle,
 .collapsible > .table-wrapper {
   margin-top: 12px;
+}
+
+.mobile-attr-toggle {
+  display: none;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.mobile-attr-toggle label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.mobile-attr-toggle input[type="checkbox"] {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 2px solid rgba(15, 23, 42, 0.35);
+  display: grid;
+  place-items: center;
+  background: #fff;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.mobile-attr-toggle input[type="checkbox"]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.25);
+}
+
+.mobile-attr-toggle input[type="checkbox"]:checked {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.mobile-attr-toggle input[type="checkbox"]:checked::after {
+  content: '✓';
+  font-size: 0.8rem;
+  transform: translateY(-1px);
 }
 .support-section {
   margin-top: 48px;
@@ -728,6 +822,104 @@ details summary {
   text-decoration: underline;
 }
 @media (max-width: 640px) {
+  .mobile-attr-toggle {
+    display: flex;
+  }
+
+  .table-wrapper {
+    border: none;
+    background: transparent;
+    overflow: visible;
+  }
+
+  .ingredients-table {
+    border-radius: 0;
+  }
+
+  .ingredients-table thead {
+    border: 0;
+    clip: rect(0 0 0 0);
+    height: 1px;
+    width: 1px;
+    margin: -1px;
+    overflow: hidden;
+    position: absolute;
+  }
+
+  .ingredients-table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .ingredients-table tbody tr {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 16px;
+    padding: 16px 18px 16px 64px;
+    position: relative;
+    box-shadow: 0 12px 20px -18px rgba(15, 23, 42, 0.5);
+  }
+
+  .ingredients-table tbody tr:nth-child(even) {
+    background: rgba(255, 255, 255, 0.95);
+  }
+
+  .ingredients-table td {
+    padding: 0;
+    font-size: 0.95rem;
+  }
+
+  .ingredients-table td[data-label] {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .ingredients-table td[data-label]::before {
+    content: attr(data-label);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+
+  .table-wrapper[data-hide-attributes="true"] .ingredients-table td[data-attr-cell] {
+    display: none;
+  }
+
+  .table-wrapper[data-hide-attributes="true"] .ingredients-table tbody tr {
+    gap: 10px;
+  }
+
+  .ingredients-table td.checkbox-cell {
+    position: absolute;
+    left: 18px;
+    top: 18px;
+    padding: 0;
+  }
+
+  .ingredient-name {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .ingredient-option {
+    width: 26px;
+    height: 26px;
+  }
+
+  .ingredient-option .checkbox-visual {
+    width: 22px;
+    height: 22px;
+  }
+
   .range-inputs {
     grid-template-columns: 1fr;
   }
