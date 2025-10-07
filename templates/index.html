@@ -143,29 +143,43 @@
                                     <th>{{ ui.table_foam }}</th>
                                 </tr>
                                 </thead>
-                                <tbody>
-                                {% for ing in ingredients %}
-                                    {% set required_count = style_mins.get(ing.id, 0) %}
-                                    {% set is_required = required_count > 0 %}
-                                    {% set is_locked = is_required %}
-                                    {% set is_checked = is_locked or ing.id in selected_optional %}
-                                    <tr class="{% if is_locked %}ingredient-locked{% endif %}" data-ingredient-row
-                                        data-ingredient-id="{{ ing.id }}">
-                                        <td class="checkbox-cell">
-                                            <label class="ingredient-option"
-                                                   {% if is_locked %}title="{{ ui.tooltip_required }}"{% endif %}>
-                                                <input type="checkbox" name="optional_ingredients" value="{{ ing.id }}"
-                                                       {% if is_checked %}checked{% endif %}
-                                                       {% if is_locked %}disabled{% endif %}
-                                                       data-user-selected="{{ 'true' if ing.id in selected_optional else 'false' }}">
-                                                <span class="checkbox-visual"></span>
-                                            </label>
-                                        </td>
-                                        <td data-label="{{ ui.table_name }}">
-                                            <div class="ingredient-name">
-                                                <span>{{ ing.name }}</span>
-                                                <span class="ingredient-badge badge-required" data-required-badge
-                                                      {% if not is_required %}hidden{% endif %}>
+                                {% for category in ingredient_categories %}
+                                    <tbody data-category-header data-category-id="{{ category.id }}">
+                                        <tr class="ingredient-category-header">
+                                            <td colspan="6">
+                                                <button type="button" class="category-toggle" data-category-toggle
+                                                        data-category-id="{{ category.id }}" aria-expanded="true">
+                                                    <span class="category-toggle-icon" aria-hidden="true"></span>
+                                                    <span class="category-toggle-label">{{ category.name }}</span>
+                                                    <span class="category-toggle-count">({{ category.ingredients | length }})</span>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                    <tbody class="ingredient-category-body" data-ingredient-category
+                                           data-category-id="{{ category.id }}">
+                                        {% for ing in category.ingredients %}
+                                            {% set required_count = style_mins.get(ing.id, 0) %}
+                                            {% set is_required = required_count > 0 %}
+                                            {% set is_locked = is_required %}
+                                            {% set is_checked = is_locked or ing.id in selected_optional %}
+                                            <tr class="{% if is_locked %}ingredient-locked{% endif %}" data-ingredient-row
+                                                data-ingredient-id="{{ ing.id }}">
+                                                <td class="checkbox-cell">
+                                                    <label class="ingredient-option"
+                                                           {% if is_locked %}title="{{ ui.tooltip_required }}"{% endif %}>
+                                                        <input type="checkbox" name="optional_ingredients" value="{{ ing.id }}"
+                                                               {% if is_checked %}checked{% endif %}
+                                                               {% if is_locked %}disabled{% endif %}
+                                                               data-user-selected="{{ 'true' if ing.id in selected_optional else 'false' }}">
+                                                        <span class="checkbox-visual"></span>
+                                                    </label>
+                                                </td>
+                                                <td data-label="{{ ui.table_name }}">
+                                                    <div class="ingredient-name">
+                                                        <span>{{ ing.name }}</span>
+                                                        <span class="ingredient-badge badge-required" data-required-badge
+                                                              {% if not is_required %}hidden{% endif %}>
                           {% if is_required %}
                               {% if required_count > 1 %}
                                   {{ ui.badge_required_multiple | replace('{count}', '%d' % required_count) }}
@@ -176,15 +190,16 @@
                               {{ ui.badge_required_single }}
                           {% endif %}
                         </span>
-                                            </div>
-                                        </td>
-                                        <td data-label="{{ ui.table_taste }}" data-attr-cell>{{ '%.1f'|format(ing.vec[0]) }}</td>
-                                        <td data-label="{{ ui.table_color }}" data-attr-cell>{{ '%.1f'|format(ing.vec[1]) }}</td>
-                                        <td data-label="{{ ui.table_strength }}" data-attr-cell>{{ '%.1f'|format(ing.vec[2]) }}</td>
-                                        <td data-label="{{ ui.table_foam }}" data-attr-cell>{{ '%.1f'|format(ing.vec[3]) }}</td>
-                                    </tr>
+                                                    </div>
+                                                </td>
+                                                <td data-label="{{ ui.table_taste }}" data-attr-cell>{{ '%.1f'|format(ing.vec[0]) }}</td>
+                                                <td data-label="{{ ui.table_color }}" data-attr-cell>{{ '%.1f'|format(ing.vec[1]) }}</td>
+                                                <td data-label="{{ ui.table_strength }}" data-attr-cell>{{ '%.1f'|format(ing.vec[2]) }}</td>
+                                                <td data-label="{{ ui.table_foam }}" data-attr-cell>{{ '%.1f'|format(ing.vec[3]) }}</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
                                 {% endfor %}
-                                </tbody>
                             </table>
                         </div>
                     </details>
