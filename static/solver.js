@@ -561,74 +561,139 @@ const initSolver = () => {
       return;
     }
 
-    solutions.forEach((solution) => {
-      const card = document.createElement('div');
-      card.className = 'card';
+    const formatValue = (value) => {
+      if (!Number.isFinite(value)) {
+        return '0';
+      }
+      const rounded = Math.round(value * 10) / 10;
+      if (Math.abs(rounded - Math.round(rounded)) < 1e-6) {
+        return String(Math.round(rounded));
+      }
+      return rounded.toFixed(1);
+    };
+
+    const sanitizeBand = (band) => {
+      const safe = String(band || 'n/a')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+      return safe || 'n-a';
+    };
+
+    solutions.forEach((solution, index) => {
+      const card = document.createElement('article');
+      card.className = 'card result-card';
+
+      const header = document.createElement('div');
+      header.className = 'result-card-header';
+
+      const titleRow = document.createElement('div');
+      titleRow.className = 'result-card-title-row';
 
       const heading = document.createElement('h3');
-      heading.style.marginTop = '0';
       heading.textContent = translate('solutions_total', { count: solution.sum });
-      card.appendChild(heading);
+      titleRow.appendChild(heading);
+
+      const bandContainer = document.createElement('div');
+      bandContainer.className = 'result-band-pills result-band-pills--inline';
+      titleRow.appendChild(bandContainer);
+
+      header.appendChild(titleRow);
+
+      const rank = document.createElement('span');
+      rank.className = 'result-card-rank';
+      rank.textContent = `#${index + 1}`;
+      header.appendChild(rank);
+
+      card.appendChild(header);
+
+      const mixSection = document.createElement('div');
+      mixSection.className = 'result-ingredients';
 
       const mixTitle = document.createElement('p');
-      mixTitle.style.marginBottom = '8px';
-      mixTitle.style.fontWeight = '600';
+      mixTitle.className = 'result-section-title';
       mixTitle.textContent = translate('results_mix_title');
-      card.appendChild(mixTitle);
+      mixSection.appendChild(mixTitle);
 
       const chipsContainer = document.createElement('div');
       chipsContainer.className = 'chips';
-      chipsContainer.style.marginBottom = '12px';
       Object.entries(solution.countsById).forEach(([id, cnt]) => {
         const chip = document.createElement('span');
         chip.className = 'chip';
+        const label = `${displayIngredientName(id)} × ${cnt}`;
+        chip.title = label;
         const span = document.createElement('span');
-        span.textContent = `${displayIngredientName(id)} × ${cnt}`;
+        span.textContent = label;
         chip.appendChild(span);
         chipsContainer.appendChild(chip);
       });
-      card.appendChild(chipsContainer);
+      mixSection.appendChild(chipsContainer);
 
-      const totalsText = document.createElement('p');
-      totalsText.style.margin = '0 0 10px';
-      const totalsParts = ATTRS.map((attr, idx) => `${attrLabels[attr] || attr} ${solution.totals[idx]}`);
-      totalsText.textContent = totalsParts.join(', ');
-      card.appendChild(totalsText);
+      card.appendChild(mixSection);
 
-      const pillContainer = document.createElement('div');
-      pillContainer.style.display = 'flex';
-      pillContainer.style.flexWrap = 'wrap';
-      pillContainer.style.gap = '8px';
-      pillContainer.style.marginBottom = '12px';
+      const attrTitle = document.createElement('p');
+      attrTitle.className = 'result-section-title';
+      attrTitle.textContent = translate('section_attributes');
+      card.appendChild(attrTitle);
+
+      const chart = document.createElement('div');
+      chart.className = 'result-attr-chart';
+
+      const scaleMax = Math.max(
+        12,
+        ...solution.totals.map((value) => (Number.isFinite(value) ? value : 0)),
+      );
+
+      ATTRS.forEach((attr, idx) => {
+        const value = Number(solution.totals[idx]) || 0;
+        const band = solution.bands[attr];
+        const sanitizedBand = sanitizeBand(band);
+
+        const bar = document.createElement('div');
+        bar.className = 'result-attr-bar';
+        bar.setAttribute('role', 'group');
+        bar.setAttribute(
+          'aria-label',
+          `${attrLabels[attr] || attr}: ${formatValue(value)} (${bandLabels[band] || band || 'n/a'})`,
+        );
+
+        const valueLabel = document.createElement('span');
+        valueLabel.className = 'result-attr-value';
+        valueLabel.textContent = formatValue(value);
+        bar.appendChild(valueLabel);
+
+        const track = document.createElement('div');
+        track.className = 'result-attr-track';
+
+        const fill = document.createElement('div');
+        fill.className = 'result-attr-fill';
+        fill.dataset.band = sanitizedBand;
+        const percent = scaleMax > 0 ? clamp((value / scaleMax) * 100, 0, 100) : 0;
+        fill.style.height = `${percent}%`;
+        fill.title = `${attrLabels[attr] || attr}: ${formatValue(value)}`;
+        track.appendChild(fill);
+        bar.appendChild(track);
+
+        const nameLabel = document.createElement('span');
+        nameLabel.className = 'result-attr-name';
+        nameLabel.textContent = attrLabels[attr] || attr;
+        bar.appendChild(nameLabel);
+
+        chart.appendChild(bar);
+      });
+
+      card.appendChild(chart);
+
       ATTRS.forEach((attr) => {
         const band = solution.bands[attr];
+        const sanitizedBand = sanitizeBand(band);
         const pill = document.createElement('span');
-        pill.className = `pill ${String(band).replace(/\//g, '-')}`;
+        pill.className = `pill ${sanitizedBand}`;
         const label = attrLabels[attr] || attr;
-        pill.textContent = `${label}: ${bandLabels[band] || band}`;
-        pillContainer.appendChild(pill);
+        const bandLabel = bandLabels[band] || band || 'n/a';
+        pill.textContent = `${label}: ${bandLabel}`;
+        bandContainer.appendChild(pill);
       });
-      card.appendChild(pillContainer);
-
-      const details = document.createElement('details');
-      const summary = document.createElement('summary');
-      summary.textContent = translate('raw_vector_title');
-      details.appendChild(summary);
-
-      const pre = document.createElement('pre');
-      pre.style.margin = '8px 0 0';
-      pre.textContent = JSON.stringify(
-        {
-          counts: solution.x,
-          totals: solution.totals,
-          bands: solution.bands,
-        },
-        null,
-        2,
-      );
-      details.appendChild(pre);
-
-      card.appendChild(details);
 
       if (resultsList) {
         resultsList.appendChild(card);
