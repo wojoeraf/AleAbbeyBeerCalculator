@@ -27,7 +27,33 @@ const formatTemplate = (template, replacements = {}) => {
 const initSolver = () => {
   const i18nData = parseJSONScript('i18n-data', {});
   const styleMinMap = parseJSONScript('style-min-data', {});
-  const ingredients = parseJSONScript('ingredients-data', []);
+  const ingredientPayload = parseJSONScript('ingredients-data', []);
+  const flattenedIngredients = [];
+
+  if (Array.isArray(ingredientPayload)) {
+    flattenedIngredients.push(
+      ...ingredientPayload.filter((entry) => entry && typeof entry === 'object')
+    );
+  } else if (ingredientPayload && typeof ingredientPayload === 'object') {
+    const categories = Array.isArray(ingredientPayload.categories)
+      ? ingredientPayload.categories
+      : [];
+    categories.forEach((entry, index) => {
+      if (!entry || typeof entry !== 'object') return;
+      const category = entry.category && typeof entry.category === 'object'
+        ? entry.category
+        : {};
+      const categoryId = category.id ? String(category.id) : `category-${index}`;
+      const categoryList = Array.isArray(category.list) ? category.list : [];
+      const normalizedList = categoryList.filter(
+        (ing) => ing && typeof ing === 'object' && typeof ing.id === 'string'
+      );
+
+      flattenedIngredients.push(...normalizedList);
+    });
+  }
+
+  const ingredients = flattenedIngredients;
   const stylesData = parseJSONScript('styles-data', {});
   const metaData = parseJSONScript('meta-data', {});
 
@@ -103,8 +129,75 @@ const initSolver = () => {
   const attrCards = Array.from(document.querySelectorAll('[data-attr-card]'));
   const submitBtn = document.querySelector('[data-submit-button]');
   const setAllGreenBtn = document.querySelector('[data-set-all-green]');
+  const setAllGreenBtnLabel = setAllGreenBtn
+    ? setAllGreenBtn.querySelector('[data-set-all-green-label]')
+    : null;
+  const setAllGreenLabelGreen = setAllGreenBtn
+    ? setAllGreenBtn.getAttribute('data-label-green') || translate('button_all_green')
+    : translate('button_all_green');
+  const setAllGreenLabelAny = setAllGreenBtn
+    ? setAllGreenBtn.getAttribute('data-label-any') || translate('button_all_any')
+    : translate('button_all_any');
+  const areAllAttrBandsGreen = () => {
+    if (!attrCards.length) {
+      return false;
+    }
+    return attrCards.every((card) => {
+      const greenRadio = card.querySelector('input[type="radio"][value="green"]');
+      return greenRadio && greenRadio.checked;
+    });
+  };
+  const refreshSetAllGreenButton = () => {
+    if (!setAllGreenBtn || !setAllGreenBtnLabel) {
+      return;
+    }
+    const allGreen = areAllAttrBandsGreen();
+    setAllGreenBtnLabel.textContent = allGreen ? setAllGreenLabelAny : setAllGreenLabelGreen;
+    setAllGreenBtn.setAttribute('data-toggle-state', allGreen ? 'any' : 'green');
+  };
   const styleSelect = document.querySelector('select[name="style"]');
   const ingredientRows = Array.from(document.querySelectorAll('[data-ingredient-row]'));
+  const ingredientCategoryBodies = new Map();
+  document.querySelectorAll('[data-ingredient-category]').forEach((tbody) => {
+    const categoryId = tbody.getAttribute('data-category-id') || '';
+    if (!ingredientCategoryBodies.has(categoryId)) {
+      ingredientCategoryBodies.set(categoryId, tbody);
+    }
+  });
+
+  const ingredientCategoryToggles = new Map();
+  document.querySelectorAll('[data-category-toggle]').forEach((button) => {
+    const categoryId = button.getAttribute('data-category-id') || '';
+    if (!ingredientCategoryToggles.has(categoryId)) {
+      ingredientCategoryToggles.set(categoryId, button);
+    }
+  });
+
+  const setCategoryCollapsed = (categoryId, collapsed) => {
+    const body = ingredientCategoryBodies.get(categoryId);
+    if (body) {
+      if (collapsed) {
+        body.setAttribute('hidden', '');
+      } else {
+        body.removeAttribute('hidden');
+      }
+      body.dataset.collapsed = collapsed ? 'true' : 'false';
+    }
+    const button = ingredientCategoryToggles.get(categoryId);
+    if (button) {
+      button.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    }
+  };
+
+  ingredientCategoryToggles.forEach((button, categoryId) => {
+    setCategoryCollapsed(categoryId, false);
+    button.addEventListener('click', () => {
+      const body = ingredientCategoryBodies.get(categoryId);
+      const isCollapsed = body ? body.dataset.collapsed === 'true' : false;
+      setCategoryCollapsed(categoryId, !isCollapsed);
+    });
+  });
+
   const form = document.querySelector('[data-solver-form]');
   const ingredientsWrapper = document.querySelector('[data-ingredients-wrapper]');
   const mobileAttrToggle = document.querySelector('[data-attribute-toggle]');
@@ -607,6 +700,7 @@ const initSolver = () => {
         syncHiddenValues();
       }
       updateSubmitState();
+      refreshSetAllGreenButton();
     };
 
     colorRadios.forEach((radio) => {
@@ -658,15 +752,18 @@ const initSolver = () => {
 
   if (setAllGreenBtn) {
     setAllGreenBtn.addEventListener('click', () => {
+      const targetValue = areAllAttrBandsGreen() ? 'any' : 'green';
       attrCards.forEach((card) => {
-        const greenRadio = card.querySelector('input[type="radio"][value="green"]');
-        if (greenRadio) {
-          greenRadio.checked = true;
+        const targetRadio = card.querySelector(`input[type="radio"][value="${targetValue}"]`);
+        if (targetRadio) {
+          targetRadio.checked = true;
         }
       });
       colorStateUpdaters.forEach((fn) => fn());
       updateSubmitState();
+      refreshSetAllGreenButton();
     });
+    refreshSetAllGreenButton();
   }
 
   ingredientRows.forEach((row) => {
