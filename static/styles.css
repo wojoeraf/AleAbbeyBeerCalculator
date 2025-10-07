@@ -1,5 +1,6 @@
 :root {
   --bg-gradient: linear-gradient(135deg, #f7f4ff 0%, #eef9ff 100%);
+  --bg-parallax-offset: 0px;
   --card-bg: rgba(255, 255, 255, 0.92);
   --border: rgba(255, 255, 255, 0.6);
   --shadow: 0 20px 45px -24px rgba(16, 24, 40, 0.3);
@@ -20,9 +21,34 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: var(--bg-gradient), url("bg.jpg") center / cover no-repeat fixed;
-  background-blend-mode: darken;
+  background: #eef4ff;
   color: #0f172a;
+  position: relative;
+  overflow-x: hidden;
+}
+
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -2;
+}
+
+body::before {
+  background: var(--bg-gradient);
+  z-index: -2;
+}
+
+body::after {
+  background-image: url("bg.jpg");
+  background-repeat: repeat-y;
+  background-size: cover;
+  background-position: center var(--bg-parallax-offset, 0px);
+  mix-blend-mode: multiply;
+  opacity: 0.9;
+  z-index: -1;
 }
 .page {
   max-width: 1140px;
@@ -640,8 +666,54 @@ details summary {
 .collapsible[open] summary::after {
   transform: rotate(180deg);
 }
+.collapsible > .mobile-attr-toggle,
 .collapsible > .table-wrapper {
   margin-top: 12px;
+}
+
+.mobile-attr-toggle {
+  display: none;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.mobile-attr-toggle label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.mobile-attr-toggle input[type="checkbox"] {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 2px solid rgba(15, 23, 42, 0.35);
+  display: grid;
+  place-items: center;
+  background: #fff;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.mobile-attr-toggle input[type="checkbox"]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.25);
+}
+
+.mobile-attr-toggle input[type="checkbox"]:checked {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.mobile-attr-toggle input[type="checkbox"]:checked::after {
+  content: '✓';
+  font-size: 0.8rem;
+  transform: translateY(-1px);
 }
 .support-section {
   margin-top: 48px;
@@ -750,6 +822,10 @@ details summary {
   text-decoration: underline;
 }
 @media (max-width: 640px) {
+  .mobile-attr-toggle {
+    display: flex;
+  }
+
   .table-wrapper {
     border: none;
     background: transparent;
@@ -811,6 +887,14 @@ details summary {
     letter-spacing: 0.06em;
     color: var(--text-muted);
     font-weight: 600;
+  }
+
+  .table-wrapper[data-hide-attributes="true"] .ingredients-table td[data-attr-cell] {
+    display: none;
+  }
+
+  .table-wrapper[data-hide-attributes="true"] .ingredients-table tbody tr {
+    gap: 10px;
   }
 
   .ingredients-table td.checkbox-cell {
