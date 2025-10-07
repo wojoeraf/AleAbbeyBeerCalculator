@@ -227,8 +227,9 @@ input[type="number"]:focus {
 
 .column-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  flex-direction: column;
   gap: 12px;
 }
 
