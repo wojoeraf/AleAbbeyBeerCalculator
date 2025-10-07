@@ -18,7 +18,72 @@ TRANSLATIONS = load_json("translations.json")
 LANGUAGE_NAMES = {code: data.get("language_name", code) for code, data in TRANSLATIONS.items()}
 DEFAULT_LANG = "en" if "en" in TRANSLATIONS else next(iter(TRANSLATIONS))
 
-INGREDIENTS = load_json("ingredients.json")
+RAW_INGREDIENTS = load_json("ingredients.json")
+
+
+def normalize_ingredient_data(data):
+    flat_list = []
+    categories = []
+
+    if isinstance(data, dict) and "categories" in data:
+        entries = data.get("categories", [])
+        for index, entry in enumerate(entries):
+            if not isinstance(entry, dict):
+                continue
+            category_block = entry.get("category") or {}
+            if not isinstance(category_block, dict):
+                continue
+
+            raw_id = category_block.get("id")
+            category_id = str(raw_id) if raw_id else f"category-{index}"
+            category_name = category_block.get("name", "")
+            category_names = (
+                category_block.get("names")
+                if isinstance(category_block.get("names"), dict)
+                else None
+            )
+            ingredient_list = (
+                category_block.get("list")
+                if isinstance(category_block.get("list"), list)
+                else []
+            )
+
+            normalized_ingredients = []
+            for ing in ingredient_list:
+                if not isinstance(ing, dict):
+                    continue
+                if "id" not in ing:
+                    continue
+                flat_list.append(ing)
+                normalized_ingredients.append(ing)
+
+            categories.append(
+                {
+                    "id": category_id,
+                    "name": category_name,
+                    "names": category_names,
+                    "list": normalized_ingredients,
+                }
+            )
+    elif isinstance(data, list):
+        normalized_ingredients = [
+            ing for ing in data if isinstance(ing, dict) and "id" in ing
+        ]
+        flat_list.extend(normalized_ingredients)
+        if normalized_ingredients:
+            categories.append(
+                {
+                    "id": "category-0",
+                    "name": "",
+                    "names": None,
+                    "list": normalized_ingredients,
+                }
+            )
+
+    return flat_list, categories
+
+
+INGREDIENTS, INGREDIENT_CATEGORIES = normalize_ingredient_data(RAW_INGREDIENTS)
 INGREDIENT_MAP = {ing["id"]: ing for ing in INGREDIENTS}
 BEER_STYLES = load_json("beer_styles.json")
 STYLE_ORDER = list(BEER_STYLES.keys())
@@ -168,6 +233,32 @@ def index():
         for ing in INGREDIENTS
     ]
 
+    ingredient_categories_for_template = []
+    for category in INGREDIENT_CATEGORIES:
+        if category.get("names"):
+            category_label = get_localized_name(category.get("names", {}), lang)
+        else:
+            raw_name = category.get("name", "")
+            category_label = raw_name if raw_name else category.get("id", "")
+
+        category_ingredients = []
+        for ing in category.get("list", []):
+            category_ingredients.append(
+                {
+                    "id": ing["id"],
+                    "name": get_localized_name(ing.get("names", {}), lang),
+                    "vec": ing.get("vec", []),
+                }
+            )
+
+        ingredient_categories_for_template.append(
+            {
+                "id": category.get("id", ""),
+                "name": category_label,
+                "ingredients": category_ingredients,
+            }
+        )
+
     ingredient_display_map = {
         ing["id"]: get_localized_name(ing.get("names", {}), lang) for ing in INGREDIENTS
     }
@@ -204,6 +295,7 @@ def index():
         band_labels=band_labels,
         mode_labels=mode_labels,
         ingredients=ingredients_for_template,
+        ingredient_categories=ingredient_categories_for_template,
         constraints=constraints,
         total_cap=total_cap,
         per_cap=per_cap,
@@ -211,7 +303,7 @@ def index():
         style_min_map=style_min_map,
         has_active_constraints=has_active_constraints,
         selected_optional=selected_optional,
-        ingredients_data=INGREDIENTS,
+        ingredients_data=RAW_INGREDIENTS,
         styles_data=BEER_STYLES,
         ui=ui_strings,
         i18n_payload=i18n_payload,
