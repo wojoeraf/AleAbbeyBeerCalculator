@@ -2,9 +2,9 @@
   "de": {
     "language_name": "Deutsch",
     "ui": {
-      "page_title": "Ale Abbey – Rezept-Solver",
-      "header_title": "🍺 Ale Abbey – Rezept-Solver",
-      "header_description": "Wähle für jede Eigenschaft die gewünschte Farbzone und lege exakte Wertebereiche fest. Die Berechnung berücksichtigt Pflichtzutaten, Mengenlimits und optionale Wünsche.",
+      "page_title": "Ale Abbey Rezeptrechner",
+      "header_title": "🍺 Ale Abbey Rezeptrechner",
+      "header_description": "Diese Webseite ist ein Fanprojekt und nicht assoziiert mit dem Entwickler/Publisher hinter dem Spiel Ale Abbey. Wähle für jede Eigenschaft die gewünschte Farbzone und lege exakte Wertebereiche fest. Die Berechnung berücksichtigt Pflichtzutaten, Mengenlimits und optionale Wünsche.",
       "language_label": "Sprache",
       "section_base": "Grunddaten",
       "field_style": "Bierstil",
@@ -76,9 +76,9 @@
   "en": {
     "language_name": "English",
     "ui": {
-      "page_title": "Ale Abbey – Recipe Solver",
-      "header_title": "🍺 Ale Abbey – Recipe Solver",
-      "header_description": "Choose the desired band for each attribute and define the value ranges. The solver respects required ingredients, quantity caps and optional wishes.",
+      "page_title": "Ale Abbey Recipe Solver",
+      "header_title": "🍺 Ale Abbey Recipe Solver",
+      "header_description": "This website is a fan project and is not associated with the developer/publisher behind the game Ale Abbey. Choose the desired band for each attribute and define the value ranges. The solver respects required ingredients, quantity caps and optional wishes.",
       "language_label": "Language",
       "section_base": "Basics",
       "field_style": "Beer style",
