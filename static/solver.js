@@ -325,7 +325,7 @@ const initSolver = () => {
     bandPreferences,
     totalCap,
     perCap,
-    extraMinCounts,
+    allowedIngredientIds,
     topK = 10,
   }) => {
     const startTime = getNow();
@@ -363,12 +363,26 @@ const initSolver = () => {
       minCounts[idx] = Math.max(minCounts[idx], Number(cnt) || 0);
     });
 
-    if (extraMinCounts) {
-      Object.entries(extraMinCounts).forEach(([id, cnt]) => {
-        if (!idToIndex.has(id)) return;
-        const idx = idToIndex.get(id);
-        minCounts[idx] = Math.max(minCounts[idx], Number(cnt) || 0);
+    const allowedSet = Array.isArray(allowedIngredientIds)
+      ? new Set(allowedIngredientIds.map(String))
+      : null;
+
+    const maxCounts = new Array(n).fill(perCap);
+    if (allowedSet !== null) {
+      ingredients.forEach((ing, idx) => {
+        if (minCounts[idx] > 0) {
+          return;
+        }
+        const id = getIngredientId(ing, idx);
+        if (!allowedSet.has(id)) {
+          maxCounts[idx] = 0;
+        }
       });
+    }
+
+    const violatesBounds = minCounts.some((min, idx) => min > maxCounts[idx]);
+    if (violatesBounds) {
+      return { solutions: [], info: [translate('min_exceeds_cap')] };
     }
 
     const magnitudeByIndex = vectors.map((vec) => {
@@ -392,9 +406,10 @@ const initSolver = () => {
 
     const orderedVectors = orderedIndices.map((idx) => vectors[idx]);
     const orderedMinCounts = orderedIndices.map((idx) => minCounts[idx]);
+    const orderedMaxCounts = orderedIndices.map((idx) => maxCounts[idx]);
     const orderedIds = orderedIndices.map((idx) => getIngredientId(ingredients[idx], idx));
 
-    if (orderedMinCounts.some((cnt) => cnt > perCap)) {
+    if (orderedMinCounts.some((cnt, idx) => cnt > orderedMaxCounts[idx])) {
       return { solutions: [], info: [translate('min_exceeds_cap')] };
     }
 
@@ -451,7 +466,7 @@ const initSolver = () => {
     for (let idx = n - 1; idx >= 0; idx -= 1) {
       const vec = orderedVectors[idx];
       const loCnt = orderedMinCounts[idx];
-      const hiCnt = perCap;
+      const hiCnt = orderedMaxCounts[idx];
       for (let k = 0; k < ATTRS.length; k += 1) {
         const coef = vec[k] || 0;
         const loVal = coef >= 0 ? coef * loCnt : coef * hiCnt;
@@ -540,7 +555,11 @@ const initSolver = () => {
           }
 
           const remainingMinAfter = suffixMinCounts[idx + 1];
-          const maxC = Math.min(perCap, adjustedTotalCap - used - remainingMinAfter);
+          const maxC = Math.min(
+            orderedMaxCounts[idx],
+            perCap,
+            adjustedTotalCap - used - remainingMinAfter,
+          );
           const minC = orderedMinCounts[idx];
           if (maxC < minC) {
             return;
@@ -1281,10 +1300,7 @@ const initSolver = () => {
       });
 
       const selectedOptional = new Set(formData.getAll('optional_ingredients'));
-      const extraMinCounts = {};
-      selectedOptional.forEach((id) => {
-        extraMinCounts[id] = Math.max(extraMinCounts[id] || 0, 1);
-      });
+      const allowedIngredientIds = Array.from(selectedOptional);
 
       const styleLabel = displayStyleName(styleName) || translate('style_unknown');
       debugLines.push(translate('debug_style', { style: styleLabel }));
@@ -1317,7 +1333,7 @@ const initSolver = () => {
         bandPreferences,
         totalCap,
         perCap,
-        extraMinCounts,
+        allowedIngredientIds,
       });
 
       const summaryLines = [];
