@@ -95,7 +95,7 @@
     }
   },
   "herbal_beer": {
-    "names": {"de": "Kräuterbier", "en": "Herbal Beer"},
+    "names": {"de": "Kräuterbier", "en": "Herbal Ale"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "eucalyptus": 1,
@@ -138,12 +138,11 @@
     "names": {"de": "Bauernbier TODO", "en": "Farmhouse Ale"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
-      "eucalyptus": 1,
-      "grut": 1,
-      "honey": 1,
-      "amber_malt": 1,
       "pale_malt": 1,
-      "standard_yeast": 1
+      "strong_yeast": 1,
+      "wheat_malt": 1,
+      "classic_hopes": 1,
+      "amber_malt": 1
     },
     "bands": {
       "taste": [
@@ -178,12 +177,11 @@
     "names": {"de": "Fruchtbier TODO", "en": "Fruit Ale"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
-      "eucalyptus": 1,
-      "grut": 1,
-      "honey": 1,
-      "amber_malt": 1,
       "pale_malt": 1,
-      "standard_yeast": 1
+      "estery_yeast": 1,
+      "standard_yeast": 1,
+      "berries": 1,
+      "cherries": 1
     },
     "bands": {
       "taste": [
@@ -218,12 +216,11 @@
     "names": {"de": "Saison TODO", "en": "Saison"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
-      "eucalyptus": 1,
-      "grut": 1,
-      "honey": 1,
-      "amber_malt": 1,
       "pale_malt": 1,
-      "standard_yeast": 1
+      "estery_yeast": 1,
+      "wheat_malt": 1,
+      "pepper": 1,
+      "classic_hopes": 1
     },
     "bands": {
       "taste": [
@@ -258,12 +255,11 @@
     "names": {"de": "Mogulisches Pale Ale TODO", "en": "Mughali Pale Ale"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
-      "eucalyptus": 1,
-      "grut": 1,
-      "honey": 1,
-      "amber_malt": 1,
       "pale_malt": 1,
-      "standard_yeast": 1
+      "amber_malt": 1,
+      "standard_yeast": 1,
+      "cascade_hopes": 1,
+      "magnum_hopes": 1
     },
     "bands": {
       "taste": [
@@ -298,12 +294,11 @@
     "names": {"de": "Abbey Ale TODO", "en": "Abbey Ale"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
-      "eucalyptus": 1,
-      "grut": 1,
-      "honey": 1,
-      "amber_malt": 1,
       "pale_malt": 1,
-      "standard_yeast": 1
+      "strong_yeast": 1,
+      "brown_candi_sugar": 1,
+      "wheat_starch": 1,
+      "classic_hopes": 1
     },
     "bands": {
       "taste": [
