@@ -434,6 +434,14 @@ input[type="number"]:focus {
   gap: 12px;
 }
 
+.result-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
 .result-card-header h3 {
   margin: 0;
   font-size: 1.25rem;
@@ -533,6 +541,11 @@ input[type="number"]:focus {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  align-items: center;
+}
+
+.result-band-pills--inline {
+  gap: 8px;
 }
 
 .result-band-pills .pill {
@@ -548,6 +561,11 @@ input[type="number"]:focus {
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
+  }
+
+  .result-card-title-row {
+    width: 100%;
+    gap: 8px;
   }
 }
 .mono {

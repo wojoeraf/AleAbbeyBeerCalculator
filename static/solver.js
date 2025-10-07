@@ -587,9 +587,18 @@ const initSolver = () => {
       const header = document.createElement('div');
       header.className = 'result-card-header';
 
+      const titleRow = document.createElement('div');
+      titleRow.className = 'result-card-title-row';
+
       const heading = document.createElement('h3');
       heading.textContent = translate('solutions_total', { count: solution.sum });
-      header.appendChild(heading);
+      titleRow.appendChild(heading);
+
+      const bandContainer = document.createElement('div');
+      bandContainer.className = 'result-band-pills result-band-pills--inline';
+      titleRow.appendChild(bandContainer);
+
+      header.appendChild(titleRow);
 
       const rank = document.createElement('span');
       rank.className = 'result-card-rank';
@@ -675,9 +684,6 @@ const initSolver = () => {
 
       card.appendChild(chart);
 
-      const bandContainer = document.createElement('div');
-      bandContainer.className = 'result-band-pills';
-
       ATTRS.forEach((attr) => {
         const band = solution.bands[attr];
         const sanitizedBand = sanitizeBand(band);
@@ -688,8 +694,6 @@ const initSolver = () => {
         pill.textContent = `${label}: ${bandLabel}`;
         bandContainer.appendChild(pill);
       });
-
-      card.appendChild(bandContainer);
 
       if (resultsList) {
         resultsList.appendChild(card);
