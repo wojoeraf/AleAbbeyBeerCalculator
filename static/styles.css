@@ -289,6 +289,28 @@ input[type="number"]:focus {
 .section-header .section-title {
   margin-bottom: 0;
 }
+.table-wrapper {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255, 255, 255, 0.9);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(15, 23, 42, 0.2) transparent;
+}
+
+.table-wrapper::-webkit-scrollbar {
+  height: 8px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.25);
+  border-radius: 999px;
+}
+
+.table-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 .ingredients-table {
   width: 100%;
   border-collapse: collapse;
@@ -728,6 +750,92 @@ details summary {
   text-decoration: underline;
 }
 @media (max-width: 640px) {
+  .table-wrapper {
+    border: none;
+    background: transparent;
+    overflow: visible;
+  }
+
+  .ingredients-table {
+    border-radius: 0;
+  }
+
+  .ingredients-table thead {
+    border: 0;
+    clip: rect(0 0 0 0);
+    height: 1px;
+    width: 1px;
+    margin: -1px;
+    overflow: hidden;
+    position: absolute;
+  }
+
+  .ingredients-table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .ingredients-table tbody tr {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 16px;
+    padding: 16px 18px 16px 64px;
+    position: relative;
+    box-shadow: 0 12px 20px -18px rgba(15, 23, 42, 0.5);
+  }
+
+  .ingredients-table tbody tr:nth-child(even) {
+    background: rgba(255, 255, 255, 0.95);
+  }
+
+  .ingredients-table td {
+    padding: 0;
+    font-size: 0.95rem;
+  }
+
+  .ingredients-table td[data-label] {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .ingredients-table td[data-label]::before {
+    content: attr(data-label);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+
+  .ingredients-table td.checkbox-cell {
+    position: absolute;
+    left: 18px;
+    top: 18px;
+    padding: 0;
+  }
+
+  .ingredient-name {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .ingredient-option {
+    width: 26px;
+    height: 26px;
+  }
+
+  .ingredient-option .checkbox-visual {
+    width: 22px;
+    height: 22px;
+  }
+
   .range-inputs {
     grid-template-columns: 1fr;
   }

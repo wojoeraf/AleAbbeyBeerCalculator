@@ -137,7 +137,7 @@
                                         <span class="checkbox-visual"></span>
                                     </label>
                                 </td>
-                                <td>
+                                <td data-label="{{ ui.table_name }}">
                                     <div class="ingredient-name">
                                         <span>{{ ing.name }}</span>
                                         <span class="ingredient-badge badge-required" data-required-badge
@@ -154,10 +154,10 @@
                         </span>
                                     </div>
                                 </td>
-                                <td>{{ '%.1f'|format(ing.vec[0]) }}</td>
-                                <td>{{ '%.1f'|format(ing.vec[1]) }}</td>
-                                <td>{{ '%.1f'|format(ing.vec[2]) }}</td>
-                                <td>{{ '%.1f'|format(ing.vec[3]) }}</td>
+                                <td data-label="{{ ui.table_taste }}">{{ '%.1f'|format(ing.vec[0]) }}</td>
+                                <td data-label="{{ ui.table_color }}">{{ '%.1f'|format(ing.vec[1]) }}</td>
+                                <td data-label="{{ ui.table_strength }}">{{ '%.1f'|format(ing.vec[2]) }}</td>
+                                <td data-label="{{ ui.table_foam }}">{{ '%.1f'|format(ing.vec[3]) }}</td>
                             </tr>
                         {% endfor %}
                         </tbody>
