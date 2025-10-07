@@ -12,9 +12,9 @@
       "field_per_cap": "Max pro Zutat",
       "section_attributes": "Attribute",
       "button_all_green": "Alle Attribute auf Grün",
+      "button_clear_color": "Farbwahl zurücksetzen",
       "label_mode": "Modus",
-      "label_min": "Untergrenze",
-      "label_max": "Obergrenze",
+      "label_value_display": "Zielwert",
       "section_ingredients": "Zutatenübersicht",
       "toggle_show_attributes": "Attributwerte anzeigen",
       "table_name": "Name",
@@ -57,9 +57,9 @@
     },
     "modes": {
       "any": "Egal",
+      "eq": "Genau",
       "ge": "Mindestens",
-      "le": "Höchstens",
-      "between": "Zwischen"
+      "le": "Höchstens"
     },
     "messages": {
       "parse_error": "Konnte {id} nicht parsen",
@@ -95,9 +95,9 @@
       "field_per_cap": "Max per ingredient",
       "section_attributes": "Attributes",
       "button_all_green": "Set all attributes to green",
+      "button_clear_color": "Clear color selection",
       "label_mode": "Mode",
-      "label_min": "Lower bound",
-      "label_max": "Upper bound",
+      "label_value_display": "Target value",
       "section_ingredients": "Ingredient overview",
       "toggle_show_attributes": "Show attribute details",
       "table_name": "Name",
@@ -140,9 +140,9 @@
     },
     "modes": {
       "any": "Any",
+      "eq": "Exactly",
       "ge": "At least",
-      "le": "At most",
-      "between": "Between"
+      "le": "At most"
     },
     "messages": {
       "parse_error": "Failed to parse {id}",

@@ -101,33 +101,53 @@ def index():
         for a in ATTRS:
             band_choice = request.form.get(f"band_{a}", "any")
             mode = request.form.get(f"mode_{a}", "any")
+            if mode not in {"any", "eq", "ge", "le"}:
+                mode = "any"
             min_raw = request.form.get(f"min_{a}", "").strip()
             max_raw = request.form.get(f"max_{a}", "").strip()
             min_val = parse_and_clamp(min_raw)
             max_val = parse_and_clamp(max_raw)
 
-            if mode == "any":
-                display_min = f"{0.0:.1f}"
-                display_max = f"{11.0:.1f}"
+            slider_value = 5.5
+            if mode == "eq":
+                base_value = min_val if min_val is not None else max_val
+                if base_value is not None:
+                    slider_value = base_value
+                    display_min = f"{base_value:.1f}"
+                    display_max = f"{base_value:.1f}"
+                else:
+                    display_min = ""
+                    display_max = ""
             elif mode == "ge":
-                display_min = f"{min_val:.1f}" if min_val is not None else ""
+                if min_val is not None:
+                    slider_value = min_val
+                    display_min = f"{min_val:.1f}"
+                else:
+                    display_min = ""
                 display_max = ""
             elif mode == "le":
                 display_min = ""
-                display_max = f"{max_val:.1f}" if max_val is not None else ""
+                if max_val is not None:
+                    slider_value = max_val
+                    display_max = f"{max_val:.1f}"
+                else:
+                    display_max = ""
             else:
-                display_min = f"{min_val:.1f}" if min_val is not None else ""
-                display_max = f"{max_val:.1f}" if max_val is not None else ""
+                display_min = ""
+                display_max = ""
 
             constraints[a] = SimpleNamespace(
                 band=band_choice,
                 mode=mode,
                 min=display_min,
                 max=display_max,
+                value=f"{slider_value:.1f}",
             )
     else:
         constraints = {
-            a: SimpleNamespace(band="any", mode="any", min="0.0", max="11.0")
+            a: SimpleNamespace(
+                band="any", mode="any", min="", max="", value=f"{5.5:.1f}"
+            )
             for a in ATTRS
         }
 
