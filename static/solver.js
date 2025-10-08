@@ -290,8 +290,68 @@ const initSolver = () => {
 
     const minSum = minCounts.reduce((acc, val) => acc + val, 0);
     const adjustedTotalCap = Math.max(totalCap, minSum);
+    const remainingCap = Math.max(0, adjustedTotalCap - minSum);
+    const perIngredientCeil = Math.min(perCap, adjustedTotalCap);
+    const baseTotals = ATTRS.map((_, idx) => Number(base[idx]) || 0);
+    const totalsAfterMin = baseTotals.slice();
+    const attrExtraCapacity = ATTRS.map(() => ({ positives: [], negatives: [] }));
+
+    for (let idx = 0; idx < n; idx += 1) {
+      const vec = vectors[idx];
+      const minCnt = minCounts[idx];
+      for (let k = 0; k < ATTRS.length; k += 1) {
+        const coef = vec[k] || 0;
+        if (coef !== 0) {
+          totalsAfterMin[k] += coef * minCnt;
+        }
+      }
+      const available = Math.max(0, perIngredientCeil - minCnt);
+      if (available > 0) {
+        for (let k = 0; k < ATTRS.length; k += 1) {
+          const coef = vec[k] || 0;
+          if (coef > 0) {
+            attrExtraCapacity[k].positives.push({ coef, available });
+          } else if (coef < 0) {
+            attrExtraCapacity[k].negatives.push({ coef, available });
+          }
+        }
+      }
+    }
 
     const perAttrIntervals = ATTRS.map((attr) => numericIntervals[attr]);
+    const defaultAttrBounds = ATTRS.map((_, attrIdx) => {
+      let minBound = totalsAfterMin[attrIdx];
+      let maxBound = totalsAfterMin[attrIdx];
+      if (remainingCap > 0) {
+        let remainingForMax = remainingCap;
+        const positives = attrExtraCapacity[attrIdx].positives.sort((a, b) => b.coef - a.coef);
+        for (const entry of positives) {
+          if (remainingForMax <= 0) break;
+          const use = Math.min(entry.available, remainingForMax);
+          if (use > 0) {
+            maxBound += entry.coef * use;
+            remainingForMax -= use;
+          }
+        }
+
+        let remainingForMin = remainingCap;
+        const negatives = attrExtraCapacity[attrIdx].negatives.sort((a, b) => a.coef - b.coef);
+        for (const entry of negatives) {
+          if (remainingForMin <= 0) break;
+          const use = Math.min(entry.available, remainingForMin);
+          if (use > 0) {
+            minBound += entry.coef * use;
+            remainingForMin -= use;
+          }
+        }
+      }
+      if (minBound > maxBound) {
+        const tmp = minBound;
+        minBound = maxBound;
+        maxBound = tmp;
+      }
+      return [minBound, maxBound];
+    });
     const allowedBandMap = {};
     ATTRS.forEach((attr) => {
       const pref = bandPreferences[attr];
@@ -300,8 +360,16 @@ const initSolver = () => {
 
     const allowedIntervalsForAttr = (attr, allowedBands) => {
       const attrIndex = ATTRS.indexOf(attr);
-      const startInterval =
+      let startInterval =
         perAttrIntervals[attrIndex] || [Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY];
+      const defaultInterval = defaultAttrBounds[attrIndex];
+      if (defaultInterval) {
+        const clipped = intersectInterval(startInterval, defaultInterval);
+        if (!clipped) {
+          return [];
+        }
+        startInterval = clipped;
+      }
       if (!allowedBands || allowedBands.length === 0) {
         return [startInterval];
       }
@@ -328,9 +396,25 @@ const initSolver = () => {
       return { solutions: [], info: [translate('no_intervals')] };
     }
 
+    const weightedOrder = Array.from({ length: n }, (_, idx) => {
+      const vec = vectors[idx];
+      let weight = 0;
+      for (let k = 0; k < ATTRS.length; k += 1) {
+        const val = Math.abs(vec[k] || 0);
+        if (val > weight) {
+          weight = val;
+        }
+      }
+      return { idx, weight };
+    });
+    weightedOrder.sort((a, b) => b.weight - a.weight);
+    const orderedIndices = weightedOrder.map((entry) => entry.idx);
+    const orderedVectors = orderedIndices.map((idx) => vectors[idx]);
+    const orderedMinCounts = orderedIndices.map((idx) => minCounts[idx]);
+
     const suffixMinCounts = new Array(n + 1).fill(0);
     for (let idx = n - 1; idx >= 0; idx -= 1) {
-      suffixMinCounts[idx] = minCounts[idx] + suffixMinCounts[idx + 1];
+      suffixMinCounts[idx] = orderedMinCounts[idx] + suffixMinCounts[idx + 1];
     }
     if (suffixMinCounts[0] > adjustedTotalCap) {
       return { solutions: [], info: [translate('cap_too_small')] };
@@ -339,8 +423,8 @@ const initSolver = () => {
     const suffixLo = Array.from({ length: n + 1 }, () => new Array(ATTRS.length).fill(0));
     const suffixHi = Array.from({ length: n + 1 }, () => new Array(ATTRS.length).fill(0));
     for (let idx = n - 1; idx >= 0; idx -= 1) {
-      const vec = vectors[idx];
-      const loCnt = minCounts[idx];
+      const vec = orderedVectors[idx];
+      const loCnt = orderedMinCounts[idx];
       const hiCnt = perCap;
       for (let k = 0; k < ATTRS.length; k += 1) {
         const coef = vec[k] || 0;
@@ -354,6 +438,48 @@ const initSolver = () => {
     const counts = new Array(n).fill(0);
     const seenCombos = new Set();
     const solutions = [];
+    let bestSumBound = Infinity;
+
+    const compareSolutions = (a, b) => {
+      if (a.sum !== b.sum) return a.sum - b.sum;
+      const totalsA = Array.isArray(a.totals) ? a.totals : [];
+      const totalsB = Array.isArray(b.totals) ? b.totals : [];
+      for (let k = 0; k < ATTRS.length; k += 1) {
+        const diff = (totalsA[k] || 0) - (totalsB[k] || 0);
+        if (Math.abs(diff) > EPS) return diff;
+      }
+      const xA = Array.isArray(a.x) ? a.x : [];
+      const xB = Array.isArray(b.x) ? b.x : [];
+      const len = Math.max(xA.length, xB.length);
+      for (let i = 0; i < len; i += 1) {
+        const valA = xA[i] || 0;
+        const valB = xB[i] || 0;
+        if (valA !== valB) return valA - valB;
+      }
+      return 0;
+    };
+
+    const insertSolution = (solution) => {
+      let inserted = false;
+      for (let i = 0; i < solutions.length; i += 1) {
+        if (compareSolutions(solution, solutions[i]) < 0) {
+          solutions.splice(i, 0, solution);
+          inserted = true;
+          break;
+        }
+      }
+      if (!inserted) {
+        solutions.push(solution);
+      }
+      if (solutions.length > topK) {
+        solutions.length = topK;
+      }
+      if (solutions.length >= topK) {
+        bestSumBound = solutions[solutions.length - 1].sum;
+      } else {
+        bestSumBound = Infinity;
+      }
+    };
 
     const iterateBoxes = (attrIdx, lower, upper) => {
       if (attrIdx === ATTRS.length) {
@@ -367,7 +493,17 @@ const initSolver = () => {
                 return;
               }
             }
-            const key = counts.join('|');
+            const countsOriginal = new Array(n).fill(0);
+            const countsById = {};
+            orderedIndices.forEach((originalIdx, position) => {
+              const cnt = counts[position];
+              countsOriginal[originalIdx] = cnt;
+              if (cnt > 0) {
+                const id = getIngredientId(ingredients[originalIdx], originalIdx);
+                countsById[id] = cnt;
+              }
+            });
+            const key = countsOriginal.join('|');
             if (seenCombos.has(key)) {
               return;
             }
@@ -379,24 +515,20 @@ const initSolver = () => {
               bands[attr] = detectBand(style, attr, totals[k]) || 'n/a';
             }
 
-            const countsById = {};
-            counts.forEach((cnt, ingredientIdx) => {
-              if (cnt > 0) {
-                const id = getIngredientId(ingredients[ingredientIdx], ingredientIdx);
-                countsById[id] = cnt;
-              }
-            });
-
             const totalsRounded = totals.map((val) => Math.round(val * 1000) / 1000);
             const ingredientCount = Object.keys(countsById).length;
-            solutions.push({
-              x: counts.slice(),
-              sum: counts.reduce((acc, val) => acc + val, 0),
+            insertSolution({
+              x: countsOriginal,
+              sum: countsOriginal.reduce((acc, val) => acc + val, 0),
               totals: totalsRounded,
               bands,
               countsById,
               ingredientCount,
             });
+            return;
+          }
+
+          if (bestSumBound !== Infinity && used + suffixMinCounts[idx] > bestSumBound) {
             return;
           }
 
@@ -414,13 +546,16 @@ const initSolver = () => {
 
           const remainingMinAfter = suffixMinCounts[idx + 1];
           const maxC = Math.min(perCap, adjustedTotalCap - used - remainingMinAfter);
-          const minC = minCounts[idx];
+          const minC = orderedMinCounts[idx];
           if (maxC < minC) {
             return;
           }
 
-          const vec = vectors[idx];
+          const vec = orderedVectors[idx];
           for (let c = minC; c <= maxC; c += 1) {
+            if (bestSumBound !== Infinity && used + c + suffixMinCounts[idx + 1] > bestSumBound) {
+              continue;
+            }
             counts[idx] = c;
             const newTotals = totals.map((val, k) => val + (vec[k] || 0) * c);
             let feasible = true;
@@ -456,29 +591,9 @@ const initSolver = () => {
       new Array(ATTRS.length).fill(Number.POSITIVE_INFINITY),
     );
 
-    solutions.sort((a, b) => {
-      if (a.sum !== b.sum) return a.sum - b.sum;
-      for (let k = 0; k < ATTRS.length; k += 1) {
-        const diff = a.totals[k] - b.totals[k];
-        if (Math.abs(diff) > EPS) return diff;
-      }
-      for (let i = 0; i < a.x.length; i += 1) {
-        if (a.x[i] !== b.x[i]) return a.x[i] - b.x[i];
-      }
-      return 0;
-    });
+    solutions.sort(compareSolutions);
 
-    const uniq = [];
-    const seen = new Set();
-    for (const solution of solutions) {
-      const key = solution.x.join('|');
-      if (seen.has(key)) continue;
-      seen.add(key);
-      uniq.push(solution);
-      if (uniq.length >= topK) break;
-    }
-
-    return { solutions: uniq, info: [] };
+    return { solutions, info: [] };
   };
 
   const sliderStepToNumber = (raw) => {
