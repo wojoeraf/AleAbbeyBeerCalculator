@@ -28,32 +28,71 @@ const initSolver = () => {
   const i18nData = parseJSONScript('i18n-data', {});
   const styleMinMap = parseJSONScript('style-min-data', {});
   const ingredientPayload = parseJSONScript('ingredients-data', []);
-  const flattenedIngredients = [];
 
-  if (Array.isArray(ingredientPayload)) {
-    flattenedIngredients.push(
-      ...ingredientPayload.filter((entry) => entry && typeof entry === 'object')
-    );
-  } else if (ingredientPayload && typeof ingredientPayload === 'object') {
-    const categories = Array.isArray(ingredientPayload.categories)
-      ? ingredientPayload.categories
-      : [];
-    categories.forEach((entry, index) => {
-      if (!entry || typeof entry !== 'object') return;
-      const category = entry.category && typeof entry.category === 'object'
-        ? entry.category
-        : {};
-      const categoryId = category.id ? String(category.id) : `category-${index}`;
-      const categoryList = Array.isArray(category.list) ? category.list : [];
-      const normalizedList = categoryList.filter(
-        (ing) => ing && typeof ing === 'object' && typeof ing.id === 'string'
-      );
+  const flattenIngredientsPayload = (payload) => {
+    const seenIds = new Set();
+    const flattened = [];
 
-      flattenedIngredients.push(...normalizedList);
-    });
-  }
+    const appendList = (list) => {
+      list.forEach((item, idx) => {
+        if (!item || typeof item !== 'object') {
+          return;
+        }
+        if (!Object.prototype.hasOwnProperty.call(item, 'id')) {
+          return;
+        }
+        const rawId = item.id;
+        if (rawId === null || rawId === undefined) {
+          return;
+        }
+        const normalizedId = typeof rawId === 'string' ? rawId : String(rawId);
+        if (seenIds.has(normalizedId)) {
+          return;
+        }
+        seenIds.add(normalizedId);
+        if (normalizedId === rawId) {
+          flattened.push(item);
+        } else {
+          flattened.push({ ...item, id: normalizedId });
+        }
+      });
+    };
 
-  const ingredients = flattenedIngredients;
+    const processBlock = (block) => {
+      if (!block || typeof block !== 'object') {
+        return;
+      }
+      const list = Array.isArray(block.list) ? block.list : null;
+      const ingredientsList = Array.isArray(block.ingredients) ? block.ingredients : null;
+      if (list) {
+        appendList(list);
+      }
+      if (ingredientsList) {
+        appendList(ingredientsList);
+      }
+    };
+
+    if (Array.isArray(payload)) {
+      appendList(payload);
+    } else if (payload && typeof payload === 'object') {
+      processBlock(payload);
+      const categories = Array.isArray(payload.categories) ? payload.categories : [];
+      categories.forEach((entry) => {
+        if (!entry || typeof entry !== 'object') {
+          return;
+        }
+        if (entry.category && typeof entry.category === 'object') {
+          processBlock(entry.category);
+        } else {
+          processBlock(entry);
+        }
+      });
+    }
+
+    return flattened;
+  };
+
+  const ingredients = flattenIngredientsPayload(ingredientPayload);
   const stylesData = parseJSONScript('styles-data', {});
   const metaData = parseJSONScript('meta-data', {});
 
