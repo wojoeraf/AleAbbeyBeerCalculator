@@ -120,8 +120,23 @@ const initSolver = () => {
   const ingredientRows = Array.from(document.querySelectorAll('[data-ingredient-row]'));
   const form = document.querySelector('[data-solver-form]');
   const ingredientsWrapper = document.querySelector('[data-ingredients-wrapper]');
-  const ingredientCategoryContainers = Array.from(
-    document.querySelectorAll('[data-category-container]'),
+  const categoryBodies = new Map(
+    Array.from(document.querySelectorAll('[data-ingredient-category]')).map((el) => [
+      el.dataset.categoryId,
+      el,
+    ]),
+  );
+  const categoryHeaders = new Map(
+    Array.from(document.querySelectorAll('[data-category-header]')).map((el) => [
+      el.dataset.categoryId,
+      el,
+    ]),
+  );
+  const categoryToggles = new Map(
+    Array.from(document.querySelectorAll('[data-category-toggle]')).map((toggle) => [
+      toggle.dataset.categoryId,
+      toggle,
+    ]),
   );
   const mobileAttrToggle = document.querySelector('[data-attribute-toggle]');
   const mobileAttrToggleInput = document.querySelector('[data-attribute-toggle-input]');
@@ -184,17 +199,28 @@ const initSolver = () => {
 
   syncAttributeToggleVisibility();
 
-  ingredientCategoryContainers.forEach((container) => {
-    const toggle = container.querySelector('[data-category-toggle]');
-    if (!toggle) return;
-    const isExpanded = container.dataset.expanded !== 'false';
-    container.dataset.expanded = isExpanded ? 'true' : 'false';
-    toggle.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+  const setCategoryExpanded = (categoryId, expanded) => {
+    const value = expanded ? 'true' : 'false';
+    const toggle = categoryToggles.get(categoryId);
+    const header = categoryHeaders.get(categoryId);
+    const body = categoryBodies.get(categoryId);
+    if (toggle) {
+      toggle.setAttribute('aria-expanded', value);
+    }
+    if (header) {
+      header.dataset.expanded = value;
+    }
+    if (body) {
+      body.hidden = !expanded;
+    }
+  };
+
+  categoryToggles.forEach((toggle, categoryId) => {
+    const initialExpanded = toggle.getAttribute('aria-expanded') !== 'false';
+    setCategoryExpanded(categoryId, initialExpanded);
     toggle.addEventListener('click', () => {
-      const current = container.dataset.expanded !== 'false';
-      const next = !current;
-      container.dataset.expanded = next ? 'true' : 'false';
-      toggle.setAttribute('aria-expanded', next ? 'true' : 'false');
+      const nextExpanded = toggle.getAttribute('aria-expanded') === 'false';
+      setCategoryExpanded(categoryId, nextExpanded);
     });
   });
 

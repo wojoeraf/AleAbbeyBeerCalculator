@@ -266,7 +266,7 @@ def index():
         attr_labels=attr_labels,
         band_labels=band_labels,
         mode_labels=mode_labels,
-        ingredients=ingredients_for_template,
+        ingredient_categories=ingredients_for_template,
         constraints=constraints,
         total_cap=total_cap,
         per_cap=per_cap,
