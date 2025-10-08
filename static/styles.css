@@ -557,6 +557,58 @@ input[type="number"]:focus {
 .ingredients-table tbody tr:nth-child(even) {
   background: rgba(15, 23, 42, 0.03);
 }
+
+.ingredients-category .category-row td {
+  background: rgba(15, 23, 42, 0.08);
+  font-weight: 600;
+  padding: 0;
+  border-top: 1px solid var(--border);
+}
+
+.ingredients-category:first-of-type .category-row td {
+  border-top: none;
+}
+
+.category-toggle {
+  appearance: none;
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.category-toggle:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.category-toggle__label {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.8rem;
+}
+
+.category-toggle__icon::before {
+  content: "▾";
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
+
+.ingredients-category[data-expanded="false"] .category-toggle__icon::before {
+  transform: rotate(-90deg);
+}
+
+.ingredients-category[data-expanded="false"] tr[data-ingredient-row] {
+  display: none;
+}
 .ingredient-option {
   position: relative;
   display: inline-flex;

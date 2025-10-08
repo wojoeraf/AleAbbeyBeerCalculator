@@ -27,7 +27,20 @@ const formatTemplate = (template, replacements = {}) => {
 const initSolver = () => {
   const i18nData = parseJSONScript('i18n-data', {});
   const styleMinMap = parseJSONScript('style-min-data', {});
-  const ingredients = parseJSONScript('ingredients-data', []);
+  const rawIngredientData = parseJSONScript('ingredients-data', []);
+  const ingredientCategories = Array.isArray(rawIngredientData.categories)
+    ? rawIngredientData.categories
+    : Array.isArray(rawIngredientData)
+      ? [{ id: 'uncategorized', names: {}, ingredients: rawIngredientData }]
+      : [];
+  const ingredients = ingredientCategories.flatMap((category) => {
+    const items = Array.isArray(category.ingredients) ? category.ingredients : [];
+    return items.map((item) => ({
+      ...item,
+      category_id: category.id || '',
+      category_names: category.names || {},
+    }));
+  });
   const stylesData = parseJSONScript('styles-data', {});
   const metaData = parseJSONScript('meta-data', {});
 
@@ -107,6 +120,9 @@ const initSolver = () => {
   const ingredientRows = Array.from(document.querySelectorAll('[data-ingredient-row]'));
   const form = document.querySelector('[data-solver-form]');
   const ingredientsWrapper = document.querySelector('[data-ingredients-wrapper]');
+  const ingredientCategoryContainers = Array.from(
+    document.querySelectorAll('[data-category-container]'),
+  );
   const mobileAttrToggle = document.querySelector('[data-attribute-toggle]');
   const mobileAttrToggleInput = document.querySelector('[data-attribute-toggle-input]');
   const stackedLayoutQuery = typeof window !== 'undefined' && window.matchMedia
@@ -167,6 +183,20 @@ const initSolver = () => {
   }
 
   syncAttributeToggleVisibility();
+
+  ingredientCategoryContainers.forEach((container) => {
+    const toggle = container.querySelector('[data-category-toggle]');
+    if (!toggle) return;
+    const isExpanded = container.dataset.expanded !== 'false';
+    container.dataset.expanded = isExpanded ? 'true' : 'false';
+    toggle.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+    toggle.addEventListener('click', () => {
+      const current = container.dataset.expanded !== 'false';
+      const next = !current;
+      container.dataset.expanded = next ? 'true' : 'false';
+      toggle.setAttribute('aria-expanded', next ? 'true' : 'false');
+    });
+  });
 
   let parallaxTicking = false;
   const updateParallax = () => {

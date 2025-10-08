@@ -18,7 +18,37 @@ TRANSLATIONS = load_json("translations.json")
 LANGUAGE_NAMES = {code: data.get("language_name", code) for code, data in TRANSLATIONS.items()}
 DEFAULT_LANG = "en" if "en" in TRANSLATIONS else next(iter(TRANSLATIONS))
 
-INGREDIENTS = load_json("ingredients.json")
+RAW_INGREDIENT_DATA = load_json("ingredients.json")
+
+
+def normalize_ingredients(payload):
+    if isinstance(payload, dict) and "categories" in payload:
+        categories = payload.get("categories", [])
+    elif isinstance(payload, list):
+        categories = [
+            {
+                "id": "uncategorized",
+                "names": {},
+                "ingredients": payload,
+            }
+        ]
+    else:
+        categories = []
+
+    flat_list = []
+    for category in categories:
+        category_id = category.get("id")
+        category_names = category.get("names", {})
+        for ingredient in category.get("ingredients", []):
+            entry = dict(ingredient)
+            entry.setdefault("names", {})
+            entry["category_id"] = category_id
+            entry["category_names"] = category_names
+            flat_list.append(entry)
+    return categories, flat_list
+
+
+INGREDIENT_CATEGORIES, INGREDIENTS = normalize_ingredients(RAW_INGREDIENT_DATA)
 INGREDIENT_MAP = {ing["id"]: ing for ing in INGREDIENTS}
 BEER_STYLES = load_json("beer_styles.json")
 STYLE_ORDER = list(BEER_STYLES.keys())
@@ -159,14 +189,47 @@ def index():
     style_min_map = {s: BEER_STYLES[s].get("min_counts", {}) for s in styles_ids}
     style_mins = BEER_STYLES.get(style, {}).get("min_counts", {})
 
-    ingredients_for_template = [
-        {
-            "id": ing["id"],
-            "name": get_localized_name(ing.get("names", {}), lang),
-            "vec": ing.get("vec", []),
-        }
-        for ing in INGREDIENTS
-    ]
+    ingredients_for_template = []
+    if INGREDIENT_CATEGORIES:
+        for category in INGREDIENT_CATEGORIES:
+            cat_name = get_localized_name(category.get("names", {}), lang)
+            entries = []
+            for ing in category.get("ingredients", []):
+                ing_id = ing.get("id")
+                ing_entry = INGREDIENT_MAP.get(ing_id)
+                if not ing_entry:
+                    continue
+                entries.append(
+                    {
+                        "id": ing_entry["id"],
+                        "name": get_localized_name(ing_entry.get("names", {}), lang),
+                        "vec": ing_entry.get("vec", []),
+                    }
+                )
+            if entries:
+                ingredients_for_template.append(
+                    {
+                        "id": category.get("id"),
+                        "name": cat_name,
+                        "ingredients": entries,
+                    }
+                )
+    else:
+        fallback_name = ui_strings.get("section_ingredients", "Ingredients")
+        ingredients_for_template.append(
+            {
+                "id": "uncategorized",
+                "name": fallback_name,
+                "ingredients": [
+                    {
+                        "id": ing["id"],
+                        "name": get_localized_name(ing.get("names", {}), lang),
+                        "vec": ing.get("vec", []),
+                    }
+                    for ing in INGREDIENTS
+                ],
+            }
+        )
 
     ingredient_display_map = {
         ing["id"]: get_localized_name(ing.get("names", {}), lang) for ing in INGREDIENTS
@@ -211,7 +274,7 @@ def index():
         style_min_map=style_min_map,
         has_active_constraints=has_active_constraints,
         selected_optional=selected_optional,
-        ingredients_data=INGREDIENTS,
+        ingredients_data=RAW_INGREDIENT_DATA,
         styles_data=BEER_STYLES,
         ui=ui_strings,
         i18n_payload=i18n_payload,

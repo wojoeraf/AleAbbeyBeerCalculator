@@ -1,92 +1,163 @@
-[
-  {
-    "id": "standard_yeast",
-    "names": {"de": "Standardhefe", "en": "Standard Yeast"},
-    "vec": [0.5, 0.0, -1.0, -0.5]
-  },
-  {
-    "id": "pale_malt",
-    "names": {"de": "Helles Malz", "en": "Pale Malt"},
-    "vec": [0.4, 0.3, 1.0, 0.5]
-  },
-  {
-    "id": "grut",
-    "names": {"de": "Grut", "en": "Gruit"},
-    "vec": [0.5, -0.3, 0.0, 0.0]
-  },
-  {
-    "id": "brown_malt",
-    "names": {"de": "Braunes Malz", "en": "Brown Malt"},
-    "vec": [1.6, 2.0, 0.0, 0.0]
-  },
-  {
-    "id": "eucalyptus",
-    "names": {"de": "Eukalyptus", "en": "Eucalyptus"},
-    "vec": [1.0, 0.0, -0.2, -0.5]
-  },
-  {
-    "id": "amber_malt",
-    "names": {"de": "Bernsteinfarbenes Malz", "en": "Amber Malt"},
-    "vec": [0.8, 1.2, 0.5, 0.8]
-  },
-  {
-    "id": "honey",
-    "names": {"de": "Honig", "en": "Honey"},
-    "vec": [1.0, 0.3, 1.0, 0.0]
-  },
-  {
-    "id": "strong_yeast",
-    "names": {"de": "Starke Hefe TODO", "en": "Strong Yeast"},
-    "vec": [1.0, 0.3, 1.0, 0.0]
-  },
-  {
-    "id": "wheat_malt",
-    "names": {"de": "Weizenmalz TODO", "en": "Wheat Malt"},
-    "vec": [1.0, 0.3, 1.0, 0.0]
-  },
-  {
-    "id": "classic_hopes",
-    "names": {"de": "Klassischer Hopfen TODO", "en": "Classic Hopes"},
-    "vec": [1.0, 0.3, 1.0, 0.0]
-  },
-  {
-    "id": "estery_yeast",
-    "names": {"de": "Estery Hefe TODO", "en": "Estery Yeast"},
-    "vec": [1.0, 0.3, 1.0, 0.0]
-  },
-  {
-    "id": "berries",
-    "names": {"de": "Beeren TODO", "en": "Berries"},
-    "vec": [1.0, 0.3, 1.0, 0.0]
-  },
-  {
-    "id": "cherries",
-    "names": {"de": "Kirschen TODO", "en": "Cherries"},
-    "vec": [1.0, 0.3, 1.0, 0.0]
-  },
-  {
-    "id": "pepper",
-    "names": {"de": "Pfeffer TODO", "en": "Pepper"},
-    "vec": [1.0, 0.3, 1.0, 0.0]
-  },
-  {
-    "id": "cascade_hopes",
-    "names": {"de": "Kaskaden Hopfen TODO", "en": "Cascade Hopes"},
-    "vec": [1.0, 0.3, 1.0, 0.0]
-  },
-  {
-    "id": "magnum_hopes",
-    "names": {"de": "Magnum Hopfen TODO", "en": "Magnum Hopes"},
-    "vec": [1.0, 0.3, 1.0, 0.0]
-  },
-  {
-    "id": "brown_candy_sugar",
-    "names": {"de": "Brauner Kandiszucker TODO", "en": "Brown Candy Sugar"},
-    "vec": [1.0, 0.3, 1.0, 0.0]
-  },
-  {
-    "id": "wheat_starch",
-    "names": {"de": "Weizenstärke TODO", "en": "Wheat Starch"},
-    "vec": [1.0, 0.3, 1.0, 0.0]
-  }
-]
+{
+  "categories": [
+    {
+      "id": "yeasts",
+      "names": {"en": "Yeasts", "de": "Hefen"},
+      "ingredients": [
+        {
+          "id": "standard_yeast",
+          "names": {"en": "Standard Yeast", "de": "Standardhefe"},
+          "vec": [0.5, 0.0, -1.0, -0.5]
+        },
+        {
+          "id": "estery_yeast",
+          "names": {"en": "Estery Yeast", "de": "Estherige Hefe"},
+          "vec": [1.5, 0.0, -1.0, 0.0]
+        },
+        {
+          "id": "strong_yeast",
+          "names": {"en": "Strong Yeast", "de": "Starke Hefe"},
+          "vec": [0.3, 0.0, 2.0, 0.5]
+        }
+      ]
+    },
+    {
+      "id": "malts_grains",
+      "names": {"en": "Malts & Grains", "de": "Malze & Getreide"},
+      "ingredients": [
+        {
+          "id": "amber_malt",
+          "names": {"en": "Amber Malt", "de": "Bernsteinmalz"},
+          "vec": [0.8, 1.2, 0.5, 0.8]
+        },
+        {
+          "id": "pale_malt",
+          "names": {"en": "Pale Malt", "de": "Helles Malz"},
+          "vec": [0.4, 0.3, 1.0, 0.5]
+        },
+        {
+          "id": "brown_malt",
+          "names": {"en": "Brown Malt", "de": "Braunmalz"},
+          "vec": [1.6, 2.0, 0.0, 0.0]
+        },
+        {
+          "id": "wheat_malt",
+          "names": {"en": "Wheat Malt", "de": "Weizenmalz"},
+          "vec": [0.8, -0.3, 0.4, 2.0]
+        },
+        {
+          "id": "wheat_starch",
+          "names": {"en": "Wheat Starch", "de": "Weizenstärke"},
+          "vec": [-0.5, 0.0, -1.0, 1.5]
+        },
+        {
+          "id": "wheat_flakes",
+          "names": {"en": "Wheat Flakes", "de": "Weizenflocken"},
+          "vec": [0.5, -0.5, 0.2, 2.0]
+        },
+        {
+          "id": "rye_malt",
+          "names": {"en": "Rye Malt", "de": "Roggenmalz"},
+          "vec": [2.0, 1.0, -0.5, 1.5]
+        }
+      ]
+    },
+    {
+      "id": "hops",
+      "names": {"en": "Hops", "de": "Hopfen"},
+      "ingredients": [
+        {
+          "id": "cascadus_hops",
+          "names": {"en": "Cascadus Hops", "de": "Cascadus-Hopfen"},
+          "vec": [1.2, 0.0, 0.0, 0.5]
+        },
+        {
+          "id": "classic_hops",
+          "names": {"en": "Classic Hops", "de": "Klassischer Hopfen"},
+          "vec": [0.8, 0.0, 0.0, 0.5]
+        },
+        {
+          "id": "magnim_hops",
+          "names": {"en": "Magnim Hops", "de": "Magnim-Hopfen"},
+          "vec": [1.6, 0.0, 0.0, 1.0]
+        }
+      ]
+    },
+    {
+      "id": "adjuncts_spices",
+      "names": {"en": "Adjuncts, Spices & Additions", "de": "Zusätze, Gewürze & Ergänzungen"},
+      "ingredients": [
+        {
+          "id": "eucalyptus",
+          "names": {"en": "Eucalyptus", "de": "Eukalyptus"},
+          "vec": [1.0, 0.0, -0.2, -0.5]
+        },
+        {
+          "id": "gruit",
+          "names": {"en": "Gruit", "de": "Grut"},
+          "vec": [0.5, -0.3, 0.0, 0.0]
+        },
+        {
+          "id": "honey",
+          "names": {"en": "Honey", "de": "Honig"},
+          "vec": [1.0, 0.3, 1.0, 0.0]
+        },
+        {
+          "id": "coffee",
+          "names": {"en": "Coffee", "de": "Kaffee"},
+          "vec": [1.0, 2.0, 0.0, 0.0]
+        },
+        {
+          "id": "pepper",
+          "names": {"en": "Pepper", "de": "Pfeffer"},
+          "vec": [1.0, 0.0, 0.0, -1.0]
+        },
+        {
+          "id": "pumpkin",
+          "names": {"en": "Pumpkin", "de": "Kürbis"},
+          "vec": [1.5, 1.0, 0.0, -1.0]
+        },
+        {
+          "id": "yeast_nutritionals",
+          "names": {"en": "Yeast Nutritionals", "de": "Hefenährstoffe"},
+          "vec": [0.0, 0.0, 1.0, 0.0]
+        },
+        {
+          "id": "berries",
+          "names": {"en": "Berries", "de": "Beeren"},
+          "vec": [2.0, 2.0, 0.5, 0.5]
+        },
+        {
+          "id": "cherries",
+          "names": {"en": "Cherries", "de": "Kirschen"},
+          "vec": [1.5, 1.5, 0.5, 0.0]
+        },
+        {
+          "id": "grapes",
+          "names": {"en": "Grapes", "de": "Trauben"},
+          "vec": [1.5, 1.0, 0.5, 0.5]
+        },
+        {
+          "id": "brown_candi_sugar",
+          "names": {"en": "Brown Candi Sugar", "de": "Brauner Kandiszucker"},
+          "vec": [0.5, 1.0, 1.5, -0.5]
+        },
+        {
+          "id": "sugar",
+          "names": {"en": "Sugar", "de": "Zucker"},
+          "vec": [-1.0, -0.5, 2.0, -1.0]
+        },
+        {
+          "id": "coriander_seeds",
+          "names": {"en": "Coriander Seeds", "de": "Koriandersamen"},
+          "vec": [1.0, 0.0, -0.2, 0.0]
+        },
+        {
+          "id": "orange_peel",
+          "names": {"en": "Orange Peel", "de": "Orangenschale"},
+          "vec": [0.5, 0.5, 0.0, 0.0]
+        }
+      ]
+    }
+  ]
+}
