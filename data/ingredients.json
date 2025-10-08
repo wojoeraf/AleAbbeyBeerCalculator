@@ -1,171 +1,163 @@
 {
   "categories": [
     {
-      "category": {
-        "id": "yeasts",
-        "name": "Yeasts",
-        "list": [
-          {
-            "id": "standard_yeast",
-            "names": { "de": "Standardhefe (ToDo verify translation)", "en": "Standard Yeast" },
-            "vec": [0.5, 0.0, -1.0, -0.5]
-          },
-          {
-            "id": "estery_yeast",
-            "names": { "de": "Esterbetonte Hefe (ToDo verify translation)", "en": "Estery Yeast" },
-            "vec": [1.5, 0.0, -1.0, 0.0]
-          },
-          {
-            "id": "strong_yeast",
-            "names": { "de": "Starke Hefe (ToDo verify translation)", "en": "Strong Yeast" },
-            "vec": [0.3, 0.0, 2.0, 0.5]
-          }
-        ]
-      }
+      "id": "yeasts",
+      "names": {"en": "Yeasts", "de": "Hefen"},
+      "ingredients": [
+        {
+          "id": "standard_yeast",
+          "names": {"en": "Standard Yeast", "de": "Standardhefe"},
+          "vec": [0.5, 0.0, -1.0, -0.5]
+        },
+        {
+          "id": "estery_yeast",
+          "names": {"en": "Estery Yeast", "de": "Estherige Hefe"},
+          "vec": [1.5, 0.0, -1.0, 0.0]
+        },
+        {
+          "id": "strong_yeast",
+          "names": {"en": "Strong Yeast", "de": "Starke Hefe"},
+          "vec": [0.3, 0.0, 2.0, 0.5]
+        }
+      ]
     },
     {
-      "category": {
-        "id": "malts_grains",
-        "name": "Malts & Grains",
-        "list": [
-          {
-            "id": "amber_malt",
-            "names": { "de": "Bernsteinmalz (ToDo verify translation)", "en": "Amber Malt" },
-            "vec": [0.8, 1.2, 0.5, 0.8]
-          },
-          {
-            "id": "pale_malt",
-            "names": { "de": "Pale-Ale-Malz (ToDo verify translation)", "en": "Pale Malt" },
-            "vec": [0.4, 0.3, 1.0, 0.5]
-          },
-          {
-            "id": "brown_malt",
-            "names": { "de": "Braunmalz (ToDo verify translation)", "en": "Brown Malt" },
-            "vec": [1.6, 2.0, 0.0, 0.0]
-          },
-          {
-            "id": "wheat_malt",
-            "names": { "de": "Weizenmalz (ToDo verify translation)", "en": "Wheat Malt" },
-            "vec": [0.8, -0.3, 0.4, 2.0]
-          },
-          {
-            "id": "wheat_starch",
-            "names": { "de": "Weizenstärke (ToDo verify translation)", "en": "Wheat Starch" },
-            "vec": [-0.5, 0.0, -1.0, 1.5]
-          },
-          {
-            "id": "wheat_flakes",
-            "names": { "de": "Weizenflocken (ToDo verify translation)", "en": "Wheat Flakes" },
-            "vec": [0.5, -0.5, 0.2, 2.0]
-          },
-          {
-            "id": "rye_malt",
-            "names": { "de": "Roggenmalz (ToDo verify translation)", "en": "Rye Malt" },
-            "vec": [2.0, 1.0, -0.5, 1.5]
-          }
-        ]
-      }
+      "id": "malts_grains",
+      "names": {"en": "Malts & Grains", "de": "Malze & Getreide"},
+      "ingredients": [
+        {
+          "id": "amber_malt",
+          "names": {"en": "Amber Malt", "de": "Bernsteinmalz"},
+          "vec": [0.8, 1.2, 0.5, 0.8]
+        },
+        {
+          "id": "pale_malt",
+          "names": {"en": "Pale Malt", "de": "Helles Malz"},
+          "vec": [0.4, 0.3, 1.0, 0.5]
+        },
+        {
+          "id": "brown_malt",
+          "names": {"en": "Brown Malt", "de": "Braunmalz"},
+          "vec": [1.6, 2.0, 0.0, 0.0]
+        },
+        {
+          "id": "wheat_malt",
+          "names": {"en": "Wheat Malt", "de": "Weizenmalz"},
+          "vec": [0.8, -0.3, 0.4, 2.0]
+        },
+        {
+          "id": "wheat_starch",
+          "names": {"en": "Wheat Starch", "de": "Weizenstärke"},
+          "vec": [-0.5, 0.0, -1.0, 1.5]
+        },
+        {
+          "id": "wheat_flakes",
+          "names": {"en": "Wheat Flakes", "de": "Weizenflocken"},
+          "vec": [0.5, -0.5, 0.2, 2.0]
+        },
+        {
+          "id": "rye_malt",
+          "names": {"en": "Rye Malt", "de": "Roggenmalz"},
+          "vec": [2.0, 1.0, -0.5, 1.5]
+        }
+      ]
     },
     {
-      "category": {
-        "id": "hops",
-        "name": "Hops",
-        "list": [
-          {
-            "id": "cascadus_hops",
-            "names": { "de": "Cascadus-Hopfen (ToDo verify translation)", "en": "Cascadus Hops" },
-            "vec": [1.2, 0.0, 0.0, 0.5]
-          },
-          {
-            "id": "classic_hops",
-            "names": { "de": "Klassischer Hopfen (ToDo verify translation)", "en": "Classic Hops" },
-            "vec": [0.8, 0.0, 0.0, 0.5]
-          },
-          {
-            "id": "magnum_hops",
-            "names": { "de": "Magnum-Hopfen (ToDo verify translation)", "en": "Magnum Hops" },
-            "vec": [1.6, 0.0, 0.0, 1.0]
-          }
-        ]
-      }
+      "id": "hops",
+      "names": {"en": "Hops", "de": "Hopfen"},
+      "ingredients": [
+        {
+          "id": "cascadus_hops",
+          "names": {"en": "Cascadus Hops", "de": "Cascadus-Hopfen"},
+          "vec": [1.2, 0.0, 0.0, 0.5]
+        },
+        {
+          "id": "classic_hops",
+          "names": {"en": "Classic Hops", "de": "Klassischer Hopfen"},
+          "vec": [0.8, 0.0, 0.0, 0.5]
+        },
+        {
+          "id": "magnim_hops",
+          "names": {"en": "Magnim Hops", "de": "Magnim-Hopfen"},
+          "vec": [1.6, 0.0, 0.0, 1.0]
+        }
+      ]
     },
     {
-      "category": {
-        "id": "adjuncts_spices_additions",
-        "name": "Adjuncts, Spices & Additions",
-        "list": [
-          {
-            "id": "eucalyptus",
-            "names": { "de": "Eukalyptus (ToDo verify translation)", "en": "Eucalyptus" },
-            "vec": [1.0, 0.0, -0.2, -0.5]
-          },
-          {
-            "id": "gruit",
-            "names": { "de": "Grut (ToDo verify translation)", "en": "Gruit" },
-            "vec": [0.5, -0.3, 0.0, 0.0]
-          },
-          {
-            "id": "honey",
-            "names": { "de": "Honig (ToDo verify translation)", "en": "Honey" },
-            "vec": [1.0, 0.3, 1.0, 0.0]
-          },
-          {
-            "id": "coffee",
-            "names": { "de": "Kaffee (ToDo verify translation)", "en": "Coffee" },
-            "vec": [1.0, 2.0, 0.0, 0.0]
-          },
-          {
-            "id": "pepper",
-            "names": { "de": "Pfeffer (ToDo verify translation)", "en": "Pepper" },
-            "vec": [1.0, 0.0, 0.0, -1.0]
-          },
-          {
-            "id": "pumpkin",
-            "names": { "de": "Kürbis (ToDo verify translation)", "en": "Pumpkin" },
-            "vec": [1.5, 1.0, 0.0, -1.0]
-          },
-          {
-            "id": "yeast_nutritionals",
-            "names": { "de": "Hefenährstoffe (ToDo verify translation)", "en": "Yeast Nutritionals" },
-            "vec": [0.0, 0.0, 1.0, 0.0]
-          },
-          {
-            "id": "berries",
-            "names": { "de": "Beeren (ToDo verify translation)", "en": "Berries" },
-            "vec": [2.0, 2.0, 0.5, 0.5]
-          },
-          {
-            "id": "cherries",
-            "names": { "de": "Kirschen (ToDo verify translation)", "en": "Cherries" },
-            "vec": [1.5, 1.5, 0.5, 0.0]
-          },
-          {
-            "id": "grapes",
-            "names": { "de": "Trauben (ToDo verify translation)", "en": "Grapes" },
-            "vec": [1.5, 1.0, 0.5, 0.5]
-          },
-          {
-            "id": "brown_candi_sugar",
-            "names": { "de": "Brauner Kandiszucker (ToDo verify translation)", "en": "Brown Candi Sugar" },
-            "vec": [0.5, 1.0, 1.5, -0.5]
-          },
-          {
-            "id": "sugar",
-            "names": { "de": "Zucker (ToDo verify translation)", "en": "Sugar" },
-            "vec": [-1.0, -0.5, 2.0, -1.0]
-          },
-          {
-            "id": "coriander_seeds",
-            "names": { "de": "Koriandersamen (ToDo verify translation)", "en": "Coriander Seeds" },
-            "vec": [1.0, 0.0, -0.2, 0.0]
-          },
-          {
-            "id": "orange_peel",
-            "names": { "de": "Orangenschale (ToDo verify translation)", "en": "Orange Peel" },
-            "vec": [0.5, 0.5, 0.0, 0.0]
-          }
-        ]
-      }
+      "id": "adjuncts_spices",
+      "names": {"en": "Adjuncts, Spices & Additions", "de": "Zusätze, Gewürze & Ergänzungen"},
+      "ingredients": [
+        {
+          "id": "eucalyptus",
+          "names": {"en": "Eucalyptus", "de": "Eukalyptus"},
+          "vec": [1.0, 0.0, -0.2, -0.5]
+        },
+        {
+          "id": "gruit",
+          "names": {"en": "Gruit", "de": "Grut"},
+          "vec": [0.5, -0.3, 0.0, 0.0]
+        },
+        {
+          "id": "honey",
+          "names": {"en": "Honey", "de": "Honig"},
+          "vec": [1.0, 0.3, 1.0, 0.0]
+        },
+        {
+          "id": "coffee",
+          "names": {"en": "Coffee", "de": "Kaffee"},
+          "vec": [1.0, 2.0, 0.0, 0.0]
+        },
+        {
+          "id": "pepper",
+          "names": {"en": "Pepper", "de": "Pfeffer"},
+          "vec": [1.0, 0.0, 0.0, -1.0]
+        },
+        {
+          "id": "pumpkin",
+          "names": {"en": "Pumpkin", "de": "Kürbis"},
+          "vec": [1.5, 1.0, 0.0, -1.0]
+        },
+        {
+          "id": "yeast_nutritionals",
+          "names": {"en": "Yeast Nutritionals", "de": "Hefenährstoffe"},
+          "vec": [0.0, 0.0, 1.0, 0.0]
+        },
+        {
+          "id": "berries",
+          "names": {"en": "Berries", "de": "Beeren"},
+          "vec": [2.0, 2.0, 0.5, 0.5]
+        },
+        {
+          "id": "cherries",
+          "names": {"en": "Cherries", "de": "Kirschen"},
+          "vec": [1.5, 1.5, 0.5, 0.0]
+        },
+        {
+          "id": "grapes",
+          "names": {"en": "Grapes", "de": "Trauben"},
+          "vec": [1.5, 1.0, 0.5, 0.5]
+        },
+        {
+          "id": "brown_candi_sugar",
+          "names": {"en": "Brown Candi Sugar", "de": "Brauner Kandiszucker"},
+          "vec": [0.5, 1.0, 1.5, -0.5]
+        },
+        {
+          "id": "sugar",
+          "names": {"en": "Sugar", "de": "Zucker"},
+          "vec": [-1.0, -0.5, 2.0, -1.0]
+        },
+        {
+          "id": "coriander_seeds",
+          "names": {"en": "Coriander Seeds", "de": "Koriandersamen"},
+          "vec": [1.0, 0.0, -0.2, 0.0]
+        },
+        {
+          "id": "orange_peel",
+          "names": {"en": "Orange Peel", "de": "Orangenschale"},
+          "vec": [0.5, 0.5, 0.0, 0.0]
+        }
+      ]
     }
   ]
 }
