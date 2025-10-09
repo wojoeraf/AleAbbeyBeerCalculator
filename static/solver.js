@@ -1139,7 +1139,8 @@ const initSolver = () => {
     if (!Number.isFinite(value)) {
       return '0';
     }
-    const rounded = Math.round(value * 10) / 10;
+    const safeValue = Math.max(0, value);
+    const rounded = Math.round(safeValue * 10) / 10;
     if (Math.abs(rounded - Math.round(rounded)) < 1e-6) {
       return String(Math.round(rounded));
     }
@@ -1338,7 +1339,8 @@ const initSolver = () => {
       );
 
       ATTRS.forEach((attr, idx) => {
-        const value = Number(solution.totals[idx]) || 0;
+        const rawValue = Number(solution.totals[idx]);
+        const value = Number.isFinite(rawValue) ? Math.max(0, rawValue) : 0;
         const band = solution.bands[attr];
         const sanitized = sanitizeBand(band);
 
