@@ -721,10 +721,8 @@ const initSolver = () => {
       });
     };
 
-    let storedMode = sanitizeMode(modeInput.value);
-    if (modeInput.value === 'any') {
-      storedMode = 'eq';
-    }
+    const fallbackMode = 'eq';
+    let storedMode = modeInput.value === 'any' ? null : sanitizeMode(modeInput.value);
 
     const setSliderDisabled = (disabled) => {
       if (slider) {
@@ -744,7 +742,9 @@ const initSolver = () => {
 
     const applyMode = (mode) => {
       if (mode === 'any') {
+        storedMode = null;
         modeInput.value = 'any';
+        delete card.dataset.savedMode;
         setSliderDisabled(slider ? slider.disabled : false);
         minInput.value = '';
         maxInput.value = '';
@@ -755,6 +755,7 @@ const initSolver = () => {
       const normalized = sanitizeMode(mode);
       storedMode = normalized;
       modeInput.value = normalized;
+      delete card.dataset.savedMode;
       setSliderDisabled(slider ? slider.disabled : false);
       syncHiddenValues();
       updateSubmitState();
@@ -768,9 +769,13 @@ const initSolver = () => {
       }
       if (isColorActive) {
         if (modeInput.value !== 'any') {
-          card.dataset.savedMode = modeInput.value;
-        } else {
+          const preserved = sanitizeMode(modeInput.value);
+          storedMode = preserved;
+          card.dataset.savedMode = preserved;
+        } else if (storedMode) {
           card.dataset.savedMode = storedMode;
+        } else {
+          delete card.dataset.savedMode;
         }
         modeInput.value = 'any';
         setSliderDisabled(true);
@@ -783,6 +788,15 @@ const initSolver = () => {
           const restored = sanitizeMode(saved);
           storedMode = restored;
           modeInput.value = restored;
+        } else if (storedMode) {
+          modeInput.value = storedMode;
+        } else {
+          modeInput.value = 'any';
+          minInput.value = '';
+          maxInput.value = '';
+        }
+        if (!storedMode) {
+          delete card.dataset.savedMode;
         }
         syncHiddenValues();
       }
@@ -820,7 +834,7 @@ const initSolver = () => {
       slider.addEventListener('input', () => {
         syncSliderDisplay();
         if (modeInput.value === 'any') {
-          applyMode(storedMode || 'eq');
+          applyMode(storedMode || fallbackMode);
         } else {
           syncHiddenValues();
           updateSubmitState();
