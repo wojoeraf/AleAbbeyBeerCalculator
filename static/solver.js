@@ -743,6 +743,15 @@ const initSolver = () => {
     };
 
     const applyMode = (mode) => {
+      if (mode === 'any') {
+        modeInput.value = 'any';
+        setSliderDisabled(slider ? slider.disabled : false);
+        minInput.value = '';
+        maxInput.value = '';
+        updateSubmitState();
+        return;
+      }
+
       const normalized = sanitizeMode(mode);
       storedMode = normalized;
       modeInput.value = normalized;
@@ -799,7 +808,10 @@ const initSolver = () => {
         if (slider && slider.disabled) {
           return;
         }
-        applyMode(btn.dataset.mode || 'eq');
+
+        const targetMode = btn.dataset.mode || 'eq';
+        const isActive = modeInput.value === targetMode;
+        applyMode(isActive ? 'any' : targetMode);
         setModeButtonsState();
       });
     });
