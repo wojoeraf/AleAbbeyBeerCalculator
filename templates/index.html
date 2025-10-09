@@ -209,10 +209,15 @@
                 {% if not has_active_constraints %}disabled{% endif %}>{{ ui.button_submit }}</button>
     </form>
 
-    <section class="results-section" data-results hidden style="margin-top: 32px;">
+    <section class="results-section" data-results style="margin-top: 32px;">
         <div class="card">
             <h2 class="section-title" data-results-title>{{ ui.section_results }}</h2>
-            <p class="hint" data-results-summary></p>
+            <p class="hint results-placeholder" data-results-placeholder>{{ ui.results_placeholder }}</p>
+            <div class="results-loading" data-results-loading hidden role="status" aria-live="polite">
+                <div class="loading-spinner" aria-hidden="true"></div>
+                <p class="hint">{{ ui.results_loading }}</p>
+            </div>
+            <p class="hint" data-results-summary hidden></p>
             <p class="hint" data-status-message hidden></p>
             <div class="results-controls" data-results-controls hidden>
                 <label class="results-control">

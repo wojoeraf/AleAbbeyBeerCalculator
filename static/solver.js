@@ -147,6 +147,8 @@ const initSolver = () => {
   const resultsSection = document.querySelector('[data-results]');
   const resultsTitle = document.querySelector('[data-results-title]');
   const resultsSummary = document.querySelector('[data-results-summary]');
+  const resultsPlaceholder = document.querySelector('[data-results-placeholder]');
+  const resultsLoading = document.querySelector('[data-results-loading]');
   const resultsList = document.querySelector('[data-results-list]');
   const resultsEmpty = document.querySelector('[data-results-empty]');
   const statusMessage = document.querySelector('[data-status-message]');
@@ -162,6 +164,7 @@ const initSolver = () => {
   let latestSummaryLines = [];
   let latestInfoMessages = [];
   let hasRenderedResults = false;
+  let isLoading = false;
 
   const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
@@ -1225,13 +1228,77 @@ const initSolver = () => {
   };
 
   const applyResultsState = () => {
-    if (!resultsSection || !hasRenderedResults) return;
+    if (!resultsSection) return;
+
+    resultsSection.hidden = false;
+    resultsSection.setAttribute('aria-busy', isLoading ? 'true' : 'false');
+
+    if (resultsLoading) {
+      resultsLoading.hidden = !isLoading;
+    }
+
+    if (isLoading) {
+      if (resultsTitle) {
+        resultsTitle.textContent = translate('results_heading');
+      }
+      if (resultsPlaceholder) {
+        resultsPlaceholder.hidden = true;
+      }
+      if (resultsSummary) {
+        resultsSummary.hidden = true;
+        resultsSummary.textContent = '';
+      }
+      if (statusMessage) {
+        statusMessage.hidden = true;
+        statusMessage.textContent = '';
+      }
+      if (resultsEmpty) {
+        resultsEmpty.hidden = true;
+      }
+      if (resultsControls) {
+        resultsControls.hidden = true;
+      }
+      if (resultsList) {
+        resultsList.innerHTML = '';
+      }
+      return;
+    }
+
+    if (!hasRenderedResults) {
+      if (resultsTitle) {
+        resultsTitle.textContent = translate('results_heading');
+      }
+      if (resultsPlaceholder) {
+        resultsPlaceholder.hidden = false;
+      }
+      if (resultsSummary) {
+        resultsSummary.hidden = true;
+        resultsSummary.textContent = '';
+      }
+      if (statusMessage) {
+        statusMessage.hidden = true;
+        statusMessage.textContent = '';
+      }
+      if (resultsEmpty) {
+        resultsEmpty.hidden = true;
+      }
+      if (resultsControls) {
+        resultsControls.hidden = true;
+      }
+      if (resultsList) {
+        resultsList.innerHTML = '';
+      }
+      return;
+    }
+
+    if (resultsPlaceholder) {
+      resultsPlaceholder.hidden = true;
+    }
+
     const summaryLines = Array.isArray(latestSummaryLines) ? latestSummaryLines : [];
     const infoMessages = Array.isArray(latestInfoMessages) ? latestInfoMessages : [];
     const sortedSolutions = sortSolutionsForDisplay(latestSolutions);
     const count = sortedSolutions.length;
-
-    resultsSection.hidden = false;
 
     if (resultsTitle) {
       const titleText = translate('results_title', { count });
@@ -1396,11 +1463,24 @@ const initSolver = () => {
     });
   };
 
+  applyResultsState();
+
   const renderSolutions = (solutions, summaryLines, infoMessages) => {
     latestSolutions = Array.isArray(solutions) ? [...solutions] : [];
     latestSummaryLines = Array.isArray(summaryLines) ? [...summaryLines] : [];
     latestInfoMessages = Array.isArray(infoMessages) ? [...infoMessages] : [];
     hasRenderedResults = true;
+    if (!isLoading) {
+      applyResultsState();
+    }
+  };
+
+  const setLoadingState = (loading) => {
+    const next = Boolean(loading);
+    if (isLoading === next) {
+      return;
+    }
+    isLoading = next;
     applyResultsState();
   };
 
@@ -1427,115 +1507,128 @@ const initSolver = () => {
     form.addEventListener('submit', (event) => {
       event.preventDefault();
       const formData = new FormData(form);
-      let styleName = formData.get('style');
-      if (!styleName && styleIds.length) {
-        styleName = styleIds[0];
-      }
-      if (styleName && !(styleName in stylesData) && styleIds.length) {
-        styleName = styleIds[0];
-      }
-      const totalCapRaw = Number(formData.get('total_cap'));
-      const perCapRaw = Number(formData.get('per_cap'));
-      const totalCap = clamp(Number.isFinite(totalCapRaw) ? totalCapRaw : 25, 1, 99);
-      const perCap = clamp(Number.isFinite(perCapRaw) ? perCapRaw : 25, 1, 99);
+      setLoadingState(true);
 
-      const numericIntervals = {};
-      const bandPreferences = {};
-      const debugIntervals = {};
-      const debugLines = [];
-
-      ATTRS.forEach((attr) => {
-        const bandChoice = formData.get(`band_${attr}`) || 'any';
-        bandPreferences[attr] = bandChoice === 'any' ? null : [bandChoice];
-
-        const mode = formData.get(`mode_${attr}`) || 'any';
-        const rawMin = parseFloatOrNull(formData.get(`min_${attr}`));
-        const rawMax = parseFloatOrNull(formData.get(`max_${attr}`));
-        const minVal = rawMin === null ? null : clamp(rawMin, 0, 11);
-        const maxVal = rawMax === null ? null : clamp(rawMax, 0, 11);
-
-        let lo = Number.NEGATIVE_INFINITY;
-        let hi = Number.POSITIVE_INFINITY;
-        let debugLo = 0;
-        let debugHi = 11;
-
-        if (mode === 'ge') {
-          lo = minVal === null ? 0 : minVal;
-          debugLo = lo;
-          debugHi = Number.POSITIVE_INFINITY;
-        } else if (mode === 'le') {
-          hi = maxVal === null ? 11 : maxVal;
-          debugLo = Number.NEGATIVE_INFINITY;
-          debugHi = hi;
-        } else if (mode === 'eq') {
-          const target = minVal !== null ? minVal : maxVal;
-          if (target !== null) {
-            lo = target;
-            hi = target;
-            debugLo = target;
-            debugHi = target;
-          } else {
-            debugLo = 0;
-            debugHi = 11;
+      window.requestAnimationFrame(() => {
+        const debugLines = [];
+        try {
+          let styleName = formData.get('style');
+          if (!styleName && styleIds.length) {
+            styleName = styleIds[0];
           }
-        } else {
-          debugLo = 0;
-          debugHi = 11;
+          if (styleName && !(styleName in stylesData) && styleIds.length) {
+            styleName = styleIds[0];
+          }
+
+          const totalCapRaw = Number(formData.get('total_cap'));
+          const perCapRaw = Number(formData.get('per_cap'));
+          const totalCap = clamp(Number.isFinite(totalCapRaw) ? totalCapRaw : 25, 1, 99);
+          const perCap = clamp(Number.isFinite(perCapRaw) ? perCapRaw : 25, 1, 99);
+
+          const numericIntervals = {};
+          const bandPreferences = {};
+          const debugIntervals = {};
+
+          ATTRS.forEach((attr) => {
+            const bandChoice = formData.get(`band_${attr}`) || 'any';
+            bandPreferences[attr] = bandChoice === 'any' ? null : [bandChoice];
+
+            const mode = formData.get(`mode_${attr}`) || 'any';
+            const rawMin = parseFloatOrNull(formData.get(`min_${attr}`));
+            const rawMax = parseFloatOrNull(formData.get(`max_${attr}`));
+            const minVal = rawMin === null ? null : clamp(rawMin, 0, 11);
+            const maxVal = rawMax === null ? null : clamp(rawMax, 0, 11);
+
+            let lo = Number.NEGATIVE_INFINITY;
+            let hi = Number.POSITIVE_INFINITY;
+            let debugLo = 0;
+            let debugHi = 11;
+
+            if (mode === 'ge') {
+              lo = minVal === null ? 0 : minVal;
+              debugLo = lo;
+              debugHi = Number.POSITIVE_INFINITY;
+            } else if (mode === 'le') {
+              hi = maxVal === null ? 11 : maxVal;
+              debugLo = Number.NEGATIVE_INFINITY;
+              debugHi = hi;
+            } else if (mode === 'eq') {
+              const target = minVal !== null ? minVal : maxVal;
+              if (target !== null) {
+                lo = target;
+                hi = target;
+                debugLo = target;
+                debugHi = target;
+              } else {
+                debugLo = 0;
+                debugHi = 11;
+              }
+            } else {
+              debugLo = 0;
+              debugHi = 11;
+            }
+
+            numericIntervals[attr] = [lo, hi];
+            debugIntervals[attr] = [debugLo, debugHi];
+          });
+
+          const selectedOptional = new Set(formData.getAll('optional_ingredients'));
+          const extraMinCounts = {};
+          selectedOptional.forEach((id) => {
+            extraMinCounts[id] = Math.max(extraMinCounts[id] || 0, 1);
+          });
+
+          const styleLabel = displayStyleName(styleName) || translate('style_unknown');
+          debugLines.push(translate('debug_style', { style: styleLabel }));
+          debugLines.push(translate('debug_caps', { total: totalCap, per: perCap }));
+          debugLines.push(translate('debug_attr_heading'));
+          ATTRS.forEach((attr) => {
+            const interval = debugIntervals[attr] || [0, 11];
+            const bandPref = bandPreferences[attr];
+            const bandKey = bandPref && bandPref.length === 1 ? bandPref[0] : 'any';
+            const bandText = bandLabels[bandKey] || bandKey;
+            debugLines.push(
+              translate('debug_attr_entry', {
+                label: attrLabels[attr] || attr,
+                band: bandText,
+                min: formatIntervalValue(interval[0]),
+                max: formatIntervalValue(interval[1]),
+              }),
+            );
+          });
+          if (selectedOptional.size) {
+            const optionalList = Array.from(selectedOptional)
+              .map((id) => displayIngredientName(id))
+              .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+            debugLines.push(translate('debug_optional', { list: optionalList.join(', ') }));
+          }
+
+          const { solutions, info } = solveRecipe({
+            styleName,
+            numericIntervals,
+            bandPreferences,
+            totalCap,
+            perCap,
+            extraMinCounts,
+            allowedIngredientIds: selectedOptional,
+          });
+
+          const summaryLines = [];
+          if (styleName) {
+            summaryLines.push(translate('summary_style', { style: displayStyleName(styleName) }));
+          }
+          summaryLines.push(translate('summary_caps', { total: totalCap, per: perCap }));
+
+          setLoadingState(false);
+          renderSolutions(solutions, summaryLines, info);
+          renderDebug(debugLines);
+        } catch (error) {
+          console.error('Recipe calculation failed', error);
+          setLoadingState(false);
+          renderSolutions([], [], [translate('solver_failed')]);
+          renderDebug(debugLines);
         }
-
-        numericIntervals[attr] = [lo, hi];
-        debugIntervals[attr] = [debugLo, debugHi];
       });
-
-      const selectedOptional = new Set(formData.getAll('optional_ingredients'));
-      const extraMinCounts = {};
-      selectedOptional.forEach((id) => {
-        extraMinCounts[id] = Math.max(extraMinCounts[id] || 0, 1);
-      });
-
-      const styleLabel = displayStyleName(styleName) || translate('style_unknown');
-      debugLines.push(translate('debug_style', { style: styleLabel }));
-      debugLines.push(translate('debug_caps', { total: totalCap, per: perCap }));
-      debugLines.push(translate('debug_attr_heading'));
-      ATTRS.forEach((attr) => {
-        const interval = debugIntervals[attr] || [0, 11];
-        const bandPref = bandPreferences[attr];
-        const bandKey = bandPref && bandPref.length === 1 ? bandPref[0] : 'any';
-        const bandText = bandLabels[bandKey] || bandKey;
-        debugLines.push(
-          translate('debug_attr_entry', {
-            label: attrLabels[attr] || attr,
-            band: bandText,
-            min: formatIntervalValue(interval[0]),
-            max: formatIntervalValue(interval[1]),
-          }),
-        );
-      });
-      if (selectedOptional.size) {
-        const optionalList = Array.from(selectedOptional)
-          .map((id) => displayIngredientName(id))
-          .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
-        debugLines.push(translate('debug_optional', { list: optionalList.join(', ') }));
-      }
-
-      const { solutions, info } = solveRecipe({
-        styleName,
-        numericIntervals,
-        bandPreferences,
-        totalCap,
-        perCap,
-        extraMinCounts,
-        allowedIngredientIds: selectedOptional,
-      });
-
-      const summaryLines = [];
-      if (styleName) {
-        summaryLines.push(translate('summary_style', { style: displayStyleName(styleName) }));
-      }
-      summaryLines.push(translate('summary_caps', { total: totalCap, per: perCap }));
-
-      renderSolutions(solutions, summaryLines, info);
-      renderDebug(debugLines);
     });
   }
 };

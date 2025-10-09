@@ -29,6 +29,8 @@
       "button_submit": "Rezept berechnen",
       "section_results": "Ergebnisse",
       "results_empty": "Keine Lösung unter den gegebenen Regeln gefunden.",
+      "results_placeholder": "Noch kein Rezept berechnet. Nutze das Formular und starte die Berechnung, um Ergebnisse zu sehen.",
+      "results_loading": "Rezept wird berechnet …",
       "language_submit": "Sprache ändern",
       "results_sort_label": "Ergebnisse sortieren nach",
       "results_sort_order_label": "Reihenfolge",
@@ -80,6 +82,7 @@
       "debug_attr_heading": "Einstellungen je Attribut:",
       "debug_attr_entry": "  {label} → Band: {band}, Intervall: [{min}, {max}]",
       "debug_optional": "Zusätzliche gewünschte Zutaten: {list}",
+      "solver_failed": "Bei der Berechnung ist ein Fehler aufgetreten.",
       "style_unknown": "—"
     }
   },
@@ -113,6 +116,8 @@
       "button_submit": "Calculate recipe",
       "section_results": "Results",
       "results_empty": "No solution found for the current constraints.",
+      "results_placeholder": "No recipe has been calculated yet. Use the form and click “Calculate recipe” to see results here.",
+      "results_loading": "Calculating recipe…",
       "language_submit": "Change language",
       "results_sort_label": "Sort results by",
       "results_sort_order_label": "Order",
@@ -164,6 +169,7 @@
       "debug_attr_heading": "Attribute settings:",
       "debug_attr_entry": "  {label} → Band: {band}, Range: [{min}, {max}]",
       "debug_optional": "Additional desired ingredients: {list}",
+      "solver_failed": "Something went wrong while calculating the recipe.",
       "style_unknown": "—"
     }
   }
