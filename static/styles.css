@@ -227,9 +227,10 @@ input[type="number"]:focus {
 
 .column-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  flex-direction: column;
 }
 
 .column-header .section-title {
@@ -237,6 +238,8 @@ input[type="number"]:focus {
 }
 
 .btn-make-green {
+  height: 50px;
+  max-width: 170px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
