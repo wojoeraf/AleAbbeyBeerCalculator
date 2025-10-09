@@ -201,7 +201,6 @@ const initSolver = () => {
   }
 
   syncAttributeToggleVisibility();
-  applyResultsState();
 
   const setCategoryExpanded = (categoryId, expanded) => {
     const value = expanded ? 'true' : 'false';
@@ -1463,6 +1462,8 @@ const initSolver = () => {
       }
     });
   };
+
+  applyResultsState();
 
   const renderSolutions = (solutions, summaryLines, infoMessages) => {
     latestSolutions = Array.isArray(solutions) ? [...solutions] : [];
