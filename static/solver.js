@@ -828,15 +828,34 @@ const initSolver = () => {
   });
 
   if (setAllGreenBtn) {
+    const labelSpan = setAllGreenBtn.querySelector('[data-set-all-green-label]');
+    const initialLabel = labelSpan ? labelSpan.textContent : '';
+    const greenLabel = setAllGreenBtn.dataset.labelGreen || initialLabel;
+    const anyLabel = setAllGreenBtn.dataset.labelAny || initialLabel;
+
+    const setButtonMode = (mode) => {
+      setAllGreenBtn.dataset.mode = mode;
+      if (!labelSpan) return;
+      labelSpan.textContent = mode === 'green' ? greenLabel : anyLabel;
+    };
+
+    setButtonMode('green');
+
     setAllGreenBtn.addEventListener('click', () => {
+      const mode = setAllGreenBtn.dataset.mode === 'any' ? 'any' : 'green';
+      const targetBand = mode === 'green' ? 'green' : 'any';
+
       attrCards.forEach((card) => {
-        const greenRadio = card.querySelector('input[type="radio"][value="green"]');
-        if (greenRadio) {
-          greenRadio.checked = true;
+        const targetRadio = card.querySelector(`input[type="radio"][value="${targetBand}"]`);
+        if (targetRadio) {
+          targetRadio.checked = true;
         }
       });
+
       colorStateUpdaters.forEach((fn) => fn());
       updateSubmitState();
+
+      setButtonMode(mode === 'green' ? 'any' : 'green');
     });
   }
 
