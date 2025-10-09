@@ -81,7 +81,7 @@
                             </div>
                             <div class="attr-card-body">
                                 <div class="chips chips-colors" data-color-group>
-                                    {% for band in ['any', 'green', 'yellow', 'red'] %}
+                                    {% for band in ['green', 'yellow', 'red'] %}
                                         {% set label = band_labels.get(band, band) %}
                                         <label class="chip" data-color="{{ band }}">
                                             <input type="radio" name="band_{{ a }}" value="{{ band }}"
