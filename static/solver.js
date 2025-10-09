@@ -668,15 +668,43 @@ const initSolver = () => {
     const maxInput = card.querySelector('[data-max-input]');
     const attrControls = card.querySelector('[data-slider-area]');
     const colorRadios = Array.from(card.querySelectorAll('input[type="radio"][data-color-radio]'));
+    const colorChips = colorRadios.map((radio) => radio.closest('[data-color]'));
     const clearBtn = card.querySelector('[data-clear-color]');
     const sliderInitialValue = slider
       ? Number(slider.dataset.initialValue || sliderStepToNumber(slider.value))
       : null;
     let activeColorRadio = colorRadios.find((radio) => radio.checked) || null;
 
+    const syncColorChipVisuals = () => {
+      colorRadios.forEach((radio, index) => {
+        const chip = colorChips[index];
+        if (!chip) return;
+        const isSelected = !!radio.checked;
+        if (isSelected) {
+          chip.dataset.selected = 'true';
+        } else {
+          delete chip.dataset.selected;
+        }
+      });
+    };
+
     if (!modeInput || !minInput || !maxInput) {
+      syncColorChipVisuals();
       colorRadios.forEach((radio) => {
-        radio.addEventListener('change', updateSubmitState);
+        radio.addEventListener('click', (event) => {
+          if (activeColorRadio === radio) {
+            event.preventDefault();
+            radio.checked = false;
+            activeColorRadio = null;
+            syncColorChipVisuals();
+            updateSubmitState();
+          }
+        });
+        radio.addEventListener('change', () => {
+          activeColorRadio = colorRadios.find((item) => item.checked) || null;
+          syncColorChipVisuals();
+          updateSubmitState();
+        });
       });
       return;
     }
@@ -777,6 +805,7 @@ const initSolver = () => {
     const updateColorState = () => {
       const selected = colorRadios.find((radio) => radio.checked) || null;
       activeColorRadio = selected;
+      syncColorChipVisuals();
       const isColorActive = !!selected;
       if (isColorActive) {
         if (modeInput.value !== 'any') {
@@ -841,11 +870,6 @@ const initSolver = () => {
         }
       });
       radio.addEventListener('change', () => {
-        if (radio.checked) {
-          activeColorRadio = radio;
-        } else if (activeColorRadio === radio) {
-          activeColorRadio = null;
-        }
         updateColorState();
       });
     });

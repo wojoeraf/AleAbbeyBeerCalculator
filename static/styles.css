@@ -184,6 +184,7 @@ input[type="number"]:focus {
 .chip[data-color="red"] {
   color: var(--pill-red-text);
 }
+.chip[data-selected="true"] span,
 .chip input:checked + span {
   background: rgba(15, 23, 42, 0.9);
   color: #fff;
