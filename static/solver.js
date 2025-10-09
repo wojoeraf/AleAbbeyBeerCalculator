@@ -652,7 +652,7 @@ const initSolver = () => {
     const hasConstraint = attrCards.some((card) => {
       const selectedBand = card.querySelector('input[type="radio"][data-color-radio]:checked');
       const modeInput = card.querySelector('[data-mode-input]');
-      const bandActive = selectedBand && selectedBand.value !== 'any';
+      const bandActive = !!selectedBand;
       const modeActive = modeInput && modeInput.value !== 'any';
       return bandActive || modeActive;
     });
@@ -669,6 +669,10 @@ const initSolver = () => {
     const attrControls = card.querySelector('[data-slider-area]');
     const colorRadios = Array.from(card.querySelectorAll('input[type="radio"][data-color-radio]'));
     const clearBtn = card.querySelector('[data-clear-color]');
+    const sliderInitialValue = slider
+      ? Number(slider.dataset.initialValue || sliderStepToNumber(slider.value))
+      : null;
+    let activeColorRadio = colorRadios.find((radio) => radio.checked) || null;
 
     if (!modeInput || !minInput || !maxInput) {
       colorRadios.forEach((radio) => {
@@ -740,6 +744,13 @@ const initSolver = () => {
       setModeButtonsState();
     };
 
+    const syncClearButtonState = () => {
+      if (!clearBtn) return;
+      const hasColorSelection = colorRadios.some((radio) => radio.checked);
+      const hasModeSelection = modeInput.value !== 'any';
+      clearBtn.disabled = !(hasColorSelection || hasModeSelection);
+    };
+
     const applyMode = (mode) => {
       if (mode === 'any') {
         storedMode = null;
@@ -749,6 +760,7 @@ const initSolver = () => {
         minInput.value = '';
         maxInput.value = '';
         updateSubmitState();
+        syncClearButtonState();
         return;
       }
 
@@ -759,14 +771,13 @@ const initSolver = () => {
       setSliderDisabled(slider ? slider.disabled : false);
       syncHiddenValues();
       updateSubmitState();
+      syncClearButtonState();
     };
 
     const updateColorState = () => {
-      const selected = colorRadios.find((radio) => radio.checked);
-      const isColorActive = selected && selected.value !== 'any';
-      if (clearBtn) {
-        clearBtn.disabled = !isColorActive;
-      }
+      const selected = colorRadios.find((radio) => radio.checked) || null;
+      activeColorRadio = selected;
+      const isColorActive = !!selected;
       if (isColorActive) {
         if (modeInput.value !== 'any') {
           const preserved = sanitizeMode(modeInput.value);
@@ -801,19 +812,47 @@ const initSolver = () => {
         syncHiddenValues();
       }
       updateSubmitState();
+      syncClearButtonState();
+    };
+
+    const clearAttributeConstraints = () => {
+      colorRadios.forEach((radio) => {
+        radio.checked = false;
+      });
+      storedMode = null;
+      delete card.dataset.savedMode;
+      modeInput.value = 'any';
+      if (slider) {
+        const baseValue = Number.isFinite(sliderInitialValue)
+          ? clamp(sliderInitialValue, 0, 11)
+          : sliderStepToNumber(slider.value);
+        slider.value = String(Math.round(baseValue * 10));
+      }
+      updateColorState();
     };
 
     colorRadios.forEach((radio) => {
-      radio.addEventListener('change', updateColorState);
+      radio.addEventListener('click', (event) => {
+        if (activeColorRadio === radio) {
+          event.preventDefault();
+          radio.checked = false;
+          activeColorRadio = null;
+          updateColorState();
+        }
+      });
+      radio.addEventListener('change', () => {
+        if (radio.checked) {
+          activeColorRadio = radio;
+        } else if (activeColorRadio === radio) {
+          activeColorRadio = null;
+        }
+        updateColorState();
+      });
     });
 
     if (clearBtn) {
       clearBtn.addEventListener('click', () => {
-        const anyRadio = colorRadios.find((radio) => radio.value === 'any');
-        if (anyRadio) {
-          anyRadio.checked = true;
-          updateColorState();
-        }
+        clearAttributeConstraints();
       });
     }
 
@@ -839,10 +878,12 @@ const initSolver = () => {
           syncHiddenValues();
           updateSubmitState();
         }
+        syncClearButtonState();
       });
       slider.addEventListener('change', () => {
         syncSliderDisplay();
         syncHiddenValues();
+        syncClearButtonState();
       });
       syncSliderDisplay();
     }
@@ -869,12 +910,18 @@ const initSolver = () => {
 
     setAllGreenBtn.addEventListener('click', () => {
       const mode = setAllGreenBtn.dataset.mode === 'any' ? 'any' : 'green';
-      const targetBand = mode === 'green' ? 'green' : 'any';
 
       attrCards.forEach((card) => {
-        const targetRadio = card.querySelector(`input[type="radio"][value="${targetBand}"]`);
-        if (targetRadio) {
-          targetRadio.checked = true;
+        if (mode === 'green') {
+          const targetRadio = card.querySelector('input[type="radio"][data-color-radio][value="green"]');
+          if (targetRadio) {
+            targetRadio.checked = true;
+          }
+        } else {
+          const radios = card.querySelectorAll('input[type="radio"][data-color-radio]');
+          radios.forEach((radio) => {
+            radio.checked = false;
+          });
         }
       });
 
