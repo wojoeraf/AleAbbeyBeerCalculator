@@ -326,10 +326,10 @@ input[type="number"]:focus {
   max-width: 240px;
 }
 .attr-controls {
-  flex: 1 1 280px;
+  flex: 1 1 100px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 18px;
   min-width: 220px;
   transition: opacity 0.2s ease;
 }
@@ -647,7 +647,7 @@ input[type="number"]:focus {
   width: 100%;
   border: none;
   background: none;
-  padding: 12px 16px;
+  padding: 10px 16px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1012,66 +1012,6 @@ input[type="number"]:focus {
   }
 }
 
-@media (max-width: 640px) {
-  .page {
-    padding: 28px 16px 40px;
-  }
-
-  header {
-    margin-bottom: 18px;
-  }
-
-  .card {
-    padding: 16px;
-  }
-
-  .form-card {
-    gap: 22px;
-  }
-
-  .attributes-layout {
-    gap: 14px;
-  }
-
-  .attributes-column,
-  .ingredients-column {
-    gap: 12px;
-  }
-
-  .column-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .btn-make-green {
-    width: 100%;
-    justify-content: center;
-    padding: 10px 14px;
-  }
-
-  .attr-list {
-    gap: 14px;
-  }
-
-  .attr-card {
-    padding: 16px 18px;
-    gap: 14px;
-  }
-
-  .attr-card-body {
-    gap: 16px;
-  }
-
-  .ingredients-column .table-wrapper {
-    padding-right: 0;
-  }
-
-  .ingredients-table--compact th,
-  .ingredients-table--compact td {
-    padding: 8px;
-  }
-}
 .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
@@ -1259,6 +1199,52 @@ details summary {
   text-decoration: underline;
 }
 @media (max-width: 640px) {
+  .page {
+    padding: 28px 16px 40px;
+  }
+
+  header {
+    margin-bottom: 18px;
+  }
+
+  .card {
+    padding: 16px;
+  }
+
+  .form-card {
+    gap: 22px;
+  }
+
+  .attributes-layout {
+    gap: 14px;
+  }
+
+  .attributes-column,
+  .ingredients-column {
+    gap: 12px;
+  }
+
+  .column-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .btn-make-green {
+    width: 100%;
+    justify-content: center;
+    padding: 10px 14px;
+  }
+
+  .attr-list {
+    gap: 14px;
+  }
+
+  .attr-card {
+    padding: 16px 18px;
+    gap: 14px;
+  }
+
   .attr-card-body {
     flex-direction: column;
     gap: 16px;
@@ -1303,13 +1289,28 @@ details summary {
     position: absolute;
   }
 
+  .ingredients-table tbody + tbody { margin-top: 12px; }
+
+  .ingredient-category-header {
+    padding-left: 1em;
+  }
+
+  .ingredients-column .table-wrapper {
+    padding-right: 0;
+  }
+
+  .ingredients-table--compact th,
+  .ingredients-table--compact td {
+    padding: 8px;
+  }
+
   .ingredients-table tbody {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 7px;
   }
 
-  .ingredients-table tbody tr {
+  .ingredients-table tbody tr:not(.ingredient-category-header) {
     display: flex;
     flex-direction: column;
     gap: 12px;
