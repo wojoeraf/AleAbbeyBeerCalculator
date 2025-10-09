@@ -44,15 +44,9 @@
                         {% endfor %}
                     </select>
                 </label>
-                <label>
-                    <span class="label">{{ ui.field_total_cap }}</span>
-                    <input type="number" name="total_cap" min="1" max="30" value="{{ total_cap }}">
-                </label>
-                <label>
-                    <span class="label">{{ ui.field_per_cap }}</span>
-                    <input type="number" name="per_cap" min="1" max="30" value="{{ per_cap }}">
-                </label>
             </div>
+            <input type="hidden" name="total_cap" value="{{ total_cap }}">
+            <input type="hidden" name="per_cap" value="{{ per_cap }}">
         </section>
 
         <section class="attributes-section">
