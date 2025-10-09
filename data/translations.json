@@ -4,7 +4,8 @@
     "ui": {
       "page_title": "Ale Abbey Rezeptrechner",
       "header_title": "🍺 Ale Abbey Rezeptrechner",
-      "header_description": "Diese Webseite ist ein Fanprojekt und nicht assoziiert mit dem Entwickler/Publisher hinter dem Spiel Ale Abbey. Wähle für jede Eigenschaft die gewünschte Farbzone und lege exakte Wertebereiche fest. Die Berechnung berücksichtigt Pflichtzutaten, Mengenlimits und optionale Wünsche.",
+      "header_description": "Diese Webseite ist ein Fanprojekt und nicht assoziiert mit dem Entwickler/Publisher hinter dem Spiel Ale Abbey.",
+      "instructions": "Wähle eine Biersorte und anschließend für jede Eigenschaft die gewünschte Farbzone oder lege exakte Wertebereiche fest. Wähle aus der Zutatenliste alle gewünschten Zutaten aus. Klicke anschließend auf \"Rezept berechnen\"",
       "language_label": "Sprache",
       "section_base": "Grunddaten",
       "field_style": "Bierstil",
@@ -36,14 +37,14 @@
       "results_sort_order_label": "Reihenfolge",
       "results_sort_desc": "Absteigend",
       "results_sort_asc": "Aufsteigend",
-      "support_header": "Unterstütze mich",
+      "support_header": "Unterstütze diese App",
       "support": "Hallo, ich bin der B(r)aumeister hinter Ale Abbey Rezeptrechner. Diese Seite bleibt bewusst frei von Werbung, damit du ohne Ablenkung deine perfekte Bierkreation planen kannst. Wenn dir das Projekt gefällt, freue ich mich über deine Unterstützung für Hosting und Domainkosten.",
       "support_note": "Jeder Beitrag hilft. Vielen Dank fürs Mitbrauen!",
       "footer_tagline": "Braue smarter.",
       "site_notice": "Impressum",
       "privacy_policy": "Datenschutzerklärung",
       "report_bug": "Fehler melden",
-      "disclaimer": "Diese Website ist ein nicht-kommerzielles Fanprojekt und steht in keiner Verbindung mit den Entwicklern oder dem Publisher des Spiels Ale Abbey.\nAlle Marken, Grafiken, Spielinhalte und urheberrechtlich geschützten Materialien gehören ihren jeweiligen Eigentümern.\nDer hier bereitgestellte Code und die Anwendung sind eigenständige Fan-Entwicklungen und kein offizieller Bestandteil des Spiels."
+      "disclaimer": "Diese Website ist ein nicht-kommerzielles Fanprojekt und steht in keiner Verbindung mit den Entwicklern oder dem Publisher des Spiels Ale Abbey. Alle Marken, Grafiken, Spielinhalte und urheberrechtlich geschützten Materialien gehören ihren jeweiligen Eigentümern. Der hier bereitgestellte Code und die Anwendung sind eigenständige Fan-Entwicklungen und kein offizieller Bestandteil des Spiels."
     },
     "attr_labels": {
       "taste": "Geschmack",
@@ -91,7 +92,8 @@
     "ui": {
       "page_title": "Ale Abbey Recipe Solver",
       "header_title": "🍺 Ale Abbey Recipe Solver",
-      "header_description": "This website is a fan project and is not associated with the developer/publisher behind the game Ale Abbey. Choose the desired band for each attribute and define the value ranges. The solver respects required ingredients, quantity caps and optional wishes.",
+      "header_description": "This website is a fan project and is not associated with the developer/publisher behind the game Ale Abbey.",
+      "instructions": "Pick a beer style and then select the desired color zone for each property or specify exact value ranges. Select all desired ingredients from the ingredient list. Then click on \"Calculate recipe\".",
       "language_label": "Language",
       "section_base": "Basics",
       "field_style": "Beer style",
@@ -123,14 +125,14 @@
       "results_sort_order_label": "Order",
       "results_sort_desc": "High to low",
       "results_sort_asc": "Low to high",
-      "support_header": "Support me",
+      "support_header": "Support this app",
       "support": "Hello, I am the creator behind Ale Abbey Recipe Solver. This site is intentionally free of advertising so that you can plan your perfect beer creation without distractions. If you like the project, I would appreciate your support for hosting and domain costs.",
       "support_note": "Every contribution helps. Thank you for joining us!",
       "footer_tagline": "Brew smarter.",
       "site_notice": "Site Notice",
       "privacy_policy": "Privacy Policy",
       "report_bug": "Report a bug",
-      "disclaimer": "This website is a non-commercial fan project created for educational and entertainment purposes.\nIt is not affiliated with, endorsed by, or sponsored by the developer or publisher of Ale Abbey.\nAll trademarks, game content, and related materials remain the property of their respective owners.\nThe code and web application itself are fan-made and not part of the original game."
+      "disclaimer": "This website is a non-commercial fan project created for educational and entertainment purposes. It is not affiliated with, endorsed by, or sponsored by the developer or publisher of Ale Abbey. All trademarks, game content, and related materials remain the property of their respective owners. The code and web application itself are fan-made and not part of the original game."
     },
     "attr_labels": {
       "taste": "Flavor",
