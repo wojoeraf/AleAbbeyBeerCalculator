@@ -282,6 +282,7 @@ const initSolver = () => {
     totalCap,
     perCap,
     extraMinCounts,
+    allowedIngredientIds,
     topK = 10,
   }) => {
     const style = stylesData[styleName];
@@ -317,7 +318,20 @@ const initSolver = () => {
     const minSum = minCounts.reduce((acc, val) => acc + val, 0);
     const adjustedTotalCap = Math.max(totalCap, minSum);
     const remainingCap = Math.max(0, adjustedTotalCap - minSum);
-    const perIngredientCeil = Math.min(perCap, adjustedTotalCap);
+    const allowedSet = allowedIngredientIds instanceof Set
+      ? allowedIngredientIds
+      : Array.isArray(allowedIngredientIds)
+        ? new Set(allowedIngredientIds)
+        : null;
+
+    const perIngredientCeilValues = new Array(n).fill(0);
+    for (let idx = 0; idx < n; idx += 1) {
+      const id = getIngredientId(ingredients[idx], idx);
+      const required = minCounts[idx] > 0;
+      const optionalAllowed = !allowedSet || allowedSet.has(id);
+      const isAllowed = required || optionalAllowed;
+      perIngredientCeilValues[idx] = isAllowed ? Math.min(perCap, adjustedTotalCap) : minCounts[idx];
+    }
     const baseTotals = ATTRS.map((_, idx) => Number(base[idx]) || 0);
     const totalsAfterMin = baseTotals.slice();
     const attrExtraCapacity = ATTRS.map(() => ({ positives: [], negatives: [] }));
@@ -331,6 +345,7 @@ const initSolver = () => {
           totalsAfterMin[k] += coef * minCnt;
         }
       }
+      const perIngredientCeil = perIngredientCeilValues[idx];
       const available = Math.max(0, perIngredientCeil - minCnt);
       if (available > 0) {
         for (let k = 0; k < ATTRS.length; k += 1) {
@@ -437,6 +452,7 @@ const initSolver = () => {
     const orderedIndices = weightedOrder.map((entry) => entry.idx);
     const orderedVectors = orderedIndices.map((idx) => vectors[idx]);
     const orderedMinCounts = orderedIndices.map((idx) => minCounts[idx]);
+    const orderedMaxCounts = orderedIndices.map((idx) => perIngredientCeilValues[idx]);
 
     const suffixMinCounts = new Array(n + 1).fill(0);
     for (let idx = n - 1; idx >= 0; idx -= 1) {
@@ -451,7 +467,7 @@ const initSolver = () => {
     for (let idx = n - 1; idx >= 0; idx -= 1) {
       const vec = orderedVectors[idx];
       const loCnt = orderedMinCounts[idx];
-      const hiCnt = perCap;
+      const hiCnt = orderedMaxCounts[idx];
       for (let k = 0; k < ATTRS.length; k += 1) {
         const coef = vec[k] || 0;
         const loVal = coef >= 0 ? coef * loCnt : coef * hiCnt;
@@ -571,7 +587,7 @@ const initSolver = () => {
           }
 
           const remainingMinAfter = suffixMinCounts[idx + 1];
-          const maxC = Math.min(perCap, adjustedTotalCap - used - remainingMinAfter);
+          const maxC = Math.min(orderedMaxCounts[idx], adjustedTotalCap - used - remainingMinAfter);
           const minC = orderedMinCounts[idx];
           if (maxC < minC) {
             return;
@@ -1507,6 +1523,7 @@ const initSolver = () => {
         totalCap,
         perCap,
         extraMinCounts,
+        allowedIngredientIds: selectedOptional,
       });
 
       const summaryLines = [];
