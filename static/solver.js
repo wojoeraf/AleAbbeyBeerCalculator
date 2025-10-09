@@ -667,6 +667,7 @@ const initSolver = () => {
     const minInput = card.querySelector('[data-min-input]');
     const maxInput = card.querySelector('[data-max-input]');
     const attrControls = card.querySelector('[data-slider-area]');
+    const colorGroup = card.querySelector('[data-color-group]');
     const colorRadios = Array.from(card.querySelectorAll('input[type="radio"][data-color-radio]'));
     const colorChips = colorRadios.map((radio) => radio.closest('[data-color]'));
     const clearBtn = card.querySelector('[data-clear-color]');
@@ -688,22 +689,67 @@ const initSolver = () => {
       });
     };
 
+    const setColorSelection = (radio, shouldSelect) => {
+      const target = shouldSelect ? radio : null;
+      colorRadios.forEach((candidate) => {
+        candidate.checked = candidate === target;
+      });
+      activeColorRadio = target;
+      return target;
+    };
+
     if (!modeInput || !minInput || !maxInput) {
       syncColorChipVisuals();
-      colorRadios.forEach((radio) => {
-        radio.addEventListener('click', (event) => {
-          if (activeColorRadio === radio) {
+      updateSubmitState();
+
+      const applySimpleColorSelection = (radio, shouldSelect, { focus = true } = {}) => {
+        const selected = setColorSelection(radio, shouldSelect);
+        syncColorChipVisuals();
+        updateSubmitState();
+        if (focus && selected && typeof selected.focus === 'function') {
+          selected.focus();
+        }
+      };
+
+      const handlePointerToggle = (event) => {
+        const chip = event.target.closest('[data-color]');
+        if (!chip) return;
+        const radio = chip.querySelector('input[type="radio"][data-color-radio]');
+        if (!radio) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (radio.disabled) return;
+        const shouldSelect = !radio.checked;
+        applySimpleColorSelection(radio, shouldSelect);
+      };
+
+      if (colorGroup) {
+        colorGroup.addEventListener('click', handlePointerToggle);
+      } else {
+        colorRadios.forEach((radio) => {
+          radio.addEventListener('click', (event) => {
             event.preventDefault();
-            radio.checked = false;
-            activeColorRadio = null;
-            syncColorChipVisuals();
-            updateSubmitState();
-          }
+            event.stopPropagation();
+            const shouldSelect = !radio.checked;
+            applySimpleColorSelection(radio, shouldSelect);
+          });
+        });
+      }
+
+      const isToggleKey = (event) => {
+        const key = event.key;
+        return key === ' ' || key === 'Spacebar' || key === 'Space' || key === 'Enter';
+      };
+
+      colorRadios.forEach((radio) => {
+        radio.addEventListener('keydown', (event) => {
+          if (!isToggleKey(event)) return;
+          event.preventDefault();
+          const shouldSelect = !radio.checked;
+          applySimpleColorSelection(radio, shouldSelect);
         });
         radio.addEventListener('change', () => {
-          activeColorRadio = colorRadios.find((item) => item.checked) || null;
-          syncColorChipVisuals();
-          updateSubmitState();
+          applySimpleColorSelection(radio, radio.checked, { focus: false });
         });
       });
       return;
@@ -844,10 +890,16 @@ const initSolver = () => {
       syncClearButtonState();
     };
 
+    const applyColorSelection = (radio, shouldSelect, { focus = true } = {}) => {
+      const selected = setColorSelection(radio, shouldSelect);
+      updateColorState();
+      if (focus && selected && typeof selected.focus === 'function') {
+        selected.focus();
+      }
+    };
+
     const clearAttributeConstraints = () => {
-      colorRadios.forEach((radio) => {
-        radio.checked = false;
-      });
+      setColorSelection(null, false);
       storedMode = null;
       delete card.dataset.savedMode;
       modeInput.value = 'any';
@@ -860,14 +912,42 @@ const initSolver = () => {
       updateColorState();
     };
 
-    colorRadios.forEach((radio) => {
-      radio.addEventListener('click', (event) => {
-        if (activeColorRadio === radio) {
+    const handlePointerToggle = (event) => {
+      const chip = event.target.closest('[data-color]');
+      if (!chip) return;
+      const radio = chip.querySelector('input[type="radio"][data-color-radio]');
+      if (!radio) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (radio.disabled) return;
+      const shouldSelect = !radio.checked;
+      applyColorSelection(radio, shouldSelect);
+    };
+
+    if (colorGroup) {
+      colorGroup.addEventListener('click', handlePointerToggle);
+    } else {
+      colorRadios.forEach((radio) => {
+        radio.addEventListener('click', (event) => {
           event.preventDefault();
-          radio.checked = false;
-          activeColorRadio = null;
-          updateColorState();
-        }
+          event.stopPropagation();
+          const shouldSelect = !radio.checked;
+          applyColorSelection(radio, shouldSelect);
+        });
+      });
+    }
+
+    const isToggleKey = (event) => {
+      const key = event.key;
+      return key === ' ' || key === 'Spacebar' || key === 'Space' || key === 'Enter';
+    };
+
+    colorRadios.forEach((radio) => {
+      radio.addEventListener('keydown', (event) => {
+        if (!isToggleKey(event)) return;
+        event.preventDefault();
+        const shouldSelect = !radio.checked;
+        applyColorSelection(radio, shouldSelect);
       });
       radio.addEventListener('change', () => {
         updateColorState();
