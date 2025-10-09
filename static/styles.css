@@ -1363,9 +1363,15 @@ details summary {
   }
 
   .ingredient-name {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 6px;
+    align-items: center;
+    flex-direction: row;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .ingredients-table td.ingredient-name-cell::before {
+    display: none;
+    content: none;
   }
 
   .ingredient-option {
