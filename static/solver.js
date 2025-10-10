@@ -892,7 +892,6 @@ const initSolver = () => {
     const sliderInitialValue = slider
       ? Number(slider.dataset.initialValue || sliderStepToNumber(slider.value))
       : null;
-    let activeColorRadio = colorRadios.find((radio) => radio.checked) || null;
 
     const syncCardSliderHighlight = (band) => {
       const sanitizedBand = normalizeTrackBand(band);
@@ -923,76 +922,98 @@ const initSolver = () => {
       });
     };
 
-    const setColorSelection = (radio, shouldSelect) => {
-      const target = shouldSelect ? radio : null;
-      colorRadios.forEach((candidate) => {
-        candidate.checked = candidate === target;
-      });
-      activeColorRadio = target;
-      return target;
+    const findColorRadio = (target) => {
+      if (!target) return null;
+      if (target.matches && target.matches('input[type="radio"][data-color-radio]')) {
+        return target;
+      }
+      const chip = target.closest('[data-color]');
+      if (!chip) return null;
+      return chip.querySelector('input[type="radio"][data-color-radio]');
     };
 
+    const setColorSelectionValue = (value) => {
+      let selected = null;
+      colorRadios.forEach((radio) => {
+        const isSelected = value != null && radio.value === value;
+        radio.checked = isSelected;
+        if (isSelected) {
+          selected = radio;
+        }
+      });
+      return selected;
+    };
+
+    let updateColorState = () => {};
+
+    const applyColorSelection = (value, { focus = true } = {}) => {
+      const selected = setColorSelectionValue(value);
+      updateColorState();
+      if (focus && selected && typeof selected.focus === 'function') {
+        selected.focus();
+      }
+    };
+
+    const isToggleKey = (event) => {
+      const key = event.key;
+      return key === ' ' || key === 'Spacebar' || key === 'Space' || key === 'Enter';
+    };
+
+    const handleColorGroupEvent = (event) => {
+      if (!colorGroup) {
+        return;
+      }
+      const radio = findColorRadio(event.target);
+      if (!radio || radio.disabled) {
+        return;
+      }
+
+      if (event.type === 'keydown') {
+        if (!isToggleKey(event)) {
+          return;
+        }
+        event.preventDefault();
+        const nextValue = radio.checked ? null : radio.value;
+        applyColorSelection(nextValue);
+        return;
+      }
+
+      if (event.type === 'click') {
+        event.preventDefault();
+        event.stopPropagation();
+        const nextValue = radio.checked ? null : radio.value;
+        applyColorSelection(nextValue);
+        return;
+      }
+
+      if (event.type === 'change') {
+        const value = radio.checked ? radio.value : null;
+        applyColorSelection(value, { focus: false });
+      }
+    };
+
+    if (colorGroup) {
+      ['click', 'keydown', 'change'].forEach((type) => {
+        colorGroup.addEventListener(type, handleColorGroupEvent);
+      });
+    }
+
     if (!modeInput || !minInput || !maxInput) {
-      const updateSimpleColorState = () => {
+      updateColorState = () => {
         const selected = colorRadios.find((radio) => radio.checked) || null;
-        activeColorRadio = selected;
         syncColorChipVisuals();
         syncCardSliderHighlight(selected ? selected.value : null);
         updateSubmitState();
       };
 
-      const applySimpleColorSelection = (radio, shouldSelect, { focus = true } = {}) => {
-        const selected = setColorSelection(radio, shouldSelect);
-        updateSimpleColorState();
-        if (focus && selected && typeof selected.focus === 'function') {
-          selected.focus();
-        }
-      };
-
-      const handlePointerToggle = (event) => {
-        const chip = event.target.closest('[data-color]');
-        if (!chip) return;
-        const radio = chip.querySelector('input[type="radio"][data-color-radio]');
-        if (!radio) return;
-        event.preventDefault();
-        event.stopPropagation();
-        if (radio.disabled) return;
-        const shouldSelect = !radio.checked;
-        applySimpleColorSelection(radio, shouldSelect);
-      };
-
-      if (colorGroup) {
-        colorGroup.addEventListener('click', handlePointerToggle);
-      } else {
-        colorRadios.forEach((radio) => {
-          radio.addEventListener('click', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            const shouldSelect = !radio.checked;
-            applySimpleColorSelection(radio, shouldSelect);
-          });
+      if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+          applyColorSelection(null, { focus: false });
         });
       }
 
-      const isToggleKey = (event) => {
-        const key = event.key;
-        return key === ' ' || key === 'Spacebar' || key === 'Space' || key === 'Enter';
-      };
-
-      colorRadios.forEach((radio) => {
-        radio.addEventListener('keydown', (event) => {
-          if (!isToggleKey(event)) return;
-          event.preventDefault();
-          const shouldSelect = !radio.checked;
-          applySimpleColorSelection(radio, shouldSelect);
-        });
-        radio.addEventListener('change', () => {
-          applySimpleColorSelection(radio, radio.checked, { focus: false });
-        });
-      });
-
-      updateSimpleColorState();
-      colorStateUpdaters.push(updateSimpleColorState);
+      updateColorState();
+      colorStateUpdaters.push(updateColorState);
       return;
     }
 
@@ -1089,9 +1110,8 @@ const initSolver = () => {
       syncClearButtonState();
     };
 
-    const updateColorState = () => {
+    updateColorState = () => {
       const selected = colorRadios.find((radio) => radio.checked) || null;
-      activeColorRadio = selected;
       syncColorChipVisuals();
       syncCardSliderHighlight(selected ? selected.value : null);
       const isColorActive = !!selected;
@@ -1132,16 +1152,7 @@ const initSolver = () => {
       syncClearButtonState();
     };
 
-    const applyColorSelection = (radio, shouldSelect, { focus = true } = {}) => {
-      const selected = setColorSelection(radio, shouldSelect);
-      updateColorState();
-      if (focus && selected && typeof selected.focus === 'function') {
-        selected.focus();
-      }
-    };
-
     const clearAttributeConstraints = () => {
-      setColorSelection(null, false);
       storedMode = null;
       delete card.dataset.savedMode;
       modeInput.value = 'any';
@@ -1151,50 +1162,8 @@ const initSolver = () => {
           : sliderStepToNumber(slider.value);
         slider.value = String(Math.round(baseValue * 10));
       }
-      updateColorState();
+      applyColorSelection(null, { focus: false });
     };
-
-    const handlePointerToggle = (event) => {
-      const chip = event.target.closest('[data-color]');
-      if (!chip) return;
-      const radio = chip.querySelector('input[type="radio"][data-color-radio]');
-      if (!radio) return;
-      event.preventDefault();
-      event.stopPropagation();
-      if (radio.disabled) return;
-      const shouldSelect = !radio.checked;
-      applyColorSelection(radio, shouldSelect);
-    };
-
-    if (colorGroup) {
-      colorGroup.addEventListener('click', handlePointerToggle);
-    } else {
-      colorRadios.forEach((radio) => {
-        radio.addEventListener('click', (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          const shouldSelect = !radio.checked;
-          applyColorSelection(radio, shouldSelect);
-        });
-      });
-    }
-
-    const isToggleKey = (event) => {
-      const key = event.key;
-      return key === ' ' || key === 'Spacebar' || key === 'Space' || key === 'Enter';
-    };
-
-    colorRadios.forEach((radio) => {
-      radio.addEventListener('keydown', (event) => {
-        if (!isToggleKey(event)) return;
-        event.preventDefault();
-        const shouldSelect = !radio.checked;
-        applyColorSelection(radio, shouldSelect);
-      });
-      radio.addEventListener('change', () => {
-        updateColorState();
-      });
-    });
 
     if (clearBtn) {
       clearBtn.addEventListener('click', () => {
