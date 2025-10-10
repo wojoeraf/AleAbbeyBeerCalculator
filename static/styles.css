@@ -462,12 +462,43 @@ input[type="number"]:focus {
   box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.25);
 }
 .attr-card input[type='range']:disabled {
-  background: rgba(148, 163, 184, 0.25);
   cursor: not-allowed;
 }
-.attr-card input[type='range']:disabled::-webkit-slider-thumb,
-.attr-card input[type='range']:disabled::-moz-range-thumb,
-.attr-card input[type='range']:disabled::-ms-thumb {
+
+.attr-card input[type='range'][data-active-color-band] {
+  background: var(
+    --slider-track,
+    linear-gradient(90deg, var(--slider-neutral) 0%, var(--slider-neutral) 100%)
+  );
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  cursor: default;
+}
+
+.attr-card input[type='range'][data-active-color-band]:disabled {
+  cursor: default;
+}
+
+.attr-card input[type='range'][data-active-color-band]::-webkit-slider-thumb {
+  opacity: 0;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.attr-card input[type='range'][data-active-color-band]::-moz-range-thumb {
+  opacity: 0;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.attr-card input[type='range'][data-active-color-band]::-ms-thumb {
+  opacity: 0;
+  border-color: transparent;
+  box-shadow: none;
+}
+.attr-card input[type='range']:disabled:not([data-active-color-band])::-webkit-slider-thumb,
+.attr-card input[type='range']:disabled:not([data-active-color-band])::-moz-range-thumb,
+.attr-card input[type='range']:disabled:not([data-active-color-band])::-ms-thumb {
   border-color: rgba(148, 163, 184, 0.6);
 }
 .slider-value {

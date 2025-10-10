@@ -870,8 +870,14 @@ const initSolver = () => {
       const sanitizedBand = normalizeTrackBand(band);
       if (sanitizedBand) {
         card.dataset.activeColorBand = sanitizedBand;
+        if (slider) {
+          slider.dataset.activeColorBand = sanitizedBand;
+        }
       } else {
         delete card.dataset.activeColorBand;
+        if (slider) {
+          delete slider.dataset.activeColorBand;
+        }
       }
       applyHighlightToCardSlider(card, sanitizedBand);
     };
