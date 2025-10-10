@@ -1430,7 +1430,7 @@ const initSolver = () => {
     const infoMessages = Array.isArray(latestInfoMessages) ? latestInfoMessages : [];
     const sortedSolutions = hasRenderedResults ? sortSolutionsForDisplay(latestSolutions) : [];
 
-    renderResults(sortedSolutions, {
+    const rendered = renderResults(sortedSolutions, {
       selectors,
       translate,
       attrLabels,
@@ -1445,6 +1445,20 @@ const initSolver = () => {
       isLoading,
       hasRenderedResults,
     });
+
+    const cards = rendered && Array.isArray(rendered.cards) ? rendered.cards : [];
+    if (resultsList) {
+      if (typeof resultsList.replaceChildren === 'function') {
+        resultsList.replaceChildren(...cards);
+      } else {
+        resultsList.innerHTML = '';
+        cards.forEach((card) => {
+          if (card && typeof card === 'object' && typeof card.nodeType === 'number') {
+            resultsList.appendChild(card);
+          }
+        });
+      }
+    }
   };
 
   applyResultsState();
