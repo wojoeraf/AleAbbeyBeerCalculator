@@ -1,3 +1,7 @@
+import { solveRecipe, EPS, getIngredientId } from './solver-core.js';
+import { initUIState } from './ui-state.js';
+import { renderResults, renderDebug } from './render.js';
+
 const parseJSONScript = (id, fallback) => {
   const el = document.getElementById(id);
   if (!el) return fallback;
@@ -44,23 +48,19 @@ const initSolver = () => {
   const stylesData = parseJSONScript('styles-data', {});
   const metaData = parseJSONScript('meta-data', {});
 
-  const ATTRS = metaData.attrs || ['taste', 'color', 'strength', 'foam'];
+  const ui = initUIState();
+  const { attrs: attrState, bands, selectors, selection: selectionState } = ui;
+
+  const ATTRS = Array.isArray(metaData.attrs) && metaData.attrs.length
+    ? metaData.attrs
+    : (attrState.list && attrState.list.length ? attrState.list : ['taste', 'color', 'strength', 'foam']);
   const attrLabels = metaData.attr_labels || metaData.attrLabels || {};
   const bandLabels = metaData.band_labels || metaData.bandLabels || {};
-  const EPS = 1e-9;
-  const SLIDER_MAX_VALUE = 11;
-  const SLIDER_STEP_SCALE = 10;
-  const sliderBandColorMap = {
-    green: 'var(--slider-green)',
-    yellow: 'var(--slider-yellow)',
-    red: 'var(--slider-red)',
-  };
-  const sliderBandMutedColorMap = {
-    green: 'var(--slider-green-muted)',
-    yellow: 'var(--slider-yellow-muted)',
-    red: 'var(--slider-red-muted)',
-  };
-  const sliderNeutralColor = 'var(--slider-neutral)';
+  const SLIDER_MAX_VALUE = attrState.sliderMaxValue;
+  const SLIDER_STEP_SCALE = attrState.sliderStepScale;
+  const sliderBandColorMap = bands.colorMap;
+  const sliderBandMutedColorMap = bands.mutedColorMap;
+  const sliderNeutralColor = bands.neutralColor;
   const normalizeTrackBand = (band) => {
     if (typeof band !== 'string') {
       return null;
@@ -83,16 +83,6 @@ const initSolver = () => {
       return formatTemplate(uiStrings[key], replacements);
     }
     return key;
-  };
-
-  const getIngredientId = (ingredient, index) => {
-    if (ingredient && typeof ingredient.id === 'string') {
-      return ingredient.id;
-    }
-    if (ingredient && typeof ingredient.name === 'string') {
-      return ingredient.name;
-    }
-    return String(index);
   };
 
   const displayIngredientName = (id) => {
@@ -133,52 +123,34 @@ const initSolver = () => {
     return styleNameMap[id] || id;
   };
 
-  const attrCards = Array.from(document.querySelectorAll('[data-attr-card]'));
-  const submitBtn = document.querySelector('[data-submit-button]');
-  const setAllGreenBtn = document.querySelector('[data-set-all-green]');
-  const styleSelect = document.querySelector('select[name="style"]');
-  const ingredientRows = Array.from(document.querySelectorAll('[data-ingredient-row]'));
-  const form = document.querySelector('[data-solver-form]');
-  const ingredientsWrapper = document.querySelector('[data-ingredients-wrapper]');
-  const categoryBodies = new Map(
-    Array.from(document.querySelectorAll('[data-ingredient-category]')).map((el) => [
-      el.dataset.categoryId,
-      el,
-    ]),
-  );
-  const categoryHeaders = new Map(
-    Array.from(document.querySelectorAll('[data-category-header]')).map((el) => [
-      el.dataset.categoryId,
-      el,
-    ]),
-  );
-  const categoryToggles = new Map(
-    Array.from(document.querySelectorAll('[data-category-toggle]')).map((toggle) => [
-      toggle.dataset.categoryId,
-      toggle,
-    ]),
-  );
-  const mobileAttrToggle = document.querySelector('[data-attribute-toggle]');
-  const mobileAttrToggleInput = document.querySelector('[data-attribute-toggle-input]');
-  const stackedLayoutQuery = typeof window !== 'undefined' && window.matchMedia
-    ? window.matchMedia('(max-width: 640px)')
-    : null;
-
-  const resultsSection = document.querySelector('[data-results]');
-  const resultsTitle = document.querySelector('[data-results-title]');
-  const resultsSummary = document.querySelector('[data-results-summary]');
-  const resultsPlaceholder = document.querySelector('[data-results-placeholder]');
-  const resultsLoading = document.querySelector('[data-results-loading]');
-  const resultsList = document.querySelector('[data-results-list]');
-  const resultsEmpty = document.querySelector('[data-results-empty]');
-  const statusMessage = document.querySelector('[data-status-message]');
-  const resultsControls = document.querySelector('[data-results-controls]');
-  const sortAttrSelect = document.querySelector('[data-sort-attr]');
-  const sortOrderSelect = document.querySelector('[data-sort-order]');
-  const debugPanel = document.querySelector('[data-debug-panel]');
-  const debugOutput = document.querySelector('[data-debug-output]');
-  const debugToggle = document.getElementById('debug-toggle');
-  const debugContent = document.querySelector('[data-debug-content]');
+  const {
+    attrCards,
+    submitBtn,
+    setAllGreenBtn,
+    styleSelect,
+    ingredientRows,
+    form,
+    ingredientsWrapper,
+    categoryBodies,
+    categoryHeaders,
+    categoryToggles,
+    mobileAttrToggle,
+    mobileAttrToggleInput,
+    stackedLayoutQuery,
+    resultsSection,
+    resultsTitle,
+    resultsSummary,
+    resultsPlaceholder,
+    resultsLoading,
+    resultsList,
+    resultsEmpty,
+    statusMessage,
+    resultsControls,
+    sortAttrSelect,
+    sortOrderSelect,
+    debugToggle,
+    debugContent,
+  } = selectors;
 
   let latestSolutions = [];
   let latestSummaryLines = [];
@@ -835,7 +807,7 @@ const initSolver = () => {
     });
   };
 
-  const colorStateUpdaters = [];
+  const colorStateUpdaters = selectionState.colorUpdaters;
 
   const updateSubmitState = () => {
     if (!submitBtn) return;
@@ -1429,233 +1401,24 @@ const initSolver = () => {
     resultsSection.hidden = false;
     resultsSection.setAttribute('aria-busy', isLoading ? 'true' : 'false');
 
-    if (resultsLoading) {
-      resultsLoading.hidden = !isLoading;
-    }
-
-    if (isLoading) {
-      if (resultsTitle) {
-        resultsTitle.textContent = translate('results_heading');
-      }
-      if (resultsPlaceholder) {
-        resultsPlaceholder.hidden = true;
-      }
-      if (resultsSummary) {
-        resultsSummary.hidden = true;
-        resultsSummary.textContent = '';
-      }
-      if (statusMessage) {
-        statusMessage.hidden = true;
-        statusMessage.textContent = '';
-      }
-      if (resultsEmpty) {
-        resultsEmpty.hidden = true;
-      }
-      if (resultsControls) {
-        resultsControls.hidden = true;
-      }
-      if (resultsList) {
-        resultsList.innerHTML = '';
-      }
-      return;
-    }
-
-    if (!hasRenderedResults) {
-      if (resultsTitle) {
-        resultsTitle.textContent = translate('results_heading');
-      }
-      if (resultsPlaceholder) {
-        resultsPlaceholder.hidden = false;
-      }
-      if (resultsSummary) {
-        resultsSummary.hidden = true;
-        resultsSummary.textContent = '';
-      }
-      if (statusMessage) {
-        statusMessage.hidden = true;
-        statusMessage.textContent = '';
-      }
-      if (resultsEmpty) {
-        resultsEmpty.hidden = true;
-      }
-      if (resultsControls) {
-        resultsControls.hidden = true;
-      }
-      if (resultsList) {
-        resultsList.innerHTML = '';
-      }
-      return;
-    }
-
-    if (resultsPlaceholder) {
-      resultsPlaceholder.hidden = true;
-    }
-
     const summaryLines = Array.isArray(latestSummaryLines) ? latestSummaryLines : [];
     const infoMessages = Array.isArray(latestInfoMessages) ? latestInfoMessages : [];
-    const sortedSolutions = sortSolutionsForDisplay(latestSolutions);
-    const count = sortedSolutions.length;
+    const sortedSolutions = hasRenderedResults ? sortSolutionsForDisplay(latestSolutions) : [];
 
-    if (resultsTitle) {
-      const titleText = translate('results_title', { count });
-      resultsTitle.textContent = typeof titleText === 'string' ? titleText : translate('results_heading');
-    }
-
-    if (resultsSummary) {
-      if (summaryLines.length) {
-        resultsSummary.hidden = false;
-        resultsSummary.textContent = summaryLines.join(' • ');
-      } else {
-        resultsSummary.hidden = true;
-        resultsSummary.textContent = '';
-      }
-    }
-
-    if (statusMessage) {
-      if (infoMessages.length > 0) {
-        statusMessage.hidden = false;
-        statusMessage.textContent = infoMessages.join(' ');
-      } else {
-        statusMessage.hidden = true;
-        statusMessage.textContent = '';
-      }
-    }
-
-    if (resultsEmpty) {
-      resultsEmpty.hidden = count !== 0;
-    }
-
-    if (resultsControls) {
-      resultsControls.hidden = count === 0;
-    }
-
-    if (resultsList) {
-      resultsList.innerHTML = '';
-    }
-
-    if (count === 0) {
-      return;
-    }
-
-    sortedSolutions.forEach((solution, index) => {
-      const card = document.createElement('article');
-      card.className = 'card result-card';
-
-      const header = document.createElement('div');
-      header.className = 'result-card-header';
-
-      const titleRow = document.createElement('div');
-      titleRow.className = 'result-card-title-row';
-
-      const heading = document.createElement('h3');
-      heading.textContent = translate('solutions_total', { count: solution.sum });
-      titleRow.appendChild(heading);
-
-      const bandContainer = document.createElement('div');
-      bandContainer.className = 'result-band-pills result-band-pills--inline';
-      titleRow.appendChild(bandContainer);
-
-      header.appendChild(titleRow);
-
-      const rank = document.createElement('span');
-      rank.className = 'result-card-rank';
-      rank.textContent = `#${index + 1}`;
-      header.appendChild(rank);
-
-      card.appendChild(header);
-
-      const mixSection = document.createElement('div');
-      mixSection.className = 'result-ingredients';
-
-      const mixTitle = document.createElement('p');
-      mixTitle.className = 'result-section-title';
-      mixTitle.textContent = translate('results_mix_title');
-      mixSection.appendChild(mixTitle);
-
-      const chipsContainer = document.createElement('div');
-      chipsContainer.className = 'chips';
-      Object.entries(solution.countsById).forEach(([id, cnt]) => {
-        const chip = document.createElement('span');
-        chip.className = 'chip';
-        const label = `${displayIngredientName(id)} × ${cnt}`;
-        chip.title = label;
-        const span = document.createElement('span');
-        span.textContent = label;
-        chip.appendChild(span);
-        chipsContainer.appendChild(chip);
-      });
-      mixSection.appendChild(chipsContainer);
-
-      card.appendChild(mixSection);
-
-      const attrTitle = document.createElement('p');
-      attrTitle.className = 'result-section-title';
-      attrTitle.textContent = translate('section_attributes');
-      card.appendChild(attrTitle);
-
-      const chart = document.createElement('div');
-      chart.className = 'result-attr-chart';
-
-      const scaleMax = Math.max(
-        12,
-        ...solution.totals.map((value) => (Number.isFinite(value) ? value : 0)),
-      );
-
-      ATTRS.forEach((attr, idx) => {
-        const rawValue = Number(solution.totals[idx]);
-        const value = Number.isFinite(rawValue) ? Math.max(0, rawValue) : 0;
-        const band = solution.bands[attr];
-        const sanitized = sanitizeBand(band);
-
-        const bar = document.createElement('div');
-        bar.className = 'result-attr-bar';
-        bar.setAttribute('role', 'group');
-        bar.setAttribute(
-          'aria-label',
-          `${attrLabels[attr] || attr}: ${formatResultValue(value)} (${bandLabels[band] || band || 'n/a'})`,
-        );
-
-        const valueLabel = document.createElement('span');
-        valueLabel.className = 'result-attr-value';
-        valueLabel.textContent = formatResultValue(value);
-        bar.appendChild(valueLabel);
-
-        const track = document.createElement('div');
-        track.className = 'result-attr-track';
-
-        const fill = document.createElement('div');
-        fill.className = 'result-attr-fill';
-        fill.dataset.band = sanitized;
-        const percent = scaleMax > 0 ? clamp((value / scaleMax) * 100, 0, 100) : 0;
-        fill.style.height = `${percent}%`;
-        fill.title = `${attrLabels[attr] || attr}: ${formatResultValue(value)}`;
-        track.appendChild(fill);
-        bar.appendChild(track);
-
-        const nameLabel = document.createElement('span');
-        nameLabel.className = 'result-attr-name';
-        nameLabel.textContent = attrLabels[attr] || attr;
-        bar.appendChild(nameLabel);
-
-        chart.appendChild(bar);
-      });
-
-      card.appendChild(chart);
-
-      ATTRS.forEach((attr) => {
-        const band = solution.bands[attr];
-        const sanitized = sanitizeBand(band);
-        const pill = document.createElement('span');
-        pill.className = `pill ${sanitized}`;
-        const label = attrLabels[attr] || attr;
-        const bandLabel = bandLabels[band] || band || 'n/a';
-        pill.textContent = `${label}: ${bandLabel}`;
-        bandContainer.appendChild(pill);
-      });
-
-      if (resultsList) {
-        resultsList.appendChild(card);
-      }
+    renderResults(sortedSolutions, {
+      selectors,
+      translate,
+      attrLabels,
+      bandLabels,
+      ATTRS,
+      displayIngredientName,
+      sanitizeBand,
+      formatResultValue,
+      clamp,
+      summaryLines,
+      infoMessages,
+      isLoading,
+      hasRenderedResults,
     });
   };
 
@@ -1687,17 +1450,6 @@ const initSolver = () => {
   if (sortOrderSelect) {
     sortOrderSelect.addEventListener('change', applyResultsState);
   }
-
-  const renderDebug = (lines) => {
-    if (!debugPanel || !debugOutput) return;
-    if (!lines.length) {
-      debugPanel.hidden = true;
-      debugOutput.textContent = '';
-      return;
-    }
-    debugPanel.hidden = false;
-    debugOutput.textContent = lines.join('\n');
-  };
 
   if (form) {
     form.addEventListener('submit', (event) => {
@@ -1807,6 +1559,11 @@ const initSolver = () => {
             perCap,
             extraMinCounts,
             allowedIngredientIds: selectedOptional,
+            attrs: ATTRS,
+            styles: stylesData,
+            ingredients,
+            translate,
+            displayStyleName,
           });
 
           const summaryLines = [];
