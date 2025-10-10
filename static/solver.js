@@ -61,7 +61,7 @@ const initSolver = () => {
     red: 'var(--slider-red-muted)',
   };
   const sliderNeutralColor = 'var(--slider-neutral)';
-  const sanitizeBand = (band) => {
+  const normalizeTrackBand = (band) => {
     if (typeof band !== 'string') {
       return null;
     }
@@ -214,7 +214,7 @@ const initSolver = () => {
         const hasEnd = segment && Object.prototype.hasOwnProperty.call(segment, 'end');
         const rawMin = hasMin ? segment.min : hasStart ? segment.start : undefined;
         const rawMax = hasMax ? segment.max : hasEnd ? segment.end : undefined;
-        const band = sanitizeBand(segment && segment.band);
+        const band = normalizeTrackBand(segment && segment.band);
         const min = clamp(parseSliderBound(rawMin, 0), 0, SLIDER_MAX_VALUE);
         const max = clamp(
           Math.max(min, parseSliderBound(rawMax, SLIDER_MAX_VALUE)),
@@ -236,7 +236,7 @@ const initSolver = () => {
       return null;
     }
 
-    const highlight = sanitizeBand(highlightBand);
+    const highlight = normalizeTrackBand(highlightBand);
     const parts = [];
     let cursor = 0;
 
@@ -254,7 +254,7 @@ const initSolver = () => {
 
       const segStart = Math.max(start, cursor);
       const segEnd = Math.max(segStart, end);
-      const band = sanitizeBand(segment.band);
+      const band = normalizeTrackBand(segment.band);
       let color = sliderNeutralColor;
       if (band) {
         if (highlight && band !== highlight) {
@@ -829,7 +829,7 @@ const initSolver = () => {
       } else {
         delete slider.dataset.trackSegments;
       }
-      const highlightBand = sanitizeBand(card.dataset.activeColorBand || null);
+      const highlightBand = normalizeTrackBand(card.dataset.activeColorBand || null);
       applySliderTrackGradient(slider, normalizedSegments, highlightBand);
       updateSliderProgress(slider);
     });
@@ -867,7 +867,7 @@ const initSolver = () => {
     let activeColorRadio = colorRadios.find((radio) => radio.checked) || null;
 
     const syncCardSliderHighlight = (band) => {
-      const sanitizedBand = sanitizeBand(band);
+      const sanitizedBand = normalizeTrackBand(band);
       if (sanitizedBand) {
         card.dataset.activeColorBand = sanitizedBand;
       } else {
