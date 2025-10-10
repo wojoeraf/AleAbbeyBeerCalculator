@@ -2,6 +2,78 @@ import { solveRecipe, EPS, getIngredientId } from './solver-core.js';
 import { initUIState } from './ui-state.js';
 import { renderResults, renderDebug } from './render.js';
 
+let ingredientList = [];
+let ingredientIdToIndexMap = new Map();
+let ingredientIdToDisplayNameMap = new Map();
+let ingredientCategoryIdToElementsMap = new Map();
+
+const firstStringValue = (values) => {
+  for (const value of values) {
+    if (typeof value === 'string') {
+      return value;
+    }
+  }
+  return null;
+};
+
+const resolveIngredientDisplayName = (ingredient, id, ingredientNames, currentLang) => {
+  if (ingredientNames && typeof ingredientNames[id] === 'string' && ingredientNames[id].length) {
+    return ingredientNames[id];
+  }
+
+  const localizedNames = ingredient && typeof ingredient.names === 'object' ? ingredient.names : null;
+  if (localizedNames) {
+    if (currentLang && typeof localizedNames[currentLang] === 'string' && localizedNames[currentLang].length) {
+      return localizedNames[currentLang];
+    }
+    if (typeof localizedNames.en === 'string' && localizedNames.en.length) {
+      return localizedNames.en;
+    }
+    if (typeof localizedNames.de === 'string' && localizedNames.de.length) {
+      return localizedNames.de;
+    }
+    const fallback = firstStringValue(Object.values(localizedNames));
+    if (fallback) {
+      return fallback;
+    }
+  }
+
+  if (ingredient && typeof ingredient.name === 'string' && ingredient.name.length) {
+    return ingredient.name;
+  }
+
+  return id;
+};
+
+const buildIngredientCaches = (list, ingredientNames, currentLang) => {
+  ingredientList = Array.isArray(list) ? list : [];
+  ingredientIdToIndexMap = new Map();
+  ingredientIdToDisplayNameMap = new Map();
+  ingredientCategoryIdToElementsMap = new Map();
+
+  ingredientList.forEach((ingredient, idx) => {
+    const id = getIngredientId(ingredient, idx);
+    ingredientIdToIndexMap.set(id, idx);
+
+    const displayName = resolveIngredientDisplayName(ingredient, id, ingredientNames, currentLang);
+    ingredientIdToDisplayNameMap.set(id, displayName);
+
+    const categoryId = ingredient && ingredient.category_id ? ingredient.category_id : 'uncategorized';
+    if (!ingredientCategoryIdToElementsMap.has(categoryId)) {
+      ingredientCategoryIdToElementsMap.set(categoryId, []);
+    }
+    ingredientCategoryIdToElementsMap.get(categoryId).push({ index: idx, ingredient });
+  });
+
+  if (ingredientNames && typeof ingredientNames === 'object') {
+    Object.entries(ingredientNames).forEach(([id, label]) => {
+      if (typeof label === 'string' && label.length) {
+        ingredientIdToDisplayNameMap.set(id, label);
+      }
+    });
+  }
+};
+
 const parseJSONScript = (id, fallback) => {
   const el = document.getElementById(id);
   if (!el) return fallback;
@@ -75,6 +147,8 @@ const initSolver = () => {
   const styleNameMap = i18nData.style_names || {};
   const currentLang = i18nData.lang || 'en';
 
+  buildIngredientCaches(ingredients, ingredientNames, currentLang);
+
   const translate = (key, replacements = {}) => {
     if (typeof messages[key] === 'string') {
       return formatTemplate(messages[key], replacements);
@@ -89,29 +163,11 @@ const initSolver = () => {
     if (!id) {
       return translate('style_unknown');
     }
-    if (ingredientNames[id]) {
+    if (ingredientNames && typeof ingredientNames[id] === 'string' && ingredientNames[id].length) {
       return ingredientNames[id];
     }
-    const entry = ingredients.find((ing, idx) => getIngredientId(ing, idx) === id);
-    if (entry) {
-      if (entry.names) {
-        if (currentLang && entry.names[currentLang]) {
-          return entry.names[currentLang];
-        }
-        if (entry.names.en) {
-          return entry.names.en;
-        }
-        if (entry.names.de) {
-          return entry.names.de;
-        }
-        const values = Object.values(entry.names);
-        if (values.length) {
-          return values[0];
-        }
-      }
-      if (entry.name) {
-        return entry.name;
-      }
+    if (ingredientIdToDisplayNameMap.has(id)) {
+      return ingredientIdToDisplayNameMap.get(id);
     }
     return id;
   };
@@ -417,7 +473,7 @@ const initSolver = () => {
     const n = ingredients.length;
     const base = (style.base || [0, 0, 0, 0]).map(Number);
     const vectors = ingredients.map((ing) => (ing.vec || [0, 0, 0, 0]).map(Number));
-    const idToIndex = new Map(ingredients.map((ing, idx) => [getIngredientId(ing, idx), idx]));
+    const idToIndex = ingredientIdToIndexMap;
 
     const minCounts = new Array(n).fill(0);
     const mandatory = style.min_counts || {};
