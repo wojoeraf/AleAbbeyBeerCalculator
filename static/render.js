@@ -161,7 +161,7 @@ export const renderResultCard = (solution, dictionaries = {}) => {
   return card;
 };
 
-export const renderResults = (solutions, dictionaries) => {
+export const renderResults = (state, dictionaries) => {
   cachedContext = dictionaries ? { ...dictionaries } : cachedContext;
   if (!cachedContext) {
     return { cards: [] };
@@ -177,11 +177,14 @@ export const renderResults = (solutions, dictionaries) => {
     sanitizeBand = (value) => value,
     formatResultValue = (value) => String(value),
     clamp = (value) => value,
-    summaryLines = [],
-    infoMessages = [],
-    isLoading = false,
-    hasRenderedResults = false,
   } = cachedContext;
+
+  const {
+    loading = false,
+    solutions = null,
+    summary = [],
+    info = [],
+  } = state || {};
 
   const {
     resultsSection,
@@ -198,15 +201,18 @@ export const renderResults = (solutions, dictionaries) => {
     return { cards: [] };
   }
 
+  resultsSection.hidden = false;
+  resultsSection.setAttribute('aria-busy', loading ? 'true' : 'false');
+
   if (resultsLoading) {
-    resultsLoading.hidden = !isLoading;
+    resultsLoading.hidden = !loading;
   }
 
   if (resultsTitle) {
     resultsTitle.textContent = translate('results_heading');
   }
 
-  if (isLoading) {
+  if (loading) {
     if (resultsPlaceholder) resultsPlaceholder.hidden = true;
     if (resultsSummary) resultsSummary.hidden = true;
     if (statusMessage) statusMessage.hidden = true;
@@ -215,7 +221,9 @@ export const renderResults = (solutions, dictionaries) => {
     return { cards: [] };
   }
 
-  if (!hasRenderedResults) {
+  const hasSolutions = Array.isArray(solutions);
+
+  if (!hasSolutions) {
     if (resultsPlaceholder) resultsPlaceholder.hidden = false;
     if (resultsSummary) {
       resultsSummary.hidden = true;
@@ -235,7 +243,7 @@ export const renderResults = (solutions, dictionaries) => {
   }
 
   if (resultsTitle) {
-    const count = Array.isArray(solutions) ? solutions.length : 0;
+    const count = solutions.length;
     const titleText = translate('results_title', { count });
     resultsTitle.textContent = typeof titleText === 'string'
       ? titleText
@@ -243,9 +251,9 @@ export const renderResults = (solutions, dictionaries) => {
   }
 
   if (resultsSummary) {
-    if (summaryLines.length) {
+    if (Array.isArray(summary) && summary.length) {
       resultsSummary.hidden = false;
-      resultsSummary.textContent = summaryLines.join(' • ');
+      resultsSummary.textContent = summary.join(' • ');
     } else {
       resultsSummary.hidden = true;
       resultsSummary.textContent = '';
@@ -253,16 +261,16 @@ export const renderResults = (solutions, dictionaries) => {
   }
 
   if (statusMessage) {
-    if (infoMessages.length > 0) {
+    if (Array.isArray(info) && info.length > 0) {
       statusMessage.hidden = false;
-      statusMessage.textContent = infoMessages.join(' ');
+      statusMessage.textContent = info.join(' ');
     } else {
       statusMessage.hidden = true;
       statusMessage.textContent = '';
     }
   }
 
-  const list = Array.isArray(solutions) ? solutions : [];
+  const list = solutions;
   const count = list.length;
 
   if (resultsEmpty) {
