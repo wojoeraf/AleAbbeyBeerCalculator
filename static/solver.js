@@ -208,11 +208,12 @@ const initSolver = () => {
     debugContent,
   } = selectors;
 
-  let latestSolutions = [];
-  let latestSummaryLines = [];
-  let latestInfoMessages = [];
-  let hasRenderedResults = false;
-  let isLoading = false;
+  let resultsState = {
+    loading: false,
+    solutions: null,
+    summary: [],
+    info: [],
+  };
 
   const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
@@ -1420,31 +1421,35 @@ const initSolver = () => {
     return sorted;
   };
 
-  const applyResultsState = () => {
-    if (!resultsSection) return;
+  const renderState = (partialState = {}) => {
+    const nextState = {
+      ...resultsState,
+      ...partialState,
+    };
 
-    resultsSection.hidden = false;
-    resultsSection.setAttribute('aria-busy', isLoading ? 'true' : 'false');
+    resultsState = nextState;
 
-    const summaryLines = Array.isArray(latestSummaryLines) ? latestSummaryLines : [];
-    const infoMessages = Array.isArray(latestInfoMessages) ? latestInfoMessages : [];
-    const sortedSolutions = hasRenderedResults ? sortSolutionsForDisplay(latestSolutions) : [];
+    const sortedSolutions = Array.isArray(nextState.solutions)
+      ? sortSolutionsForDisplay(nextState.solutions)
+      : nextState.solutions;
 
-    const rendered = renderResults(sortedSolutions, {
-      selectors,
-      translate,
-      attrLabels,
-      bandLabels,
-      ATTRS,
-      displayIngredientName,
-      sanitizeBand,
-      formatResultValue,
-      clamp,
-      summaryLines,
-      infoMessages,
-      isLoading,
-      hasRenderedResults,
-    });
+    const rendered = renderResults(
+      {
+        ...nextState,
+        solutions: sortedSolutions,
+      },
+      {
+        selectors,
+        translate,
+        attrLabels,
+        bandLabels,
+        ATTRS,
+        displayIngredientName,
+        sanitizeBand,
+        formatResultValue,
+        clamp,
+      },
+    );
 
     const cards = rendered && Array.isArray(rendered.cards) ? rendered.cards : [];
     if (resultsList) {
@@ -1461,33 +1466,35 @@ const initSolver = () => {
     }
   };
 
-  applyResultsState();
+  renderState();
 
   const renderSolutions = (solutions, summaryLines, infoMessages) => {
-    latestSolutions = Array.isArray(solutions) ? [...solutions] : [];
-    latestSummaryLines = Array.isArray(summaryLines) ? [...summaryLines] : [];
-    latestInfoMessages = Array.isArray(infoMessages) ? [...infoMessages] : [];
-    hasRenderedResults = true;
-    if (!isLoading) {
-      applyResultsState();
-    }
+    renderState({
+      loading: false,
+      solutions: Array.isArray(solutions) ? [...solutions] : [],
+      summary: Array.isArray(summaryLines) ? [...summaryLines] : [],
+      info: Array.isArray(infoMessages) ? [...infoMessages] : [],
+    });
   };
 
   const setLoadingState = (loading) => {
     const next = Boolean(loading);
-    if (isLoading === next) {
+    if (resultsState.loading === next) {
       return;
     }
-    isLoading = next;
-    applyResultsState();
+    renderState({ loading: next });
   };
 
   if (sortAttrSelect) {
-    sortAttrSelect.addEventListener('change', applyResultsState);
+    sortAttrSelect.addEventListener('change', () => {
+      renderState();
+    });
   }
 
   if (sortOrderSelect) {
-    sortOrderSelect.addEventListener('change', applyResultsState);
+    sortOrderSelect.addEventListener('change', () => {
+      renderState();
+    });
   }
 
   if (form) {
@@ -1611,12 +1618,10 @@ const initSolver = () => {
           }
           summaryLines.push(translate('summary_caps', { total: totalCap, per: perCap }));
 
-          setLoadingState(false);
           renderSolutions(solutions, summaryLines, info);
           renderDebug(debugLines);
         } catch (error) {
           console.error('Recipe calculation failed', error);
-          setLoadingState(false);
           renderSolutions([], [], [translate('solver_failed')]);
           renderDebug(debugLines);
         }
