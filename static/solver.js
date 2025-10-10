@@ -387,6 +387,7 @@ const initSolver = () => {
     const body = categoryBodies.get(categoryId);
     if (toggle) {
       toggle.setAttribute('aria-expanded', value);
+      toggle.dataset.expanded = value;
     }
     if (header) {
       header.dataset.expanded = value;
@@ -397,12 +398,9 @@ const initSolver = () => {
   };
 
   categoryToggles.forEach((toggle, categoryId) => {
-    const initialExpanded = toggle.getAttribute('aria-expanded') !== 'false';
+    const initialAttr = toggle.dataset.expanded ?? toggle.getAttribute('aria-expanded');
+    const initialExpanded = initialAttr !== 'false';
     setCategoryExpanded(categoryId, initialExpanded);
-    toggle.addEventListener('click', () => {
-      const nextExpanded = toggle.getAttribute('aria-expanded') === 'false';
-      setCategoryExpanded(categoryId, nextExpanded);
-    });
   });
 
   let parallaxTicking = false;
@@ -865,6 +863,21 @@ const initSolver = () => {
   };
 
   const colorStateUpdaters = selectionState.colorUpdaters;
+  const colorCardEventHandlersByType = new Map();
+  const colorEventContainers = new Map();
+
+  const getColorHandlerMap = (type) => {
+    if (!colorCardEventHandlersByType.has(type)) {
+      colorCardEventHandlersByType.set(type, new Map());
+    }
+    return colorCardEventHandlersByType.get(type);
+  };
+
+  const registerColorContainer = (type, container) => {
+    if (!colorEventContainers.has(type) && container) {
+      colorEventContainers.set(type, container);
+    }
+  };
 
   const updateSubmitState = () => {
     if (!submitBtn) return;
@@ -893,6 +906,8 @@ const initSolver = () => {
     const sliderInitialValue = slider
       ? Number(slider.dataset.initialValue || sliderStepToNumber(slider.value))
       : null;
+    const hasAdvancedControls = !!(modeInput && minInput && maxInput);
+    const cardType = hasAdvancedControls ? 'range' : 'simple';
 
     const syncCardSliderHighlight = (band) => {
       const sanitizedBand = normalizeTrackBand(band);
@@ -994,12 +1009,11 @@ const initSolver = () => {
     };
 
     if (colorGroup) {
-      ['click', 'keydown', 'change'].forEach((type) => {
-        colorGroup.addEventListener(type, handleColorGroupEvent);
-      });
+      registerColorContainer(cardType, form || document);
+      getColorHandlerMap(cardType).set(card, handleColorGroupEvent);
     }
 
-    if (!modeInput || !minInput || !maxInput) {
+    if (!hasAdvancedControls) {
       updateColorState = () => {
         const selected = colorRadios.find((radio) => radio.checked) || null;
         syncColorChipVisuals();
@@ -1210,6 +1224,45 @@ const initSolver = () => {
     colorStateUpdaters.push(updateColorState);
   });
 
+  const containerToTypes = new Map();
+  colorEventContainers.forEach((container, type) => {
+    if (!container) {
+      return;
+    }
+    if (!containerToTypes.has(container)) {
+      containerToTypes.set(container, new Set());
+    }
+    containerToTypes.get(container).add(type);
+  });
+
+  containerToTypes.forEach((types, container) => {
+    const handlerMaps = Array.from(types)
+      .map((type) => colorCardEventHandlersByType.get(type))
+      .filter((map) => map && map.size > 0);
+    if (!handlerMaps.length) {
+      return;
+    }
+    ['click', 'keydown', 'change'].forEach((eventType) => {
+      container.addEventListener(eventType, (event) => {
+        const group = event.target.closest('[data-color-group]');
+        if (!group) {
+          return;
+        }
+        const card = group.closest('[data-attr-card]');
+        if (!card) {
+          return;
+        }
+        for (const handlerMap of handlerMaps) {
+          const handler = handlerMap.get(card);
+          if (handler) {
+            handler(event);
+            break;
+          }
+        }
+      });
+    });
+  });
+
   if (setAllGreenBtn) {
     const labelSpan = setAllGreenBtn.querySelector('[data-set-all-green-label]');
     const initialLabel = labelSpan ? labelSpan.textContent : '';
@@ -1248,13 +1301,32 @@ const initSolver = () => {
     });
   }
 
-  ingredientRows.forEach((row) => {
-    const checkbox = row.querySelector('input[type="checkbox"]');
-    if (!checkbox) return;
-    checkbox.addEventListener('change', () => {
-      checkbox.dataset.userSelected = checkbox.checked ? 'true' : 'false';
+  if (ingredientsWrapper) {
+    ingredientsWrapper.addEventListener('change', (event) => {
+      const target = event.target;
+      if (!target || target.type !== 'checkbox') {
+        return;
+      }
+      if (target.matches('input[type="checkbox"][name="optional_ingredients"]')) {
+        target.dataset.userSelected = target.checked ? 'true' : 'false';
+      }
     });
-  });
+
+    ingredientsWrapper.addEventListener('click', (event) => {
+      const toggle = event.target.closest('[data-category-toggle]');
+      if (!toggle) {
+        return;
+      }
+      const categoryId = toggle.dataset.categoryId;
+      if (!categoryId) {
+        return;
+      }
+      event.preventDefault();
+      const expandedAttr = toggle.dataset.expanded ?? toggle.getAttribute('aria-expanded');
+      const currentExpanded = expandedAttr !== 'false';
+      setCategoryExpanded(categoryId, !currentExpanded);
+    });
+  }
 
   const requiredTooltip = uiStrings.tooltip_required || '';
   const requiredSingle = uiStrings.badge_required_single || 'Required';
