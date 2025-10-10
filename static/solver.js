@@ -48,6 +48,14 @@ const initSolver = () => {
   const attrLabels = metaData.attr_labels || metaData.attrLabels || {};
   const bandLabels = metaData.band_labels || metaData.bandLabels || {};
   const EPS = 1e-9;
+  const SLIDER_MAX_VALUE = 11;
+  const SLIDER_STEP_SCALE = 10;
+  const sliderBandColorMap = {
+    green: 'var(--slider-green)',
+    yellow: 'var(--slider-yellow)',
+    red: 'var(--slider-red)',
+  };
+  const sliderNeutralColor = 'var(--slider-neutral)';
 
   const messages = i18nData.messages || {};
   const uiStrings = i18nData.ui || {};
@@ -167,6 +175,83 @@ const initSolver = () => {
   let isLoading = false;
 
   const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+  const parseSliderBound = (value, fallback) => {
+    if (value === null || value === undefined) {
+      return fallback;
+    }
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : fallback;
+  };
+
+  const sliderValueToPercent = (value) => {
+    const safeValue = clamp(Number(value) || 0, 0, SLIDER_MAX_VALUE);
+    return `${((safeValue / SLIDER_MAX_VALUE) * 100).toFixed(2)}%`;
+  };
+
+  const buildSliderTrackGradient = (segments) => {
+    if (!Array.isArray(segments) || segments.length === 0) {
+      return null;
+    }
+
+    const normalized = segments
+      .map((segment) => {
+        const rawMin = segment && Object.prototype.hasOwnProperty.call(segment, 'min')
+          ? segment.min
+          : undefined;
+        const rawMax = segment && Object.prototype.hasOwnProperty.call(segment, 'max')
+          ? segment.max
+          : undefined;
+        const band = segment && typeof segment.band === 'string' ? segment.band : null;
+        const min = clamp(parseSliderBound(rawMin, 0), 0, SLIDER_MAX_VALUE);
+        const max = clamp(
+          Math.max(min, parseSliderBound(rawMax, SLIDER_MAX_VALUE)),
+          0,
+          SLIDER_MAX_VALUE,
+        );
+        return {
+          band,
+          start: min,
+          end: max,
+        };
+      })
+      .filter((segment) => segment.end > segment.start + EPS)
+      .sort((a, b) => a.start - b.start || a.end - b.end);
+
+    if (!normalized.length) {
+      return null;
+    }
+
+    const parts = [];
+    let cursor = 0;
+
+    normalized.forEach((segment) => {
+      const start = clamp(segment.start, 0, SLIDER_MAX_VALUE);
+      const end = clamp(segment.end, 0, SLIDER_MAX_VALUE);
+      if (end <= cursor + EPS) {
+        cursor = Math.max(cursor, end);
+        return;
+      }
+      if (start > cursor + EPS) {
+        parts.push(`${sliderNeutralColor} ${sliderValueToPercent(cursor)}`);
+        parts.push(`${sliderNeutralColor} ${sliderValueToPercent(start)}`);
+      }
+
+      const segStart = Math.max(start, cursor);
+      const segEnd = Math.max(segStart, end);
+      const color = sliderBandColorMap[segment.band] || sliderNeutralColor;
+      parts.push(`${color} ${sliderValueToPercent(segStart)}`);
+      parts.push(`${color} ${sliderValueToPercent(segEnd)}`);
+      cursor = Math.max(cursor, segEnd);
+    });
+
+    if (cursor < SLIDER_MAX_VALUE - EPS) {
+      parts.push(`${sliderNeutralColor} ${sliderValueToPercent(cursor)}`);
+      parts.push(`${sliderNeutralColor} 100%`);
+    }
+
+    return `linear-gradient(90deg, ${parts.join(', ')})`;
+  };
 
   const syncAttributeToggleVisibility = () => {
     if (!ingredientsWrapper) return;
@@ -646,7 +731,7 @@ const initSolver = () => {
     if (!Number.isFinite(numeric)) {
       return 0;
     }
-    return clamp(numeric, 0, 110) / 10;
+    return clamp(numeric, 0, SLIDER_MAX_VALUE * SLIDER_STEP_SCALE) / SLIDER_STEP_SCALE;
   };
 
   const formatSliderValue = (value) => {
@@ -662,6 +747,26 @@ const initSolver = () => {
     const value = clamp(Number(slider.value), 0, max);
     const percent = (value / max) * 100;
     slider.style.setProperty('--slider-progress', `${percent}%`);
+  };
+
+  const updateSliderTracksForStyle = (styleName) => {
+    const style = styleName ? stylesData[styleName] : null;
+
+    attrCards.forEach((card) => {
+      const slider = card.querySelector('[data-attr-range]');
+      if (!slider) {
+        return;
+      }
+      const attr = card.dataset.attr;
+      const segments = style && style.bands ? style.bands[attr] || [] : [];
+      const gradient = buildSliderTrackGradient(segments);
+      if (gradient) {
+        slider.style.setProperty('--slider-track', gradient);
+      } else {
+        slider.style.removeProperty('--slider-track');
+      }
+      updateSliderProgress(slider);
+    });
   };
 
   const colorStateUpdaters = [];
@@ -1074,6 +1179,7 @@ const initSolver = () => {
   };
 
   const applyStyleRequirements = (styleName) => {
+    updateSliderTracksForStyle(styleName);
     if (!styleName) return;
     const activeMins = styleMinMap[styleName] || {};
 

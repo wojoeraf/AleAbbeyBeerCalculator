@@ -13,6 +13,10 @@
   --pill-yellow-text: #a16207;
   --pill-red-bg: #fee2e2;
   --pill-red-text: #b91c1c;
+  --slider-green: var(--pill-green-bg);
+  --slider-yellow: var(--pill-yellow-bg);
+  --slider-red: var(--pill-red-bg);
+  --slider-neutral: rgba(15, 23, 42, 0.12);
   font-family: "Inter", "SF Pro Display", "Segoe UI", system-ui, sans-serif;
 }
 * {
@@ -385,13 +389,17 @@ input[type="number"]:focus {
   appearance: none;
   height: 8px;
   border-radius: 999px;
-  background: linear-gradient(
-    90deg,
-    var(--primary) 0%,
-    var(--primary) var(--slider-progress, 50%),
-    rgba(15, 23, 42, 0.12) var(--slider-progress, 50%),
-    rgba(15, 23, 42, 0.12) 100%
-  );
+  background:
+    linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) var(--slider-progress, 50%),
+      rgba(255, 255, 255, 0) var(--slider-progress, 50%),
+      rgba(15, 23, 42, 0.16) var(--slider-progress, 50%),
+      rgba(15, 23, 42, 0.16) 100%
+    ),
+    var(--slider-track, linear-gradient(90deg, var(--slider-neutral) 0%, var(--slider-neutral) 100%));
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
   cursor: pointer;
   transition: background 0.2s ease;
 }
