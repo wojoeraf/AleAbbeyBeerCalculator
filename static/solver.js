@@ -55,7 +55,19 @@ const initSolver = () => {
     yellow: 'var(--slider-yellow)',
     red: 'var(--slider-red)',
   };
+  const sliderBandMutedColorMap = {
+    green: 'var(--slider-green-muted)',
+    yellow: 'var(--slider-yellow-muted)',
+    red: 'var(--slider-red-muted)',
+  };
   const sliderNeutralColor = 'var(--slider-neutral)';
+  const sanitizeBand = (band) => {
+    if (typeof band !== 'string') {
+      return null;
+    }
+    const normalized = band.trim().toLowerCase();
+    return sliderBandColorMap[normalized] ? normalized : null;
+  };
 
   const messages = i18nData.messages || {};
   const uiStrings = i18nData.ui || {};
@@ -189,20 +201,20 @@ const initSolver = () => {
     return `${((safeValue / SLIDER_MAX_VALUE) * 100).toFixed(2)}%`;
   };
 
-  const buildSliderTrackGradient = (segments) => {
+  const normalizeSliderSegments = (segments) => {
     if (!Array.isArray(segments) || segments.length === 0) {
-      return null;
+      return [];
     }
 
-    const normalized = segments
+    return segments
       .map((segment) => {
-        const rawMin = segment && Object.prototype.hasOwnProperty.call(segment, 'min')
-          ? segment.min
-          : undefined;
-        const rawMax = segment && Object.prototype.hasOwnProperty.call(segment, 'max')
-          ? segment.max
-          : undefined;
-        const band = segment && typeof segment.band === 'string' ? segment.band : null;
+        const hasMin = segment && Object.prototype.hasOwnProperty.call(segment, 'min');
+        const hasStart = segment && Object.prototype.hasOwnProperty.call(segment, 'start');
+        const hasMax = segment && Object.prototype.hasOwnProperty.call(segment, 'max');
+        const hasEnd = segment && Object.prototype.hasOwnProperty.call(segment, 'end');
+        const rawMin = hasMin ? segment.min : hasStart ? segment.start : undefined;
+        const rawMax = hasMax ? segment.max : hasEnd ? segment.end : undefined;
+        const band = sanitizeBand(segment && segment.band);
         const min = clamp(parseSliderBound(rawMin, 0), 0, SLIDER_MAX_VALUE);
         const max = clamp(
           Math.max(min, parseSliderBound(rawMax, SLIDER_MAX_VALUE)),
@@ -217,17 +229,20 @@ const initSolver = () => {
       })
       .filter((segment) => segment.end > segment.start + EPS)
       .sort((a, b) => a.start - b.start || a.end - b.end);
+  };
 
-    if (!normalized.length) {
+  const buildSliderTrackGradientFromNormalized = (segments, highlightBand = null) => {
+    if (!Array.isArray(segments) || segments.length === 0) {
       return null;
     }
 
+    const highlight = sanitizeBand(highlightBand);
     const parts = [];
     let cursor = 0;
 
-    normalized.forEach((segment) => {
-      const start = clamp(segment.start, 0, SLIDER_MAX_VALUE);
-      const end = clamp(segment.end, 0, SLIDER_MAX_VALUE);
+    segments.forEach((segment) => {
+      const start = clamp(Number(segment.start) || 0, 0, SLIDER_MAX_VALUE);
+      const end = clamp(Number(segment.end) || 0, 0, SLIDER_MAX_VALUE);
       if (end <= cursor + EPS) {
         cursor = Math.max(cursor, end);
         return;
@@ -239,7 +254,15 @@ const initSolver = () => {
 
       const segStart = Math.max(start, cursor);
       const segEnd = Math.max(segStart, end);
-      const color = sliderBandColorMap[segment.band] || sliderNeutralColor;
+      const band = sanitizeBand(segment.band);
+      let color = sliderNeutralColor;
+      if (band) {
+        if (highlight && band !== highlight) {
+          color = sliderBandMutedColorMap[band] || sliderNeutralColor;
+        } else {
+          color = sliderBandColorMap[band] || sliderNeutralColor;
+        }
+      }
       parts.push(`${color} ${sliderValueToPercent(segStart)}`);
       parts.push(`${color} ${sliderValueToPercent(segEnd)}`);
       cursor = Math.max(cursor, segEnd);
@@ -251,6 +274,47 @@ const initSolver = () => {
     }
 
     return `linear-gradient(90deg, ${parts.join(', ')})`;
+  };
+
+  const parseStoredSliderSegments = (slider) => {
+    if (!slider) {
+      return [];
+    }
+    const raw = slider.dataset.trackSegments;
+    if (!raw) {
+      return [];
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      return normalizeSliderSegments(parsed);
+    } catch (error) {
+      console.error('Failed to parse slider segments', error);
+      return [];
+    }
+  };
+
+  const applySliderTrackGradient = (slider, segments, highlightBand = null) => {
+    if (!slider) {
+      return;
+    }
+    const gradient = buildSliderTrackGradientFromNormalized(segments, highlightBand);
+    if (gradient) {
+      slider.style.setProperty('--slider-track', gradient);
+    } else {
+      slider.style.removeProperty('--slider-track');
+    }
+  };
+
+  const applyHighlightToCardSlider = (card, highlightBand) => {
+    if (!card) {
+      return;
+    }
+    const slider = card.querySelector('[data-attr-range]');
+    if (!slider) {
+      return;
+    }
+    const segments = parseStoredSliderSegments(slider);
+    applySliderTrackGradient(slider, segments, highlightBand);
   };
 
   const syncAttributeToggleVisibility = () => {
@@ -759,12 +823,14 @@ const initSolver = () => {
       }
       const attr = card.dataset.attr;
       const segments = style && style.bands ? style.bands[attr] || [] : [];
-      const gradient = buildSliderTrackGradient(segments);
-      if (gradient) {
-        slider.style.setProperty('--slider-track', gradient);
+      const normalizedSegments = normalizeSliderSegments(segments);
+      if (normalizedSegments.length) {
+        slider.dataset.trackSegments = JSON.stringify(normalizedSegments);
       } else {
-        slider.style.removeProperty('--slider-track');
+        delete slider.dataset.trackSegments;
       }
+      const highlightBand = sanitizeBand(card.dataset.activeColorBand || null);
+      applySliderTrackGradient(slider, normalizedSegments, highlightBand);
       updateSliderProgress(slider);
     });
   };
@@ -800,6 +866,16 @@ const initSolver = () => {
       : null;
     let activeColorRadio = colorRadios.find((radio) => radio.checked) || null;
 
+    const syncCardSliderHighlight = (band) => {
+      const sanitizedBand = sanitizeBand(band);
+      if (sanitizedBand) {
+        card.dataset.activeColorBand = sanitizedBand;
+      } else {
+        delete card.dataset.activeColorBand;
+      }
+      applyHighlightToCardSlider(card, sanitizedBand);
+    };
+
     const syncColorChipVisuals = () => {
       colorRadios.forEach((radio, index) => {
         const chip = colorChips[index];
@@ -823,13 +899,17 @@ const initSolver = () => {
     };
 
     if (!modeInput || !minInput || !maxInput) {
-      syncColorChipVisuals();
-      updateSubmitState();
+      const updateSimpleColorState = () => {
+        const selected = colorRadios.find((radio) => radio.checked) || null;
+        activeColorRadio = selected;
+        syncColorChipVisuals();
+        syncCardSliderHighlight(selected ? selected.value : null);
+        updateSubmitState();
+      };
 
       const applySimpleColorSelection = (radio, shouldSelect, { focus = true } = {}) => {
         const selected = setColorSelection(radio, shouldSelect);
-        syncColorChipVisuals();
-        updateSubmitState();
+        updateSimpleColorState();
         if (focus && selected && typeof selected.focus === 'function') {
           selected.focus();
         }
@@ -876,6 +956,9 @@ const initSolver = () => {
           applySimpleColorSelection(radio, radio.checked, { focus: false });
         });
       });
+
+      updateSimpleColorState();
+      colorStateUpdaters.push(updateSimpleColorState);
       return;
     }
 
@@ -976,6 +1059,7 @@ const initSolver = () => {
       const selected = colorRadios.find((radio) => radio.checked) || null;
       activeColorRadio = selected;
       syncColorChipVisuals();
+      syncCardSliderHighlight(selected ? selected.value : null);
       const isColorActive = !!selected;
       if (isColorActive) {
         if (modeInput.value !== 'any') {

@@ -16,6 +16,9 @@
   --slider-green: #16a34a;
   --slider-yellow: #facc15;
   --slider-red: #ef4444;
+  --slider-green-muted: rgba(22, 163, 74, 0.22);
+  --slider-yellow-muted: rgba(250, 204, 21, 0.22);
+  --slider-red-muted: rgba(239, 68, 68, 0.22);
   --slider-neutral: rgba(15, 23, 42, 0.22);
   font-family: "Inter", "SF Pro Display", "Segoe UI", system-ui, sans-serif;
 }
