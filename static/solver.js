@@ -17,7 +17,7 @@ let ingredientIdToIndexMap = new Map();
 let ingredientIdToDisplayNameMap = new Map();
 let ingredientCategoryIdToElementsMap = new Map();
 
-const WORKER_MIN_INGREDIENTS = 80;
+const WORKER_MIN_INGREDIENTS = 1;
 
 const createSolverWorkerController = (initPayload) => {
   if (typeof window === 'undefined' || typeof Worker === 'undefined') {
