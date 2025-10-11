@@ -914,14 +914,18 @@ input[type="number"]:focus {
 }
 
 .results-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  justify-content: center;
+  align-items: stretch;
 }
 
 .result-card {
   display: grid;
   gap: 18px;
+  width: min(100%, 480px);
+  margin: 0 auto;
 }
 
 .result-card-header {
