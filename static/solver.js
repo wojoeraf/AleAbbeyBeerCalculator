@@ -8,6 +8,7 @@ import {
 } from './solver-core.js';
 import { initUIState } from './ui-state.js';
 import { renderResults, renderDebug } from './render.js';
+import { initSlider } from './slider.js';
 
 let ingredientList = [];
 let ingredientIdToIndexMap = new Map();
@@ -134,13 +135,22 @@ const initSolver = () => {
   const sliderBandColorMap = bands.colorMap;
   const sliderBandMutedColorMap = bands.mutedColorMap;
   const sliderNeutralColor = bands.neutralColor;
-  const normalizeTrackBand = (band) => {
-    if (typeof band !== 'string') {
-      return null;
-    }
-    const normalized = band.trim().toLowerCase();
-    return sliderBandColorMap[normalized] ? normalized : null;
-  };
+
+  const sliderHelpers = initSlider({
+    maxValue: SLIDER_MAX_VALUE,
+    stepScale: SLIDER_STEP_SCALE,
+    colorMap: sliderBandColorMap,
+    mutedColorMap: sliderBandMutedColorMap,
+    neutralColor: sliderNeutralColor,
+  });
+  const {
+    sliderStepToNumber,
+    formatSliderValue,
+    updateSliderProgress,
+    normalizeTrackBand,
+    applyTrack,
+  } = sliderHelpers;
+  let sliderTrackController = applyTrack({});
 
   const messages = i18nData.messages || {};
   const uiStrings = i18nData.ui || {};
@@ -218,123 +228,6 @@ const initSolver = () => {
 
   const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
-  const parseSliderBound = (value, fallback) => {
-    if (value === null || value === undefined) {
-      return fallback;
-    }
-    const numeric = Number(value);
-    return Number.isFinite(numeric) ? numeric : fallback;
-  };
-
-  const sliderValueToPercent = (value) => {
-    const safeValue = clamp(Number(value) || 0, 0, SLIDER_MAX_VALUE);
-    return `${((safeValue / SLIDER_MAX_VALUE) * 100).toFixed(2)}%`;
-  };
-
-  const normalizeSliderSegments = (segments) => {
-    if (!Array.isArray(segments) || segments.length === 0) {
-      return [];
-    }
-
-    return segments
-      .map((segment) => {
-        const hasMin = segment && Object.prototype.hasOwnProperty.call(segment, 'min');
-        const hasStart = segment && Object.prototype.hasOwnProperty.call(segment, 'start');
-        const hasMax = segment && Object.prototype.hasOwnProperty.call(segment, 'max');
-        const hasEnd = segment && Object.prototype.hasOwnProperty.call(segment, 'end');
-        const rawMin = hasMin ? segment.min : hasStart ? segment.start : undefined;
-        const rawMax = hasMax ? segment.max : hasEnd ? segment.end : undefined;
-        const band = normalizeTrackBand(segment && segment.band);
-        const min = clamp(parseSliderBound(rawMin, 0), 0, SLIDER_MAX_VALUE);
-        const max = clamp(
-          Math.max(min, parseSliderBound(rawMax, SLIDER_MAX_VALUE)),
-          0,
-          SLIDER_MAX_VALUE,
-        );
-        return {
-          band,
-          start: min,
-          end: max,
-        };
-      })
-      .filter((segment) => segment.end > segment.start + EPS)
-      .sort((a, b) => a.start - b.start || a.end - b.end);
-  };
-
-  const buildSliderTrackGradientFromNormalized = (segments, highlightBand = null) => {
-    if (!Array.isArray(segments) || segments.length === 0) {
-      return null;
-    }
-
-    const highlight = normalizeTrackBand(highlightBand);
-    const parts = [];
-    let cursor = 0;
-
-    segments.forEach((segment) => {
-      const start = clamp(Number(segment.start) || 0, 0, SLIDER_MAX_VALUE);
-      const end = clamp(Number(segment.end) || 0, 0, SLIDER_MAX_VALUE);
-      if (end <= cursor + EPS) {
-        cursor = Math.max(cursor, end);
-        return;
-      }
-      if (start > cursor + EPS) {
-        parts.push(`${sliderNeutralColor} ${sliderValueToPercent(cursor)}`);
-        parts.push(`${sliderNeutralColor} ${sliderValueToPercent(start)}`);
-      }
-
-      const segStart = Math.max(start, cursor);
-      const segEnd = Math.max(segStart, end);
-      const band = normalizeTrackBand(segment.band);
-      let color = sliderNeutralColor;
-      if (band) {
-        if (highlight && band !== highlight) {
-          color = sliderBandMutedColorMap[band] || sliderNeutralColor;
-        } else {
-          color = sliderBandColorMap[band] || sliderNeutralColor;
-        }
-      }
-      parts.push(`${color} ${sliderValueToPercent(segStart)}`);
-      parts.push(`${color} ${sliderValueToPercent(segEnd)}`);
-      cursor = Math.max(cursor, segEnd);
-    });
-
-    if (cursor < SLIDER_MAX_VALUE - EPS) {
-      parts.push(`${sliderNeutralColor} ${sliderValueToPercent(cursor)}`);
-      parts.push(`${sliderNeutralColor} 100%`);
-    }
-
-    return `linear-gradient(90deg, ${parts.join(', ')})`;
-  };
-
-  const parseStoredSliderSegments = (slider) => {
-    if (!slider) {
-      return [];
-    }
-    const raw = slider.dataset.trackSegments;
-    if (!raw) {
-      return [];
-    }
-    try {
-      const parsed = JSON.parse(raw);
-      return normalizeSliderSegments(parsed);
-    } catch (error) {
-      console.error('Failed to parse slider segments', error);
-      return [];
-    }
-  };
-
-  const applySliderTrackGradient = (slider, segments, highlightBand = null) => {
-    if (!slider) {
-      return;
-    }
-    const gradient = buildSliderTrackGradientFromNormalized(segments, highlightBand);
-    if (gradient) {
-      slider.style.setProperty('--slider-track', gradient);
-    } else {
-      slider.style.removeProperty('--slider-track');
-    }
-  };
-
   const applyHighlightToCardSlider = (card, highlightBand) => {
     if (!card) {
       return;
@@ -343,8 +236,12 @@ const initSolver = () => {
     if (!slider) {
       return;
     }
-    const segments = parseStoredSliderSegments(slider);
-    applySliderTrackGradient(slider, segments, highlightBand);
+    const attr = card.dataset.attr;
+    if (!attr) {
+      slider.style.removeProperty('--slider-track');
+      return;
+    }
+    sliderTrackController.setTrack(slider, attr, highlightBand);
   };
 
   const syncAttributeToggleVisibility = () => {
@@ -793,31 +690,10 @@ const initSolver = () => {
     return { solutions, info: [] };
   };
 
-  const sliderStepToNumber = (raw) => {
-    const numeric = Number(raw);
-    if (!Number.isFinite(numeric)) {
-      return 0;
-    }
-    return clamp(numeric, 0, SLIDER_MAX_VALUE * SLIDER_STEP_SCALE) / SLIDER_STEP_SCALE;
-  };
-
-  const formatSliderValue = (value) => {
-    if (!Number.isFinite(value)) {
-      return '0.0';
-    }
-    return value.toFixed(1);
-  };
-
-  const updateSliderProgress = (slider) => {
-    if (!slider) return;
-    const max = Number(slider.max) || 1;
-    const value = clamp(Number(slider.value), 0, max);
-    const percent = (value / max) * 100;
-    slider.style.setProperty('--slider-progress', `${percent}%`);
-  };
-
   const updateSliderTracksForStyle = (styleName) => {
     const style = styleName ? stylesData[styleName] : null;
+    const styleBands = style && style.bands ? style.bands : {};
+    sliderTrackController = applyTrack(styleBands);
 
     attrCards.forEach((card) => {
       const slider = card.querySelector('[data-attr-range]');
@@ -825,15 +701,13 @@ const initSolver = () => {
         return;
       }
       const attr = card.dataset.attr;
-      const segments = style && style.bands ? style.bands[attr] || [] : [];
-      const normalizedSegments = normalizeSliderSegments(segments);
-      if (normalizedSegments.length) {
-        slider.dataset.trackSegments = JSON.stringify(normalizedSegments);
-      } else {
-        delete slider.dataset.trackSegments;
+      if (!attr) {
+        slider.style.removeProperty('--slider-track');
+        updateSliderProgress(slider);
+        return;
       }
-      const highlightBand = normalizeTrackBand(card.dataset.activeColorBand || null);
-      applySliderTrackGradient(slider, normalizedSegments, highlightBand);
+      const highlightBand = card.dataset.activeColorBand || null;
+      sliderTrackController.setTrack(slider, attr, highlightBand);
       updateSliderProgress(slider);
     });
   };
