@@ -56,7 +56,7 @@ export const DEFAULT_TOP_K = 10;
 export const LOW_SEASON_COST_MULTIPLIER = 1.25;
 export const HIGH_SEASON_COST_MULTIPLIER = 0.75;
 export const SEASON_ORDER = ['spring', 'summer', 'autumn', 'winter'];
-const MAX_STATE_VISITS = 250000;
+const MAX_STATE_VISITS = 1000000;
 
 const SEASONAL_MULTIPLIERS = {
   spring: { malt: LOW_SEASON_COST_MULTIPLIER, fruit: HIGH_SEASON_COST_MULTIPLIER },
@@ -410,7 +410,109 @@ export const solveRecipe = (params) => {
     return { solutions: [], info: [translate('no_intervals')] };
   }
 
-  const orderedIndices = computeWeightedOrder(vectors);
+  const attrNeedSigns = attrs.map((_, attrIdx) => {
+    const intervals = perAttrLists[attrIdx];
+    if (!intervals || intervals.length === 0) {
+      return 0;
+    }
+    let minLower = Number.POSITIVE_INFINITY;
+    let maxUpper = Number.NEGATIVE_INFINITY;
+    for (const interval of intervals) {
+      if (!interval) continue;
+      const [lo, hi] = interval;
+      if (Number.isFinite(lo) && lo < minLower) {
+        minLower = lo;
+      }
+      if (Number.isFinite(hi) && hi > maxUpper) {
+        maxUpper = hi;
+      }
+    }
+    if (!Number.isFinite(minLower) && !Number.isFinite(maxUpper)) {
+      return 0;
+    }
+    const baseline = totalsAfterMin[attrIdx];
+    if (Number.isFinite(minLower) && baseline < minLower - EPS) {
+      return 1;
+    }
+    if (Number.isFinite(maxUpper) && baseline > maxUpper + EPS) {
+      return -1;
+    }
+    return 0;
+  });
+
+  const weightedOrder = computeWeightedOrder(vectors);
+  const weightedRank = new Map();
+  weightedOrder.forEach((idx, rank) => {
+    weightedRank.set(idx, rank);
+  });
+  const requiredIndices = [];
+  const optionalEntries = [];
+  for (const idx of weightedOrder) {
+    if (minCounts[idx] > 0) {
+      requiredIndices.push(idx);
+    } else {
+      const vec = vectors[idx] || [];
+      let aligned = 0;
+      let opposing = 0;
+      let neutral = 0;
+      for (let k = 0; k < attrs.length; k += 1) {
+        const need = attrNeedSigns[k];
+        const coef = Number(vec[k]) || 0;
+        if (need > 0) {
+          if (coef > 0) {
+            aligned += coef;
+          } else if (coef < 0) {
+            opposing += Math.abs(coef);
+          }
+        } else if (need < 0) {
+          if (coef < 0) {
+            aligned += Math.abs(coef);
+          } else if (coef > 0) {
+            opposing += coef;
+          }
+        } else {
+          neutral += Math.abs(coef);
+        }
+      }
+      const cost = baseCosts[idx] > 0 ? baseCosts[idx] : 0;
+      const efficiency = aligned > 0 ? (cost > 0 ? aligned / cost : aligned) : 0;
+      optionalEntries.push({
+        idx,
+        aligned,
+        opposing,
+        neutral,
+        efficiency,
+        cost,
+        rank: weightedRank.get(idx) || 0,
+      });
+    }
+  }
+
+  optionalEntries.sort((a, b) => {
+    if (a.aligned > 0 || b.aligned > 0) {
+      if (a.aligned !== b.aligned) {
+        return b.aligned - a.aligned;
+      }
+      if (a.efficiency !== b.efficiency) {
+        return b.efficiency - a.efficiency;
+      }
+      if (a.opposing !== b.opposing) {
+        return a.opposing - b.opposing;
+      }
+    }
+    if (a.opposing !== b.opposing) {
+      return a.opposing - b.opposing;
+    }
+    if (a.neutral !== b.neutral) {
+      return a.neutral - b.neutral;
+    }
+    if (a.cost !== b.cost) {
+      return a.cost - b.cost;
+    }
+    return a.rank - b.rank;
+  });
+
+  const orderedIndices = requiredIndices.concat(optionalEntries.map((entry) => entry.idx));
   const orderedVectors = orderedIndices.map((idx) => vectors[idx]);
   const orderedMinCounts = orderedIndices.map((idx) => minCounts[idx]);
   const orderedMaxCounts = orderedIndices.map((idx) => perIngredientCeilValues[idx]);
