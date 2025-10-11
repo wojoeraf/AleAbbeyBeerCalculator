@@ -180,9 +180,9 @@ export const renderResultCard = (solution, dictionaries = {}) => {
       summaryList.appendChild(dd);
     };
 
-    if (baseCost !== null) {
-      appendSummaryItem('results_cost_base', formatCost(baseCost));
-    }
+    // if (baseCost !== null) {
+    //   appendSummaryItem('results_cost_base', formatCost(baseCost));
+    // }
     if (Number.isFinite(averageCost)) {
       appendSummaryItem('results_cost_average', formatCost(averageCost));
     }
