@@ -1,5 +1,5 @@
 import {
-  solveRecipe,
+  solveRecipe as solveRecipeSync,
   EPS,
   getIngredientId,
   DEFAULT_TOP_K,
@@ -9,11 +9,104 @@ import {
 import { initUIState } from './ui-state.js';
 import { renderResults, renderDebug } from './render.js';
 import { initSlider } from './slider.js';
+import { formatTemplate, createTranslator } from './i18n.js';
 
 let ingredientList = [];
 let ingredientIdToIndexMap = new Map();
 let ingredientIdToDisplayNameMap = new Map();
 let ingredientCategoryIdToElementsMap = new Map();
+
+const WORKER_MIN_INGREDIENTS = 80;
+
+const createSolverWorkerController = (initPayload) => {
+  if (typeof window === 'undefined' || typeof Worker === 'undefined') {
+    return null;
+  }
+
+  let worker;
+  try {
+    worker = new Worker(new URL('./solver-worker.js', import.meta.url), { type: 'module' });
+  } catch (error) {
+    console.warn('Failed to create solver worker', error);
+    return null;
+  }
+
+  const pending = new Map();
+  let nextId = 1;
+
+  const rejectAll = (error) => {
+    const reason = error instanceof Error ? error : new Error(String(error || 'Worker error'));
+    pending.forEach(({ reject }) => {
+      try {
+        reject(reason);
+      } catch (rejectError) {
+        console.error('Solver worker rejection failed', rejectError);
+      }
+    });
+    pending.clear();
+  };
+
+  worker.addEventListener('message', (event) => {
+    const data = event.data || {};
+    const { id, type, payload, error } = data;
+    if (id === undefined || id === null || !pending.has(id)) {
+      return;
+    }
+    const { resolve, reject } = pending.get(id);
+    pending.delete(id);
+    if (type === 'error') {
+      reject(error instanceof Error ? error : new Error(String((error && error.message) || error || 'Worker error')));
+    } else {
+      resolve(payload);
+    }
+  });
+
+  worker.addEventListener('error', (event) => {
+    rejectAll(event?.error || event?.message || 'Worker runtime error');
+  });
+
+  worker.addEventListener('messageerror', (event) => {
+    rejectAll(event?.data || 'Worker message error');
+  });
+
+  const post = (type, payload) => {
+    if (!worker) {
+      return Promise.reject(new Error('Worker not available'));
+    }
+    const id = nextId;
+    nextId += 1;
+    const message = { id, type, payload };
+    const promise = new Promise((resolve, reject) => {
+      pending.set(id, { resolve, reject });
+    });
+    try {
+      worker.postMessage(message);
+    } catch (error) {
+      pending.delete(id);
+      return Promise.reject(error);
+    }
+    return promise;
+  };
+
+  const ready = post('init', initPayload).catch((error) => {
+    rejectAll(error);
+    return Promise.reject(error);
+  });
+
+  const solve = (params) => ready.then(() => post('solve', { params }));
+
+  return {
+    ready,
+    solve,
+    terminate: () => {
+      if (worker) {
+        worker.terminate();
+        worker = null;
+      }
+      rejectAll(new Error('Worker terminated'));
+    },
+  };
+};
 
 const firstStringValue = (values) => {
   for (const value of values) {
@@ -100,20 +193,6 @@ const parseJSONScript = (id, fallback) => {
   }
 };
 
-const formatTemplate = (template, replacements = {}) => {
-  if (typeof template !== 'string') return template;
-  return template.replace(/\{(\w+)\}/g, (match, key) => {
-    if (Object.prototype.hasOwnProperty.call(replacements, key)) {
-      const value = replacements[key];
-      if (value === null || value === undefined) {
-        return '';
-      }
-      return String(value);
-    }
-    return match;
-  });
-};
-
 const initSolver = () => {
   const i18nData = parseJSONScript('i18n-data', {});
   const styleMinMap = parseJSONScript('style-min-data', {});
@@ -160,15 +239,28 @@ const initSolver = () => {
 
   buildIngredientCaches(ingredients, ingredientNames, currentLang);
 
-  const translate = (key, replacements = {}) => {
-    if (typeof messages[key] === 'string') {
-      return formatTemplate(messages[key], replacements);
+  const translate = createTranslator(messages, uiStrings);
+
+  let workerController = null;
+  if (Array.isArray(ingredients) && ingredients.length >= WORKER_MIN_INGREDIENTS) {
+    workerController = createSolverWorkerController({
+      attrs: ATTRS,
+      styles: stylesData,
+      ingredients,
+      messages,
+      uiStrings,
+      styleNameMap,
+    });
+    if (workerController) {
+      workerController.ready.catch((error) => {
+        console.warn('Solver worker initialization failed; falling back to main thread', error);
+        if (workerController) {
+          workerController.terminate();
+          workerController = null;
+        }
+      });
     }
-    if (typeof uiStrings[key] === 'string') {
-      return formatTemplate(uiStrings[key], replacements);
-    }
-    return key;
-  };
+  }
 
   const displayIngredientName = (id) => {
     if (!id) {
@@ -189,6 +281,15 @@ const initSolver = () => {
     }
     return styleNameMap[id] || id;
   };
+
+  const runSolveOnMainThread = (request) => solveRecipeSync({
+    ...request,
+    attrs: ATTRS,
+    styles: stylesData,
+    ingredients,
+    translate,
+    displayStyleName,
+  });
 
   const {
     attrCards,
@@ -1519,20 +1620,16 @@ const initSolver = () => {
             debugLines.push(translate('debug_optional', { list: optionalList.join(', ') }));
           }
 
-          const { solutions, info } = solveRecipe({
+          const workerRequest = {
             styleName,
             numericIntervals,
             bandPreferences,
             totalCap,
             perCap,
             extraMinCounts,
-            allowedIngredientIds: selectedOptional,
-            attrs: ATTRS,
-            styles: stylesData,
-            ingredients,
-            translate,
-            displayStyleName,
-          });
+            allowedIngredientIds: Array.from(selectedOptional),
+            topK: DEFAULT_TOP_K,
+          };
 
           const summaryLines = [];
           if (styleName) {
@@ -1540,12 +1637,45 @@ const initSolver = () => {
           }
           summaryLines.push(translate('summary_caps', { total: totalCap, per: perCap }));
 
-          renderSolutions(solutions, summaryLines, info);
-          renderDebug(debugLines);
+          const solvePromise = workerController
+            ? workerController.solve(workerRequest).catch((error) => {
+              console.warn('Solver worker solve failed; falling back to main thread', error);
+              if (workerController) {
+                workerController.terminate();
+                workerController = null;
+              }
+              return runSolveOnMainThread({
+                ...workerRequest,
+                allowedIngredientIds: selectedOptional,
+              });
+            })
+            : Promise.resolve(
+              runSolveOnMainThread({
+                ...workerRequest,
+                allowedIngredientIds: selectedOptional,
+              }),
+            );
+
+          solvePromise
+            .then(({ solutions, info }) => {
+              renderSolutions(solutions, summaryLines, info);
+              renderDebug(debugLines);
+            })
+            .catch((error) => {
+              console.error('Recipe calculation failed', error);
+              renderSolutions([], [], [translate('solver_failed')]);
+              renderDebug(debugLines);
+            })
+            .finally(() => {
+              setLoadingState(false);
+            });
+          return;
         } catch (error) {
           console.error('Recipe calculation failed', error);
           renderSolutions([], [], [translate('solver_failed')]);
           renderDebug(debugLines);
+          setLoadingState(false);
+          return;
         }
       });
     });
