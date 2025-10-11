@@ -79,7 +79,11 @@ def convert_official_payload(payload, attrs):
                 value = float(item.get(field, 0) or 0)
             except (TypeError, ValueError):
                 value = 0.0
-            vec.append(value)
+            # Official payload encodes the attributes on a 0-20 scale while the
+            # solver expects the handcrafted data's 0-2 range. Scale the
+            # imported values down so the existing style thresholds remain
+            # meaningful.
+            vec.append(value * 0.1)
 
         try:
             base_cost = float(item.get("cost", 0) or 0)
