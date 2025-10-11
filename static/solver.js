@@ -1374,7 +1374,7 @@ const initSolver = () => {
     return value.toFixed(2);
   };
 
-  const MAX_RESULT_DISPLAY_VALUE = 12;
+  const MAX_RESULT_DISPLAY_VALUE = 10.90;
 
   const formatResultValue = (value) => {
     if (!Number.isFinite(value)) {
