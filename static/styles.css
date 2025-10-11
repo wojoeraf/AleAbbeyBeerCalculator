@@ -1032,7 +1032,7 @@ input[type="number"]:focus {
 
 .result-cost-chart-bar-wrapper {
   width: 100%;
-  min-height: 60px;
+  height: 140px;
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -1067,6 +1067,10 @@ input[type="number"]:focus {
 
   .result-cost-chart-column {
     min-width: 40px;
+  }
+
+  .result-cost-chart-bar-wrapper {
+    height: 110px;
   }
 }
 
