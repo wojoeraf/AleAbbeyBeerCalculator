@@ -1,5 +1,6 @@
 import json
 import math
+import re
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Dict, Optional, Set
@@ -21,7 +22,102 @@ DEFAULT_LANG = "en" if "en" in TRANSLATIONS else next(iter(TRANSLATIONS))
 
 ATTRS = ["taste", "color", "strength", "foam"]
 
-RAW_INGREDIENT_DATA = load_json("ingredients.json")
+RAW_INGREDIENT_DATA = load_json("ingredients_official.json")
+
+
+def slugify(value: str, fallback: str = "") -> str:
+    if not isinstance(value, str):
+        value = str(value or "")
+    cleaned = re.sub(r"[^a-zA-Z0-9]+", "_", value).strip("_")
+    cleaned = cleaned.lower()
+    if cleaned:
+        return cleaned
+    cleaned = re.sub(r"[^a-z0-9]+", "_", fallback.lower()).strip("_")
+    return cleaned or "ingredient"
+
+
+def convert_official_payload(payload, attrs):
+    if not isinstance(payload, list):
+        return payload
+
+    attr_field_map = {
+        "taste": "flavor",
+        "color": "color",
+        "strength": "strength",
+        "foam": "foam",
+    }
+
+    categories = {}
+    seen_ids = set()
+
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+
+        name = item.get("name")
+        if not isinstance(name, str) or not name.strip():
+            continue
+        name = name.strip()
+
+        preferred_id_source = item.get("id") or name
+        candidate_id = slugify(str(preferred_id_source), fallback=name)
+        ingredient_id = candidate_id
+        suffix = 2
+        while ingredient_id in seen_ids:
+            ingredient_id = f"{candidate_id}_{suffix}"
+            suffix += 1
+        seen_ids.add(ingredient_id)
+
+        category_label = item.get("sub_category") or item.get("category") or "Misc"
+        category_label = str(category_label)
+        category_id = slugify(category_label, fallback="category")
+
+        vec = []
+        for attr in attrs:
+            field = attr_field_map.get(attr, attr)
+            try:
+                value = float(item.get(field, 0) or 0)
+            except (TypeError, ValueError):
+                value = 0.0
+            vec.append(value)
+
+        try:
+            base_cost = float(item.get("cost", 0) or 0)
+        except (TypeError, ValueError):
+            base_cost = 0.0
+
+        seasonal_source = str(item.get("sub_category") or item.get("category") or "")
+        seasonal_type = seasonal_source.lower()
+        if "malt" in seasonal_type:
+            seasonal_type = "malt"
+        elif "hop" in seasonal_type:
+            seasonal_type = "hops"
+        elif "fruit" in seasonal_type:
+            seasonal_type = "fruit"
+        else:
+            seasonal_type = seasonal_type.strip().replace(" ", "_")
+
+        category_entry = categories.setdefault(
+            category_id,
+            {
+                "id": category_id,
+                "names": {"en": category_label},
+                "ingredients": [],
+            },
+        )
+
+        category_entry["ingredients"].append(
+            {
+                "id": ingredient_id,
+                "names": {"en": name},
+                "vec": vec,
+                "cost": base_cost,
+                "seasonal_type": seasonal_type,
+                "category_label": category_label,
+            }
+        )
+
+    return {"categories": list(categories.values())}
 
 
 def get_localized_name(names, lang: str) -> str:
@@ -147,6 +243,10 @@ def normalize_ingredients(payload, attrs):
                 "category": category_id,
             }
 
+            for extra_key in ("cost", "seasonal_type", "category_label"):
+                if extra_key in ingredient:
+                    canonical_entry[extra_key] = ingredient[extra_key]
+
             category_entry["ingredients"].append(canonical_entry)
             canonical_list.append(canonical_entry)
             seen_ids.add(ing_id)
@@ -165,6 +265,8 @@ def normalize_ingredients(payload, attrs):
 
     return normalized_categories, canonical_list
 
+
+RAW_INGREDIENT_DATA = convert_official_payload(RAW_INGREDIENT_DATA, ATTRS)
 
 INGREDIENT_CATEGORIES, INGREDIENTS = normalize_ingredients(RAW_INGREDIENT_DATA, ATTRS)
 INGREDIENT_MAP = {ing["id"]: ing for ing in INGREDIENTS}
@@ -311,6 +413,8 @@ def index():
                         or ing_entry.get("name")
                         or ing_entry["id"],
                         "vec": ing_entry.get("vec", []),
+                        "cost": float(ing_entry.get("cost") or 0),
+                        "seasonal_type": ing_entry.get("seasonal_type"),
                     }
                 )
             if entries:
@@ -332,6 +436,8 @@ def index():
                         "id": ing["id"],
                         "name": get_localized_name(ing.get("names", {}), lang),
                         "vec": ing.get("vec", []),
+                        "cost": float(ing.get("cost") or 0),
+                        "seasonal_type": ing.get("seasonal_type"),
                     }
                     for ing in INGREDIENTS
                 ],

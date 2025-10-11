@@ -71,6 +71,9 @@ export const renderResultCard = (solution, dictionaries = {}) => {
     translate = (key) => key,
     displayIngredientName = (value) => value,
     ATTRS = [],
+    formatCost = (value) => String(value),
+    seasonOrder = [],
+    seasonLabels = {},
   } = dictionaries;
 
   const index = typeof dictionaries.index === 'number' ? dictionaries.index : 0;
@@ -85,9 +88,23 @@ export const renderResultCard = (solution, dictionaries = {}) => {
   titleRow.className = 'result-card-title-row';
 
   const heading = document.createElement('h3');
-  const sum = Number.isFinite(solution && solution.sum) ? solution.sum : 0;
-  heading.textContent = translate('solutions_total', { count: sum });
+  const totalCost = Number.isFinite(solution && solution.totalCost)
+    ? solution.totalCost
+    : Number.isFinite(solution && solution.averageCost)
+      ? solution.averageCost
+      : 0;
+  heading.textContent = translate('solutions_cost_heading', { value: formatCost(totalCost) });
   titleRow.appendChild(heading);
+
+  const totalUnits = Number.isFinite(solution && solution.totalUnits)
+    ? solution.totalUnits
+    : Number.isFinite(solution && solution.sum)
+      ? solution.sum
+      : 0;
+  const subtitle = document.createElement('span');
+  subtitle.className = 'result-card-subtitle';
+  subtitle.textContent = translate('solutions_total', { count: totalUnits });
+  titleRow.appendChild(subtitle);
 
   const bandContainer = document.createElement('div');
   bandContainer.className = 'result-band-pills result-band-pills--inline';
@@ -127,6 +144,119 @@ export const renderResultCard = (solution, dictionaries = {}) => {
   });
   mixSection.appendChild(chipsContainer);
   card.appendChild(mixSection);
+
+  const baseCost = Number.isFinite(solution && solution.baseCost) ? solution.baseCost : null;
+  const averageCost = Number.isFinite(solution && solution.averageCost)
+    ? solution.averageCost
+    : totalCost;
+  const minCost = Number.isFinite(solution && solution.minCost) ? solution.minCost : averageCost;
+  const maxCost = Number.isFinite(solution && solution.maxCost) ? solution.maxCost : averageCost;
+  const seasonalCosts = solution && typeof solution.seasonalCosts === 'object' ? solution.seasonalCosts : {};
+
+  if (
+    baseCost !== null
+    || Number.isFinite(averageCost)
+    || Object.keys(seasonalCosts).length > 0
+  ) {
+    const costSection = document.createElement('div');
+    costSection.className = 'result-cost';
+
+    const costTitle = document.createElement('p');
+    costTitle.className = 'result-section-title';
+    costTitle.textContent = translate('results_cost_title');
+    costSection.appendChild(costTitle);
+
+    const summaryList = document.createElement('dl');
+    summaryList.className = 'result-cost-summary';
+
+    const appendSummaryItem = (labelKey, valueText) => {
+      if (!valueText) return;
+      const label = translate(labelKey);
+      const dt = document.createElement('dt');
+      dt.textContent = typeof label === 'string' ? label : labelKey;
+      const dd = document.createElement('dd');
+      dd.textContent = valueText;
+      summaryList.appendChild(dt);
+      summaryList.appendChild(dd);
+    };
+
+    if (baseCost !== null) {
+      appendSummaryItem('results_cost_base', formatCost(baseCost));
+    }
+    if (Number.isFinite(averageCost)) {
+      appendSummaryItem('results_cost_average', formatCost(averageCost));
+    }
+    if (Number.isFinite(minCost) && Number.isFinite(maxCost)) {
+      appendSummaryItem('results_cost_range', `${formatCost(minCost)} – ${formatCost(maxCost)}`);
+    }
+
+    if (summaryList.childElementCount > 0) {
+      costSection.appendChild(summaryList);
+    }
+
+    const orderedSeasons = Array.isArray(seasonOrder) && seasonOrder.length
+      ? seasonOrder
+      : Object.keys(seasonalCosts);
+    const seasonValues = orderedSeasons.map((season) => Number(seasonalCosts[season]));
+    const hasSeasonData = seasonValues.some((val) => Number.isFinite(val));
+    if (hasSeasonData) {
+      const chartTitle = document.createElement('p');
+      chartTitle.className = 'result-cost-chart-title';
+      chartTitle.textContent = translate('results_cost_chart');
+      costSection.appendChild(chartTitle);
+
+      const chart = document.createElement('div');
+      chart.className = 'result-cost-chart';
+      const chartLabel = translate('results_cost_chart');
+      if (typeof chartLabel === 'string') {
+        chart.setAttribute('role', 'img');
+        chart.setAttribute('aria-label', chartLabel);
+      }
+
+      const maxValue = seasonValues.reduce((acc, val) => {
+        if (!Number.isFinite(val)) {
+          return acc;
+        }
+        return Math.max(acc, val);
+      }, 0);
+      const denominator = maxValue > 0 ? maxValue : 1;
+
+      orderedSeasons.forEach((season) => {
+        const value = Number(seasonalCosts[season]);
+        const column = document.createElement('div');
+        column.className = 'result-cost-chart-column';
+
+        const valueLabel = document.createElement('span');
+        valueLabel.className = 'result-cost-chart-value';
+        valueLabel.textContent = formatCost(value);
+        column.appendChild(valueLabel);
+
+        const barWrapper = document.createElement('div');
+        barWrapper.className = 'result-cost-chart-bar-wrapper';
+        const bar = document.createElement('div');
+        bar.className = 'result-cost-chart-bar';
+        const percent = Number.isFinite(value) ? Math.max(0, Math.min(1, value / denominator)) * 100 : 0;
+        bar.style.height = `${percent}%`;
+        const label = seasonLabels[season] || season;
+        bar.title = `${label}: ${formatCost(value)}`;
+        barWrapper.appendChild(bar);
+        column.appendChild(barWrapper);
+
+        const labelEl = document.createElement('span');
+        labelEl.className = 'result-cost-chart-label';
+        labelEl.textContent = label;
+        column.appendChild(labelEl);
+
+        chart.appendChild(column);
+      });
+
+      costSection.appendChild(chart);
+    }
+
+    if (summaryList.childElementCount > 0 || hasSeasonData) {
+      card.appendChild(costSection);
+    }
+  }
 
   const attrTitle = document.createElement('p');
   attrTitle.className = 'result-section-title';
@@ -177,6 +307,9 @@ export const renderResults = (state, dictionaries) => {
     sanitizeBand = (value) => value,
     formatResultValue = (value) => String(value),
     clamp = (value) => value,
+    formatCost = (value) => String(value),
+    seasonOrder = [],
+    seasonLabels = {},
   } = cachedContext;
 
   const {
@@ -199,6 +332,70 @@ export const renderResults = (state, dictionaries) => {
 
   if (!resultsSection) {
     return { cards: [] };
+  }
+
+  const summaryLines = Array.isArray(summary) ? [...summary] : [];
+  if (Array.isArray(solutions) && solutions.length > 0) {
+    const topSolution = solutions[0] || {};
+    const averageCost = Number.isFinite(topSolution && topSolution.averageCost)
+      ? topSolution.averageCost
+      : Number.isFinite(topSolution && topSolution.totalCost)
+        ? topSolution.totalCost
+        : null;
+    if (Number.isFinite(averageCost)) {
+      summaryLines.push(translate('summary_average_cost', { value: formatCost(averageCost) }));
+    }
+    const minCost = Number.isFinite(topSolution && topSolution.minCost) ? topSolution.minCost : averageCost;
+    const maxCost = Number.isFinite(topSolution && topSolution.maxCost) ? topSolution.maxCost : averageCost;
+    if (Number.isFinite(minCost) && Number.isFinite(maxCost)) {
+      summaryLines.push(
+        translate('summary_cost_range', {
+          min: formatCost(minCost),
+          max: formatCost(maxCost),
+        }),
+      );
+    }
+    const seasonalCosts =
+      topSolution && typeof topSolution.seasonalCosts === 'object' ? topSolution.seasonalCosts : {};
+    const orderedSeasons = Array.isArray(seasonOrder) && seasonOrder.length
+      ? seasonOrder
+      : Object.keys(seasonalCosts);
+    let cheapestSeason = null;
+    let cheapestValue = Infinity;
+    let priciestSeason = null;
+    let priciestValue = -Infinity;
+    orderedSeasons.forEach((season) => {
+      const value = Number(seasonalCosts[season]);
+      if (!Number.isFinite(value)) {
+        return;
+      }
+      if (value < cheapestValue) {
+        cheapestValue = value;
+        cheapestSeason = season;
+      }
+      if (value > priciestValue) {
+        priciestValue = value;
+        priciestSeason = season;
+      }
+    });
+    if (cheapestSeason) {
+      const label = seasonLabels[cheapestSeason] || cheapestSeason;
+      summaryLines.push(
+        translate('summary_cheapest_season', {
+          season: label,
+          value: formatCost(cheapestValue),
+        }),
+      );
+    }
+    if (priciestSeason && priciestSeason !== cheapestSeason) {
+      const label = seasonLabels[priciestSeason] || priciestSeason;
+      summaryLines.push(
+        translate('summary_most_expensive_season', {
+          season: label,
+          value: formatCost(priciestValue),
+        }),
+      );
+    }
   }
 
   resultsSection.hidden = false;
@@ -251,9 +448,9 @@ export const renderResults = (state, dictionaries) => {
   }
 
   if (resultsSummary) {
-    if (Array.isArray(summary) && summary.length) {
+    if (summaryLines.length) {
       resultsSummary.hidden = false;
-      resultsSummary.textContent = summary.join(' • ');
+      resultsSummary.textContent = summaryLines.join(' • ');
     } else {
       resultsSummary.hidden = true;
       resultsSummary.textContent = '';

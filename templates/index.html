@@ -141,12 +141,13 @@
                                 <th>{{ ui.table_color }}</th>
                                 <th>{{ ui.table_strength }}</th>
                                 <th>{{ ui.table_foam }}</th>
+                                <th>{{ ui.table_cost }}</th>
                             </tr>
                             </thead>
                             {% for category in ingredient_categories %}
                                 <tbody data-category-header data-category-id="{{ category.id }}">
                                     <tr class="ingredient-category-header">
-                                        <td colspan="6">
+                                        <td colspan="7">
                                             <button type="button" class="category-toggle" data-category-toggle
                                                     data-category-id="{{ category.id }}" aria-expanded="true">
                                                 <span class="category-toggle-icon" aria-hidden="true"></span>
@@ -196,6 +197,7 @@
                                             <td data-label="{{ ui.table_color }}" data-attr-cell>{{ '%.1f'|format(ing.vec[1]) }}</td>
                                             <td data-label="{{ ui.table_strength }}" data-attr-cell>{{ '%.1f'|format(ing.vec[2]) }}</td>
                                             <td data-label="{{ ui.table_foam }}" data-attr-cell>{{ '%.1f'|format(ing.vec[3]) }}</td>
+                                            <td data-label="{{ ui.table_cost }}" data-cost-cell>{{ '%.2f'|format(ing.cost) }}</td>
                                         </tr>
                                     {% endfor %}
                                 </tbody>
