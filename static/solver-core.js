@@ -290,16 +290,16 @@ export const solveRecipe = (params) => {
   const remainingCap = Math.max(0, adjustedTotalCap - minSum);
   let allowedSet = null;
   if (allowedIngredientIds instanceof Set) {
-    allowedSet = allowedIngredientIds.size > 0 ? allowedIngredientIds : null;
+    allowedSet = new Set(allowedIngredientIds);
   } else if (Array.isArray(allowedIngredientIds)) {
-    allowedSet = allowedIngredientIds.length > 0 ? new Set(allowedIngredientIds) : null;
+    allowedSet = new Set(allowedIngredientIds);
   }
 
   const perIngredientCeilValues = new Array(n).fill(0);
   for (let idx = 0; idx < n; idx += 1) {
     const id = getIngredientId(ingredients[idx], idx);
     const required = minCounts[idx] > 0;
-    const optionalAllowed = !allowedSet || allowedSet.has(id);
+    const optionalAllowed = allowedSet === null || allowedSet.has(id);
     const isAllowed = required || optionalAllowed;
     perIngredientCeilValues[idx] = isAllowed ? Math.min(perCap, adjustedTotalCap) : minCounts[idx];
   }

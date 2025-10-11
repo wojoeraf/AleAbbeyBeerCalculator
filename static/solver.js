@@ -516,7 +516,7 @@ const initSolver = () => {
     const adjustedTotalCap = Math.max(totalCap, minSum);
     const remainingCap = Math.max(0, adjustedTotalCap - minSum);
     const allowedSet = allowedIngredientIds instanceof Set
-      ? allowedIngredientIds
+      ? new Set(allowedIngredientIds)
       : Array.isArray(allowedIngredientIds)
         ? new Set(allowedIngredientIds)
         : null;
@@ -525,7 +525,7 @@ const initSolver = () => {
     for (let idx = 0; idx < n; idx += 1) {
       const id = getIngredientId(ingredients[idx], idx);
       const required = minCounts[idx] > 0;
-      const optionalAllowed = !allowedSet || allowedSet.has(id);
+      const optionalAllowed = allowedSet === null || allowedSet.has(id);
       const isAllowed = required || optionalAllowed;
       perIngredientCeilValues[idx] = isAllowed ? Math.min(perCap, adjustedTotalCap) : minCounts[idx];
     }
