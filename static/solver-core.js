@@ -287,11 +287,12 @@ export const solveRecipe = (params) => {
   const minSum = minCounts.reduce((acc, val) => acc + val, 0);
   const adjustedTotalCap = Math.max(totalCap, minSum);
   const remainingCap = Math.max(0, adjustedTotalCap - minSum);
-  const allowedSet = allowedIngredientIds instanceof Set
-    ? allowedIngredientIds
-    : Array.isArray(allowedIngredientIds)
-      ? new Set(allowedIngredientIds)
-      : null;
+  let allowedSet = null;
+  if (allowedIngredientIds instanceof Set) {
+    allowedSet = allowedIngredientIds.size > 0 ? allowedIngredientIds : null;
+  } else if (Array.isArray(allowedIngredientIds)) {
+    allowedSet = allowedIngredientIds.length > 0 ? new Set(allowedIngredientIds) : null;
+  }
 
   const perIngredientCeilValues = new Array(n).fill(0);
   for (let idx = 0; idx < n; idx += 1) {
