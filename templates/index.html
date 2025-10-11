@@ -122,8 +122,14 @@
                     </div>
                 </div>
                 <aside class="ingredients-column">
-                    <div class="column-header">
+                    <div class="column-header ingredients-header">
                         <h3 class="section-title">{{ ui.section_ingredients }}</h3>
+                        <button type="button" class="btn-secondary optional-toggle"
+                                data-toggle-optional
+                                data-label-select="{{ ui.button_optional_all }}"
+                                data-label-clear="{{ ui.button_optional_none }}">
+                            <span data-toggle-optional-label>{{ ui.button_optional_all }}</span>
+                        </button>
                     </div>
                     <div class="mobile-attr-toggle" data-attribute-toggle hidden>
                         <label>
@@ -135,7 +141,8 @@
                         <table class="ingredients-table ingredients-table--compact">
                             <thead>
                             <tr>
-                                <th class="col-checkbox"></th>
+                                <th class="col-checkbox">{{ ui.table_include }}</th>
+                                <th class="col-optional">{{ ui.table_optional }}</th>
                                 <th>{{ ui.table_name }}</th>
                                 <th>{{ ui.table_taste }}</th>
                                 <th>{{ ui.table_color }}</th>
@@ -163,17 +170,31 @@
                                         {% set required_count = style_mins.get(ing.id, 0) %}
                                         {% set is_required = required_count > 0 %}
                                         {% set is_locked = is_required %}
-                                        {% set is_checked = is_locked or ing.id in selected_optional %}
+                                        {% set is_checked = is_locked or ing.id in selected_required %}
+                                        {% set is_optional = ing.id in selected_optional %}
                                         <tr class="{% if is_locked %}ingredient-locked{% endif %}" data-ingredient-row
                                             data-ingredient-id="{{ ing.id }}">
                                             <td class="checkbox-cell">
                                                 <label class="ingredient-option"
                                                        {% if is_locked %}title="{{ ui.tooltip_required }}"{% endif %}>
-                                                    <input type="checkbox" name="optional_ingredients" value="{{ ing.id }}"
+                                                    <input type="checkbox" name="selected_ingredients" value="{{ ing.id }}"
+                                                           aria-label="{{ ui.label_include }}"
                                                            {% if is_checked %}checked{% endif %}
                                                            {% if is_locked %}disabled{% endif %}
-                                                           data-user-selected="{{ 'true' if ing.id in selected_optional else 'false' }}">
+                                                           data-user-selected="{{ 'true' if ing.id in selected_required else 'false' }}">
                                                     <span class="checkbox-visual"></span>
+                                                    <span class="sr-only">{{ ui.label_include }}</span>
+                                                </label>
+                                            </td>
+                                            <td class="optional-cell">
+                                                <label class="ingredient-optional">
+                                                    <input type="checkbox" name="optional_ingredients" value="{{ ing.id }}"
+                                                           aria-label="{{ ui.label_optional }}"
+                                                           {% if is_optional %}checked{% endif %}
+                                                           {% if is_locked %}disabled{% endif %}
+                                                           data-user-optional="{{ 'true' if is_optional else 'false' }}">
+                                                    <span class="checkbox-visual"></span>
+                                                    <span class="sr-only">{{ ui.label_optional }}</span>
                                                 </label>
                                             </td>
                                             <td class="ingredient-name-cell" data-label="{{ ui.table_name }}">

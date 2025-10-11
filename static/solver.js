@@ -318,6 +318,7 @@ const initSolver = () => {
     ingredientRows,
     form,
     ingredientsWrapper,
+    optionalToggle: optionalToggleBtn,
     categoryBodies,
     categoryHeaders,
     categoryToggles,
@@ -849,6 +850,34 @@ const initSolver = () => {
     }
   };
 
+  const getOptionalCheckboxes = () =>
+    ingredientRows
+      .map((row) => row.querySelector('input[type="checkbox"][name="optional_ingredients"]'))
+      .filter((checkbox) => checkbox && typeof checkbox.checked === 'boolean');
+
+  const getEnabledOptionalCheckboxes = () =>
+    getOptionalCheckboxes().filter((checkbox) => !checkbox.disabled);
+
+  const updateOptionalToggleState = () => {
+    if (!optionalToggleBtn) {
+      return;
+    }
+    const enabled = getEnabledOptionalCheckboxes();
+    const allChecked = enabled.length > 0 && enabled.every((checkbox) => checkbox.checked);
+    const hasAny = enabled.some((checkbox) => checkbox.checked);
+    optionalToggleBtn.disabled = enabled.length === 0;
+    const labelEl = optionalToggleBtn.querySelector('[data-toggle-optional-label]');
+    const selectLabel = optionalToggleBtn.dataset.labelSelect || optionalToggleBtn.textContent || '';
+    const clearLabel = optionalToggleBtn.dataset.labelClear || optionalToggleBtn.textContent || '';
+    const nextLabel = allChecked ? clearLabel : selectLabel;
+    if (labelEl) {
+      labelEl.textContent = nextLabel;
+    } else {
+      optionalToggleBtn.textContent = nextLabel;
+    }
+    optionalToggleBtn.dataset.state = allChecked ? 'all' : hasAny ? 'some' : 'none';
+  };
+
   const updateSubmitState = () => {
     if (!submitBtn) return;
     const hasConstraint = attrCards.some((card) => {
@@ -1271,14 +1300,32 @@ const initSolver = () => {
     });
   }
 
+  if (optionalToggleBtn) {
+    optionalToggleBtn.addEventListener('click', () => {
+      const enabledCheckboxes = getEnabledOptionalCheckboxes();
+      if (!enabledCheckboxes.length) {
+        return;
+      }
+      const shouldSelectAll = enabledCheckboxes.some((checkbox) => !checkbox.checked);
+      enabledCheckboxes.forEach((checkbox) => {
+        checkbox.checked = shouldSelectAll;
+        checkbox.dataset.userOptional = shouldSelectAll ? 'true' : 'false';
+      });
+      updateOptionalToggleState();
+    });
+  }
+
   if (ingredientsWrapper) {
     ingredientsWrapper.addEventListener('change', (event) => {
       const target = event.target;
       if (!target || target.type !== 'checkbox') {
         return;
       }
-      if (target.matches('input[type="checkbox"][name="optional_ingredients"]')) {
+      if (target.matches('input[type="checkbox"][name="selected_ingredients"]')) {
         target.dataset.userSelected = target.checked ? 'true' : 'false';
+      } else if (target.matches('input[type="checkbox"][name="optional_ingredients"]')) {
+        target.dataset.userOptional = target.checked ? 'true' : 'false';
+        updateOptionalToggleState();
       }
     });
 
@@ -1315,18 +1362,23 @@ const initSolver = () => {
 
     ingredientRows.forEach((row) => {
       const ingredientId = row.dataset.ingredientId;
-      const checkbox = row.querySelector('input[type="checkbox"]');
+      const includeCheckbox = row.querySelector('input[type="checkbox"][name="selected_ingredients"]');
+      const optionalCheckbox = row.querySelector('input[type="checkbox"][name="optional_ingredients"]');
       const label = row.querySelector('.ingredient-option');
       const badge = row.querySelector('[data-required-badge]');
-      if (!checkbox || !ingredientId) {
+      if (!includeCheckbox || !ingredientId) {
         return;
       }
       const requiredCount = activeMins[ingredientId] || 0;
       if (requiredCount > 0) {
         row.classList.add('ingredient-locked');
-        checkbox.checked = true;
-        checkbox.disabled = true;
-        checkbox.dataset.userSelected = 'false';
+        includeCheckbox.checked = true;
+        includeCheckbox.disabled = true;
+        includeCheckbox.dataset.userSelected = 'false';
+        if (optionalCheckbox) {
+          optionalCheckbox.checked = false;
+          optionalCheckbox.disabled = true;
+        }
         if (label && requiredTooltip) {
           label.title = requiredTooltip;
         }
@@ -1336,9 +1388,14 @@ const initSolver = () => {
         }
       } else {
         row.classList.remove('ingredient-locked');
-        checkbox.disabled = false;
-        const userSelected = checkbox.dataset.userSelected === 'true';
-        checkbox.checked = userSelected;
+        includeCheckbox.disabled = false;
+        const userSelected = includeCheckbox.dataset.userSelected === 'true';
+        includeCheckbox.checked = userSelected;
+        if (optionalCheckbox) {
+          optionalCheckbox.disabled = false;
+          const userOptional = optionalCheckbox.dataset.userOptional === 'true';
+          optionalCheckbox.checked = userOptional;
+        }
         if (label) {
           label.removeAttribute('title');
         }
@@ -1348,6 +1405,7 @@ const initSolver = () => {
         }
       }
     });
+    updateOptionalToggleState();
   };
 
   if (styleSelect) {
@@ -1358,6 +1416,7 @@ const initSolver = () => {
   }
 
   updateSubmitState();
+  updateOptionalToggleState();
 
   const parseFloatOrNull = (value) => {
     if (value === null || value === undefined) return null;
@@ -1625,11 +1684,15 @@ const initSolver = () => {
             debugIntervals[attr] = [debugLo, debugHi];
           });
 
-          const selectedOptional = new Set(formData.getAll('optional_ingredients'));
+          const selectedRequired = new Set(formData.getAll('selected_ingredients'));
+          const optionalPool = new Set(formData.getAll('optional_ingredients'));
           const extraMinCounts = {};
-          selectedOptional.forEach((id) => {
+          selectedRequired.forEach((id) => {
             extraMinCounts[id] = Math.max(extraMinCounts[id] || 0, 1);
           });
+
+          const allowedSet = new Set(optionalPool);
+          selectedRequired.forEach((id) => allowedSet.add(id));
 
           const styleLabel = displayStyleName(styleName) || translate('style_unknown');
           debugLines.push(translate('debug_style', { style: styleLabel }));
@@ -1649,8 +1712,14 @@ const initSolver = () => {
               }),
             );
           });
-          if (selectedOptional.size) {
-            const optionalList = Array.from(selectedOptional)
+          if (selectedRequired.size) {
+            const requiredList = Array.from(selectedRequired)
+              .map((id) => displayIngredientName(id))
+              .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+            debugLines.push(translate('debug_required', { list: requiredList.join(', ') }));
+          }
+          if (optionalPool.size) {
+            const optionalList = Array.from(optionalPool)
               .map((id) => displayIngredientName(id))
               .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
             debugLines.push(translate('debug_optional', { list: optionalList.join(', ') }));
@@ -1663,7 +1732,7 @@ const initSolver = () => {
             totalCap,
             perCap,
             extraMinCounts,
-            allowedIngredientIds: Array.from(selectedOptional),
+            allowedIngredientIds: Array.from(allowedSet),
             topK: DEFAULT_TOP_K,
           };
 
@@ -1682,13 +1751,13 @@ const initSolver = () => {
               }
               return runSolveOnMainThread({
                 ...workerRequest,
-                allowedIngredientIds: selectedOptional,
+                allowedIngredientIds: allowedSet,
               });
             })
             : Promise.resolve(
               runSolveOnMainThread({
                 ...workerRequest,
-                allowedIngredientIds: selectedOptional,
+                allowedIngredientIds: allowedSet,
               }),
             );
 

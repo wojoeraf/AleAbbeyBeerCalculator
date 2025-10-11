@@ -239,6 +239,16 @@ input[type="number"]:focus {
   flex-direction: column;
 }
 
+.ingredients-header {
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+}
+
+.ingredients-header .optional-toggle {
+  margin-left: auto;
+}
+
 .column-header .section-title {
   margin-bottom: 0;
 }
@@ -543,7 +553,13 @@ input[type="number"]:focus {
 }
 .ingredients-table--compact th.col-checkbox,
 .ingredients-table--compact td.checkbox-cell {
-  width: 44px;
+  width: 70px;
+  text-align: center;
+}
+
+.ingredients-table--compact th.col-optional,
+.ingredients-table--compact td.optional-cell {
+  width: 150px;
 }
 .hint {
   font-size: 0.8rem;
@@ -757,6 +773,18 @@ input[type="number"]:focus {
   font-size: 0.78rem;
   color: var(--text-muted);
 }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .ingredient-option {
   position: relative;
   display: inline-flex;
@@ -807,6 +835,63 @@ input[type="number"]:focus {
   border-color: rgba(15, 23, 42, 0.16);
   color: rgba(15, 23, 42, 0.45);
 }
+
+.ingredient-optional {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 22px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(15, 23, 42, 0.75);
+}
+
+.ingredient-optional input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+}
+
+.ingredient-optional input:not(:disabled) {
+  cursor: pointer;
+}
+
+.ingredient-optional input:disabled {
+  cursor: not-allowed;
+}
+
+.ingredient-optional .checkbox-visual {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+}
+
+.ingredient-optional input:focus-visible + .checkbox-visual {
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.25);
+}
+
+.ingredient-optional input:checked + .checkbox-visual {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.ingredient-optional input:checked + .checkbox-visual::after {
+  content: '✓';
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ingredient-optional input:disabled + .checkbox-visual {
+  background: rgba(15, 23, 42, 0.12);
+  border-color: rgba(15, 23, 42, 0.16);
+  color: rgba(15, 23, 42, 0.45);
+}
+
 .ingredient-name {
   display: inline-flex;
   align-items: center;
