@@ -322,6 +322,7 @@ def index():
         per_cap = 25
 
     constraints: Dict[str, SimpleNamespace] = {}
+    selected_required: Set[str] = set()
     selected_optional: Set[str] = set()
 
     def parse_and_clamp(raw: str) -> Optional[float]:
@@ -335,6 +336,9 @@ def index():
 
     if request.method == "POST":
         ingredient_ids = set(INGREDIENT_MAP.keys())
+        selected_required = {
+            name for name in request.form.getlist("selected_ingredients") if name in ingredient_ids
+        }
         selected_optional = {
             name for name in request.form.getlist("optional_ingredients") if name in ingredient_ids
         }
@@ -491,6 +495,7 @@ def index():
         style_mins=style_mins,
         style_min_map=style_min_map,
         has_active_constraints=has_active_constraints,
+        selected_required=selected_required,
         selected_optional=selected_optional,
         ingredients_data=INGREDIENTS,
         styles_data=BEER_STYLES,
