@@ -608,6 +608,18 @@ export const solveRecipe = (params) => {
   const infoMessages = [];
   let globalAborted = false;
 
+  const metrics = {
+    visitedStates: 0,
+    combinationsEvaluated: 0,
+    combinationsAccepted: 0,
+    combinationsRejected: 0,
+    duplicateCombosSkipped: 0,
+    prunedByMemo: 0,
+    prunedByBounds: 0,
+    prunedByCost: 0,
+    prunedByFeasibility: 0,
+  };
+
   const iterateBoxes = (attrIdx, lower, upper) => {
     if (attrIdx === attrs.length) {
       const lowerBounds = lower.slice();
@@ -622,6 +634,7 @@ export const solveRecipe = (params) => {
           return;
         }
         visitedStates += 1;
+        metrics.visitedStates += 1;
         if (visitedStates > MAX_STATE_VISITS) {
           aborted = true;
           globalAborted = true;
@@ -633,13 +646,16 @@ export const solveRecipe = (params) => {
         const memoKey = `${idx}|${used}|${roundedTotalsKey}`;
         const seenCost = stateCostMemo.get(memoKey);
         if (seenCost !== undefined && seenCost <= costSoFar + EPS) {
+          metrics.prunedByMemo += 1;
           return;
         }
         stateCostMemo.set(memoKey, costSoFar);
 
         if (idx >= n) {
+          metrics.combinationsEvaluated += 1;
           for (let k = 0; k < attrs.length; k += 1) {
             if (totals[k] < lowerBounds[k] - EPS || totals[k] > upperBounds[k] + EPS) {
+              metrics.combinationsRejected += 1;
               return;
             }
           }
@@ -655,6 +671,7 @@ export const solveRecipe = (params) => {
           });
           const key = countsOriginal.join('|');
           if (seenCombos.has(key)) {
+            metrics.duplicateCombosSkipped += 1;
             return;
           }
           seenCombos.add(key);
@@ -709,16 +726,19 @@ export const solveRecipe = (params) => {
             totalCost: averageCost,
           };
           insertSolution(solution);
+          metrics.combinationsAccepted += 1;
           return;
         }
 
         if (used + suffixMinCounts[idx] > adjustedTotalCap) {
+          metrics.prunedByBounds += 1;
           return;
         }
 
         if (bestCostBound !== Infinity) {
           const minimalCost = costSoFar + suffixMinBaseCost[idx];
           if (minimalCost > bestCostBound + EPS) {
+            metrics.prunedByCost += 1;
             return;
           }
         }
@@ -727,6 +747,7 @@ export const solveRecipe = (params) => {
           const minPossible = totals[k] + suffixLo[idx][k];
           const maxPossible = totals[k] + suffixHi[idx][k];
           if (maxPossible < lowerBounds[k] - EPS || minPossible > upperBounds[k] + EPS) {
+            metrics.prunedByFeasibility += 1;
             return;
           }
         }
@@ -735,6 +756,7 @@ export const solveRecipe = (params) => {
         const maxC = Math.min(orderedMaxCounts[idx], adjustedTotalCap - used - remainingMinAfter);
         const minC = orderedMinCounts[idx];
         if (maxC < minC) {
+          metrics.prunedByBounds += 1;
           return;
         }
 
@@ -793,6 +815,7 @@ export const solveRecipe = (params) => {
         localMinC = Math.max(localMinC, minC);
         localMaxC = Math.min(localMaxC, maxC);
         if (localMinC > localMaxC) {
+          metrics.prunedByBounds += 1;
           return;
         }
 
@@ -803,6 +826,7 @@ export const solveRecipe = (params) => {
           if (bestCostBound !== Infinity) {
             const minimalFutureCost = newCost + suffixMinBaseCost[idx + 1];
             if (minimalFutureCost > bestCostBound + EPS) {
+              metrics.prunedByCost += 1;
               continue;
             }
           }
@@ -820,6 +844,8 @@ export const solveRecipe = (params) => {
             if (aborted) {
               break;
             }
+          } else {
+            metrics.prunedByFeasibility += 1;
           }
         }
         counts[idx] = 0;
@@ -855,5 +881,20 @@ export const solveRecipe = (params) => {
 
   solutions.sort(compareSolutions);
 
-  return { solutions, info: infoMessages };
+  const combinationsDiscarded = Math.max(
+    0,
+    metrics.combinationsRejected + metrics.duplicateCombosSkipped,
+  );
+  const branchesPruned =
+    metrics.prunedByMemo + metrics.prunedByBounds + metrics.prunedByCost + metrics.prunedByFeasibility;
+
+  const metricsPayload = {
+    ...metrics,
+    combinationsDiscarded,
+    branchesPruned,
+    searchAborted: globalAborted,
+    solutionsReturned: solutions.length,
+  };
+
+  return { solutions, info: infoMessages, metrics: metricsPayload };
 };

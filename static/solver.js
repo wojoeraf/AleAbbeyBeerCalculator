@@ -254,6 +254,17 @@ const initSolver = () => {
     return costFormatter.format(num);
   };
 
+  const integerFormatter = new Intl.NumberFormat(currentLang, {
+    maximumFractionDigits: 0,
+  });
+  const formatInteger = (value) => {
+    const num = Number(value);
+    if (!Number.isFinite(num)) {
+      return '—';
+    }
+    return integerFormatter.format(num);
+  };
+
   const seasonLabels = {};
   SEASON_ORDER.forEach((season) => {
     const label = translate(`season_${season}`);
@@ -341,6 +352,7 @@ const initSolver = () => {
     solutions: null,
     summary: [],
     info: [],
+    metrics: {},
   };
 
   const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
@@ -1477,6 +1489,7 @@ const initSolver = () => {
         seasonOrder: SEASON_ORDER,
         seasonLabels,
         formatCost,
+        formatInteger,
       },
     );
 
@@ -1497,12 +1510,13 @@ const initSolver = () => {
 
   renderState();
 
-  const renderSolutions = (solutions, summaryLines, infoMessages) => {
+  const renderSolutions = (solutions, summaryLines, infoMessages, solverMetrics) => {
     renderState({
       loading: false,
       solutions: Array.isArray(solutions) ? [...solutions] : [],
       summary: Array.isArray(summaryLines) ? [...summaryLines] : [],
       info: Array.isArray(infoMessages) ? [...infoMessages] : [],
+      metrics: solverMetrics && typeof solverMetrics === 'object' ? { ...solverMetrics } : {},
     });
   };
 
@@ -1651,13 +1665,13 @@ const initSolver = () => {
             );
 
           solvePromise
-            .then(({ solutions, info }) => {
-              renderSolutions(solutions, summaryLines, info);
+            .then(({ solutions, info, metrics }) => {
+              renderSolutions(solutions, summaryLines, info, metrics);
               renderDebug(debugLines);
             })
             .catch((error) => {
               console.error('Recipe calculation failed', error);
-              renderSolutions([], [], [translate('solver_failed')]);
+              renderSolutions([], [], [translate('solver_failed')], {});
               renderDebug(debugLines);
             })
             .finally(() => {
@@ -1666,7 +1680,7 @@ const initSolver = () => {
           return;
         } catch (error) {
           console.error('Recipe calculation failed', error);
-          renderSolutions([], [], [translate('solver_failed')]);
+          renderSolutions([], [], [translate('solver_failed')], {});
           renderDebug(debugLines);
           setLoadingState(false);
           return;

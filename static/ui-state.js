@@ -40,6 +40,7 @@ export const initUIState = () => {
     resultsSummary: document.querySelector('[data-results-summary]'),
     resultsPlaceholder: document.querySelector('[data-results-placeholder]'),
     resultsLoading: document.querySelector('[data-results-loading]'),
+    resultsMetrics: document.querySelector('[data-results-metrics]'),
     resultsList: document.querySelector('[data-results-list]'),
     resultsEmpty: document.querySelector('[data-results-empty]'),
     statusMessage: document.querySelector('[data-status-message]'),

@@ -308,6 +308,7 @@ export const renderResults = (state, dictionaries) => {
     formatResultValue = (value) => String(value),
     clamp = (value) => value,
     formatCost = (value) => String(value),
+    formatInteger = (value) => String(value),
     seasonOrder = [],
     seasonLabels = {},
   } = cachedContext;
@@ -317,6 +318,7 @@ export const renderResults = (state, dictionaries) => {
     solutions = null,
     summary = [],
     info = [],
+    metrics = {},
   } = state || {};
 
   const {
@@ -327,6 +329,7 @@ export const renderResults = (state, dictionaries) => {
     resultsLoading,
     resultsEmpty,
     statusMessage,
+    resultsMetrics,
   } = selectors;
 
   if (!resultsSection) {
@@ -395,6 +398,10 @@ export const renderResults = (state, dictionaries) => {
         }),
       );
     }
+    const attrHint = translate('summary_attr_hint');
+    if (typeof attrHint === 'string' && attrHint !== 'summary_attr_hint') {
+      summaryLines.push(attrHint);
+    }
   }
 
   resultsSection.hidden = false;
@@ -413,6 +420,14 @@ export const renderResults = (state, dictionaries) => {
     if (resultsSummary) resultsSummary.hidden = true;
     if (statusMessage) statusMessage.hidden = true;
     if (resultsEmpty) resultsEmpty.hidden = true;
+    if (resultsMetrics) {
+      resultsMetrics.hidden = true;
+      if (typeof resultsMetrics.replaceChildren === 'function') {
+        resultsMetrics.replaceChildren();
+      } else {
+        resultsMetrics.textContent = '';
+      }
+    }
     return { cards: [] };
   }
 
@@ -433,6 +448,14 @@ export const renderResults = (state, dictionaries) => {
       statusMessage.textContent = '';
     }
     if (resultsEmpty) resultsEmpty.hidden = true;
+    if (resultsMetrics) {
+      resultsMetrics.hidden = true;
+      if (typeof resultsMetrics.replaceChildren === 'function') {
+        resultsMetrics.replaceChildren();
+      } else {
+        resultsMetrics.textContent = '';
+      }
+    }
     return { cards: [] };
   }
 
@@ -474,6 +497,68 @@ export const renderResults = (state, dictionaries) => {
         resultsSummary.replaceChildren();
       } else {
         resultsSummary.textContent = '';
+      }
+    }
+  }
+
+  const metricsContainer = resultsMetrics;
+  const metricsData = metrics && typeof metrics === 'object' ? metrics : {};
+  if (metricsContainer) {
+    const metricItems = [];
+    const addMetric = (value, labelKey, hintKey) => {
+      const numericValue = Number(value);
+      if (!Number.isFinite(numericValue)) {
+        return;
+      }
+      const card = document.createElement('div');
+      card.className = 'results-metric';
+
+      const valueEl = document.createElement('span');
+      valueEl.className = 'results-metric__value';
+      valueEl.textContent = formatInteger(numericValue);
+      card.appendChild(valueEl);
+
+      const labelText = translate(labelKey);
+      const labelEl = document.createElement('span');
+      labelEl.className = 'results-metric__label';
+      labelEl.textContent = typeof labelText === 'string' ? labelText : labelKey;
+      card.appendChild(labelEl);
+
+      if (hintKey) {
+        const hintText = translate(hintKey);
+        if (typeof hintText === 'string' && hintText !== hintKey) {
+          const hintEl = document.createElement('span');
+          hintEl.className = 'results-metric__hint';
+          hintEl.textContent = hintText;
+          card.appendChild(hintEl);
+        }
+      }
+
+      metricItems.push(card);
+    };
+
+    addMetric(metricsData.visitedStates, 'results_metric_states_label', 'results_metric_states_hint');
+    addMetric(metricsData.combinationsEvaluated, 'results_metric_checked_label', 'results_metric_checked_hint');
+    addMetric(metricsData.combinationsAccepted, 'results_metric_kept_label', 'results_metric_kept_hint');
+    addMetric(metricsData.combinationsDiscarded, 'results_metric_discarded_label', 'results_metric_discarded_hint');
+    addMetric(metricsData.branchesPruned, 'results_metric_pruned_label', 'results_metric_pruned_hint');
+
+    if (metricItems.length) {
+      metricsContainer.hidden = false;
+      if (typeof metricsContainer.replaceChildren === 'function') {
+        metricsContainer.replaceChildren(...metricItems);
+      } else {
+        metricsContainer.textContent = '';
+        metricItems.forEach((item) => {
+          metricsContainer.appendChild(item);
+        });
+      }
+    } else {
+      metricsContainer.hidden = true;
+      if (typeof metricsContainer.replaceChildren === 'function') {
+        metricsContainer.replaceChildren();
+      } else {
+        metricsContainer.textContent = '';
       }
     }
   }
