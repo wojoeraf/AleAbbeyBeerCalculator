@@ -58,7 +58,13 @@ const buildIngredientCaches = (list, ingredientNames, currentLang) => {
     const displayName = resolveIngredientDisplayName(ingredient, id, ingredientNames, currentLang);
     ingredientIdToDisplayNameMap.set(id, displayName);
 
-    const categoryId = ingredient && ingredient.category_id ? ingredient.category_id : 'uncategorized';
+    let categoryId = 'uncategorized';
+    if (ingredient && ingredient.category !== undefined && ingredient.category !== null) {
+      const normalized = String(ingredient.category).trim();
+      if (normalized.length) {
+        categoryId = normalized;
+      }
+    }
     if (!ingredientCategoryIdToElementsMap.has(categoryId)) {
       ingredientCategoryIdToElementsMap.set(categoryId, []);
     }
@@ -104,19 +110,7 @@ const initSolver = () => {
   const i18nData = parseJSONScript('i18n-data', {});
   const styleMinMap = parseJSONScript('style-min-data', {});
   const rawIngredientData = parseJSONScript('ingredients-data', []);
-  const ingredientCategories = Array.isArray(rawIngredientData.categories)
-    ? rawIngredientData.categories
-    : Array.isArray(rawIngredientData)
-      ? [{ id: 'uncategorized', names: {}, ingredients: rawIngredientData }]
-      : [];
-  const ingredients = ingredientCategories.flatMap((category) => {
-    const items = Array.isArray(category.ingredients) ? category.ingredients : [];
-    return items.map((item) => ({
-      ...item,
-      category_id: category.id || '',
-      category_names: category.names || {},
-    }));
-  });
+  const ingredients = Array.isArray(rawIngredientData) ? rawIngredientData : [];
   const stylesData = parseJSONScript('styles-data', {});
   const metaData = parseJSONScript('meta-data', {});
 

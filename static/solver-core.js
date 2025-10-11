@@ -3,7 +3,7 @@
  * @property {string} [id]
  * @property {string} [name]
  * @property {Record<string, string>} [names]
- * @property {string} [category_id]
+ * @property {string} [category]
  * @property {number[]} vec
  */
 
