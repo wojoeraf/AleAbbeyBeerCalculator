@@ -5,6 +5,7 @@ import {
   DEFAULT_TOP_K,
   computeWeightedOrder,
   computeSuffixBounds,
+  SEASON_ORDER,
 } from './solver-core.js';
 import { initUIState } from './ui-state.js';
 import { renderResults, renderDebug } from './render.js';
@@ -16,7 +17,7 @@ let ingredientIdToIndexMap = new Map();
 let ingredientIdToDisplayNameMap = new Map();
 let ingredientCategoryIdToElementsMap = new Map();
 
-const WORKER_MIN_INGREDIENTS = 80;
+const WORKER_MIN_INGREDIENTS = 1;
 
 const createSolverWorkerController = (initPayload) => {
   if (typeof window === 'undefined' || typeof Worker === 'undefined') {
@@ -240,6 +241,24 @@ const initSolver = () => {
   buildIngredientCaches(ingredients, ingredientNames, currentLang);
 
   const translate = createTranslator(messages, uiStrings);
+
+  const costFormatter = new Intl.NumberFormat(currentLang, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  const formatCost = (value) => {
+    const num = Number(value);
+    if (!Number.isFinite(num)) {
+      return '—';
+    }
+    return costFormatter.format(num);
+  };
+
+  const seasonLabels = {};
+  SEASON_ORDER.forEach((season) => {
+    const label = translate(`season_${season}`);
+    seasonLabels[season] = typeof label === 'string' ? label : season;
+  });
 
   let workerController = null;
   if (Array.isArray(ingredients) && ingredients.length >= WORKER_MIN_INGREDIENTS) {
@@ -497,7 +516,7 @@ const initSolver = () => {
     const adjustedTotalCap = Math.max(totalCap, minSum);
     const remainingCap = Math.max(0, adjustedTotalCap - minSum);
     const allowedSet = allowedIngredientIds instanceof Set
-      ? allowedIngredientIds
+      ? new Set(allowedIngredientIds)
       : Array.isArray(allowedIngredientIds)
         ? new Set(allowedIngredientIds)
         : null;
@@ -506,7 +525,7 @@ const initSolver = () => {
     for (let idx = 0; idx < n; idx += 1) {
       const id = getIngredientId(ingredients[idx], idx);
       const required = minCounts[idx] > 0;
-      const optionalAllowed = !allowedSet || allowedSet.has(id);
+      const optionalAllowed = allowedSet === null || allowedSet.has(id);
       const isAllowed = required || optionalAllowed;
       perIngredientCeilValues[idx] = isAllowed ? Math.min(perCap, adjustedTotalCap) : minCounts[idx];
     }
@@ -1403,6 +1422,13 @@ const initSolver = () => {
 
     const sorted = [...solutions];
     sorted.sort((a, b) => {
+      const costA = numericValue((a && a.totalCost) || (a && a.averageCost));
+      const costB = numericValue((b && b.totalCost) || (b && b.averageCost));
+      const costDiff = costA - costB;
+      if (Math.abs(costDiff) > EPS) {
+        return costDiff;
+      }
+
       const totalsA = Array.isArray(a.totals) ? a.totals : [];
       const totalsB = Array.isArray(b.totals) ? b.totals : [];
       const aVal = numericValue(totalsA[attrIndex]);
@@ -1422,8 +1448,10 @@ const initSolver = () => {
         return countA - countB;
       }
 
-      if (a.sum !== b.sum) {
-        return a.sum - b.sum;
+      const unitsA = Number.isFinite(a.totalUnits) ? a.totalUnits : numericValue(a.sum);
+      const unitsB = Number.isFinite(b.totalUnits) ? b.totalUnits : numericValue(b.sum);
+      if (Math.abs(unitsA - unitsB) > EPS) {
+        return unitsA - unitsB;
       }
 
       for (let idx = 0; idx < ATTRS.length; idx += 1) {
@@ -1471,6 +1499,9 @@ const initSolver = () => {
         sanitizeBand,
         formatResultValue,
         clamp,
+        seasonOrder: SEASON_ORDER,
+        seasonLabels,
+        formatCost,
       },
     );
 

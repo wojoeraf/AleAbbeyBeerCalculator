@@ -53,6 +53,52 @@
 
 export const EPS = 1e-9;
 export const DEFAULT_TOP_K = 10;
+export const LOW_SEASON_COST_MULTIPLIER = 1.25;
+export const HIGH_SEASON_COST_MULTIPLIER = 0.75;
+export const SEASON_ORDER = ['spring', 'summer', 'autumn', 'winter'];
+const MAX_STATE_VISITS = 1000000;
+
+const SEASONAL_MULTIPLIERS = {
+  spring: { malt: LOW_SEASON_COST_MULTIPLIER, fruit: HIGH_SEASON_COST_MULTIPLIER },
+  summer: { hops: LOW_SEASON_COST_MULTIPLIER, malt: HIGH_SEASON_COST_MULTIPLIER },
+  autumn: { hops: HIGH_SEASON_COST_MULTIPLIER },
+  winter: { fruit: LOW_SEASON_COST_MULTIPLIER },
+};
+
+const normalizeSeasonalType = (value) => {
+  if (typeof value !== 'string') {
+    return '';
+  }
+  const lower = value.trim().toLowerCase();
+  if (!lower) {
+    return '';
+  }
+  if (lower.includes('malt')) {
+    return 'malt';
+  }
+  if (lower.includes('hop')) {
+    return 'hops';
+  }
+  if (lower.includes('fruit')) {
+    return 'fruit';
+  }
+  if (lower.includes('yeast')) {
+    return 'yeast';
+  }
+  return lower.replace(/[^a-z]/g, '');
+};
+
+const getSeasonalMultiplier = (season, seasonalType) => {
+  const normalized = normalizeSeasonalType(seasonalType);
+  if (!normalized) {
+    return 1;
+  }
+  const map = SEASONAL_MULTIPLIERS[season];
+  if (map && Object.prototype.hasOwnProperty.call(map, normalized)) {
+    return map[normalized];
+  }
+  return 1;
+};
 
 /**
  * Produces ingredient indices sorted by their maximum absolute coefficient.
@@ -200,6 +246,25 @@ export const solveRecipe = (params) => {
   const n = ingredients.length;
   const base = (style.base || new Array(attrs.length).fill(0)).map(Number);
   const vectors = ingredients.map((ing) => (ing.vec || new Array(attrs.length).fill(0)).map(Number));
+  const baseCosts = ingredients.map((ing) => {
+    if (!ing || ing.cost === undefined || ing.cost === null) {
+      return 0;
+    }
+    const raw = Number(ing.cost);
+    return Number.isFinite(raw) && raw > 0 ? raw : 0;
+  });
+  const seasonalTypes = ingredients.map((ing) => {
+    if (ing && ing.seasonal_type !== undefined && ing.seasonal_type !== null) {
+      return ing.seasonal_type;
+    }
+    if (ing && ing.seasonalType !== undefined && ing.seasonalType !== null) {
+      return ing.seasonalType;
+    }
+    if (ing && typeof ing.category_label === 'string') {
+      return ing.category_label;
+    }
+    return '';
+  });
   const idToIndex = new Map(ingredients.map((ing, idx) => [getIngredientId(ing, idx), idx]));
 
   const minCounts = new Array(n).fill(0);
@@ -223,17 +288,18 @@ export const solveRecipe = (params) => {
   const minSum = minCounts.reduce((acc, val) => acc + val, 0);
   const adjustedTotalCap = Math.max(totalCap, minSum);
   const remainingCap = Math.max(0, adjustedTotalCap - minSum);
-  const allowedSet = allowedIngredientIds instanceof Set
-    ? allowedIngredientIds
-    : Array.isArray(allowedIngredientIds)
-      ? new Set(allowedIngredientIds)
-      : null;
+  let allowedSet = null;
+  if (allowedIngredientIds instanceof Set) {
+    allowedSet = new Set(allowedIngredientIds);
+  } else if (Array.isArray(allowedIngredientIds)) {
+    allowedSet = new Set(allowedIngredientIds);
+  }
 
   const perIngredientCeilValues = new Array(n).fill(0);
   for (let idx = 0; idx < n; idx += 1) {
     const id = getIngredientId(ingredients[idx], idx);
     const required = minCounts[idx] > 0;
-    const optionalAllowed = !allowedSet || allowedSet.has(id);
+    const optionalAllowed = allowedSet === null || allowedSet.has(id);
     const isAllowed = required || optionalAllowed;
     perIngredientCeilValues[idx] = isAllowed ? Math.min(perCap, adjustedTotalCap) : minCounts[idx];
   }
@@ -344,10 +410,120 @@ export const solveRecipe = (params) => {
     return { solutions: [], info: [translate('no_intervals')] };
   }
 
-  const orderedIndices = computeWeightedOrder(vectors);
+  const attrNeedSigns = attrs.map((_, attrIdx) => {
+    const intervals = perAttrLists[attrIdx];
+    if (!intervals || intervals.length === 0) {
+      return 0;
+    }
+    let minLower = Number.POSITIVE_INFINITY;
+    let maxUpper = Number.NEGATIVE_INFINITY;
+    for (const interval of intervals) {
+      if (!interval) continue;
+      const [lo, hi] = interval;
+      if (Number.isFinite(lo) && lo < minLower) {
+        minLower = lo;
+      }
+      if (Number.isFinite(hi) && hi > maxUpper) {
+        maxUpper = hi;
+      }
+    }
+    if (!Number.isFinite(minLower) && !Number.isFinite(maxUpper)) {
+      return 0;
+    }
+    const baseline = totalsAfterMin[attrIdx];
+    if (Number.isFinite(minLower) && baseline < minLower - EPS) {
+      return 1;
+    }
+    if (Number.isFinite(maxUpper) && baseline > maxUpper + EPS) {
+      return -1;
+    }
+    return 0;
+  });
+
+  const weightedOrder = computeWeightedOrder(vectors);
+  const weightedRank = new Map();
+  weightedOrder.forEach((idx, rank) => {
+    weightedRank.set(idx, rank);
+  });
+  const requiredIndices = [];
+  const optionalEntries = [];
+  for (const idx of weightedOrder) {
+    if (minCounts[idx] > 0) {
+      requiredIndices.push(idx);
+    } else {
+      const vec = vectors[idx] || [];
+      let aligned = 0;
+      let opposing = 0;
+      let neutral = 0;
+      for (let k = 0; k < attrs.length; k += 1) {
+        const need = attrNeedSigns[k];
+        const coef = Number(vec[k]) || 0;
+        if (need > 0) {
+          if (coef > 0) {
+            aligned += coef;
+          } else if (coef < 0) {
+            opposing += Math.abs(coef);
+          }
+        } else if (need < 0) {
+          if (coef < 0) {
+            aligned += Math.abs(coef);
+          } else if (coef > 0) {
+            opposing += coef;
+          }
+        } else {
+          neutral += Math.abs(coef);
+        }
+      }
+      const cost = baseCosts[idx] > 0 ? baseCosts[idx] : 0;
+      const efficiency = aligned > 0 ? (cost > 0 ? aligned / cost : aligned) : 0;
+      optionalEntries.push({
+        idx,
+        aligned,
+        opposing,
+        neutral,
+        efficiency,
+        cost,
+        rank: weightedRank.get(idx) || 0,
+      });
+    }
+  }
+
+  optionalEntries.sort((a, b) => {
+    if (a.aligned > 0 || b.aligned > 0) {
+      if (a.aligned !== b.aligned) {
+        return b.aligned - a.aligned;
+      }
+      if (a.efficiency !== b.efficiency) {
+        return b.efficiency - a.efficiency;
+      }
+      if (a.opposing !== b.opposing) {
+        return a.opposing - b.opposing;
+      }
+    }
+    if (a.opposing !== b.opposing) {
+      return a.opposing - b.opposing;
+    }
+    if (a.neutral !== b.neutral) {
+      return a.neutral - b.neutral;
+    }
+    if (a.cost !== b.cost) {
+      return a.cost - b.cost;
+    }
+    return a.rank - b.rank;
+  });
+
+  const orderedIndices = requiredIndices.concat(optionalEntries.map((entry) => entry.idx));
   const orderedVectors = orderedIndices.map((idx) => vectors[idx]);
   const orderedMinCounts = orderedIndices.map((idx) => minCounts[idx]);
   const orderedMaxCounts = orderedIndices.map((idx) => perIngredientCeilValues[idx]);
+  const orderedCosts = orderedIndices.map((idx) => baseCosts[idx]);
+
+  const suffixMinBaseCost = new Array(n + 1).fill(0);
+  for (let idx = n - 1; idx >= 0; idx -= 1) {
+    const minCnt = orderedMinCounts[idx];
+    const unitCost = orderedCosts[idx];
+    suffixMinBaseCost[idx] = unitCost * minCnt + suffixMinBaseCost[idx + 1];
+  }
 
   const { suffixMinCounts, suffixLo, suffixHi } = computeSuffixBounds(
     orderedVectors,
@@ -362,10 +538,38 @@ export const solveRecipe = (params) => {
   const counts = new Array(n).fill(0);
   const seenCombos = new Set();
   const solutions = [];
-  let bestSumBound = Infinity;
+  let bestCostBound = Infinity;
+
+  const updateBestCostBound = () => {
+    if (solutions.length >= topK) {
+      const worst = solutions[solutions.length - 1];
+      const worstCost =
+        worst && typeof worst.totalCost === 'number'
+          ? worst.totalCost
+          : Number.isFinite(worst && worst.averageCost)
+            ? worst.averageCost
+            : Infinity;
+      bestCostBound = Number.isFinite(worstCost) ? worstCost : Infinity;
+    } else {
+      bestCostBound = Infinity;
+    }
+  };
 
   const compareSolutions = (a, b) => {
-    if (a.sum !== b.sum) return a.sum - b.sum;
+    const costA = Number.isFinite(a && a.totalCost) ? a.totalCost : Number(a && a.averageCost) || 0;
+    const costB = Number.isFinite(b && b.totalCost) ? b.totalCost : Number(b && b.averageCost) || 0;
+    const diffCost = costA - costB;
+    if (Math.abs(diffCost) > EPS) return diffCost;
+
+    const minCostA = Number.isFinite(a && a.minCost) ? a.minCost : costA;
+    const minCostB = Number.isFinite(b && b.minCost) ? b.minCost : costB;
+    const diffMin = minCostA - minCostB;
+    if (Math.abs(diffMin) > EPS) return diffMin;
+
+    const totalUnitsA = Number.isFinite(a && a.totalUnits) ? a.totalUnits : Number(a && a.sum) || 0;
+    const totalUnitsB = Number.isFinite(b && b.totalUnits) ? b.totalUnits : Number(b && b.sum) || 0;
+    if (totalUnitsA !== totalUnitsB) return totalUnitsA - totalUnitsB;
+
     const totalsA = Array.isArray(a.totals) ? a.totals : [];
     const totalsB = Array.isArray(b.totals) ? b.totals : [];
     for (let k = 0; k < attrs.length; k += 1) {
@@ -398,19 +602,41 @@ export const solveRecipe = (params) => {
     if (solutions.length > topK) {
       solutions.length = topK;
     }
-    if (solutions.length >= topK) {
-      bestSumBound = solutions[solutions.length - 1].sum;
-    } else {
-      bestSumBound = Infinity;
-    }
+    updateBestCostBound();
   };
+
+  const infoMessages = [];
+  let globalAborted = false;
 
   const iterateBoxes = (attrIdx, lower, upper) => {
     if (attrIdx === attrs.length) {
       const lowerBounds = lower.slice();
       const upperBounds = upper.slice();
 
-      const dfs = (idx, used, totals) => {
+      const stateCostMemo = new Map();
+      let visitedStates = 0;
+      let aborted = false;
+
+      const dfs = (idx, used, totals, costSoFar) => {
+        if (aborted) {
+          return;
+        }
+        visitedStates += 1;
+        if (visitedStates > MAX_STATE_VISITS) {
+          aborted = true;
+          globalAborted = true;
+          return;
+        }
+        const roundedTotalsKey = totals
+          .map((val) => (Number.isFinite(val) ? Math.round(val * 1000) : 0))
+          .join(',');
+        const memoKey = `${idx}|${used}|${roundedTotalsKey}`;
+        const seenCost = stateCostMemo.get(memoKey);
+        if (seenCost !== undefined && seenCost <= costSoFar + EPS) {
+          return;
+        }
+        stateCostMemo.set(memoKey, costSoFar);
+
         if (idx >= n) {
           for (let k = 0; k < attrs.length; k += 1) {
             if (totals[k] < lowerBounds[k] - EPS || totals[k] > upperBounds[k] + EPS) {
@@ -441,23 +667,60 @@ export const solveRecipe = (params) => {
 
           const totalsRounded = totals.map((val) => Math.round(val * 1000) / 1000);
           const ingredientCount = Object.keys(countsById).length;
-          insertSolution({
+          const totalUnits = countsOriginal.reduce((acc, val) => acc + val, 0);
+          const baseCost = costSoFar;
+          const seasonalCosts = {};
+          const seasonTotals = [];
+          let minSeasonCost = Infinity;
+          let maxSeasonCost = -Infinity;
+          for (const season of SEASON_ORDER) {
+            let seasonTotal = 0;
+            for (let originalIdx = 0; originalIdx < n; originalIdx += 1) {
+              const cnt = countsOriginal[originalIdx] || 0;
+              if (cnt <= 0) continue;
+              const unitCost = baseCosts[originalIdx];
+              if (unitCost <= 0) continue;
+              const multiplier = getSeasonalMultiplier(season, seasonalTypes[originalIdx]);
+              seasonTotal += unitCost * multiplier * cnt;
+            }
+            seasonalCosts[season] = seasonTotal;
+            seasonTotals.push(seasonTotal);
+            if (seasonTotal < minSeasonCost) minSeasonCost = seasonTotal;
+            if (seasonTotal > maxSeasonCost) maxSeasonCost = seasonTotal;
+          }
+          const averageCost = seasonTotals.length
+            ? seasonTotals.reduce((acc, val) => acc + val, 0) / seasonTotals.length
+            : baseCost;
+          const minCost = Number.isFinite(minSeasonCost) ? minSeasonCost : baseCost;
+          const maxCost = Number.isFinite(maxSeasonCost) ? maxSeasonCost : baseCost;
+          const solution = {
             x: countsOriginal,
-            sum: countsOriginal.reduce((acc, val) => acc + val, 0),
+            sum: totalUnits,
+            totalUnits,
             totals: totalsRounded,
             bands,
             countsById,
             ingredientCount,
-          });
-          return;
-        }
-
-        if (bestSumBound !== Infinity && used + suffixMinCounts[idx] > bestSumBound) {
+            baseCost,
+            seasonalCosts,
+            averageCost,
+            minCost,
+            maxCost,
+            totalCost: averageCost,
+          };
+          insertSolution(solution);
           return;
         }
 
         if (used + suffixMinCounts[idx] > adjustedTotalCap) {
           return;
+        }
+
+        if (bestCostBound !== Infinity) {
+          const minimalCost = costSoFar + suffixMinBaseCost[idx];
+          if (minimalCost > bestCostBound + EPS) {
+            return;
+          }
         }
 
         for (let k = 0; k < attrs.length; k += 1) {
@@ -476,12 +739,73 @@ export const solveRecipe = (params) => {
         }
 
         const vec = orderedVectors[idx];
-        for (let c = minC; c <= maxC; c += 1) {
-          if (bestSumBound !== Infinity && used + c + suffixMinCounts[idx + 1] > bestSumBound) {
+        const unitCost = orderedCosts[idx];
+
+        let localMinC = minC;
+        let localMaxC = maxC;
+        for (let k = 0; k < attrs.length; k += 1) {
+          const coef = vec[k] || 0;
+          if (coef === 0) {
             continue;
           }
+          const total = totals[k];
+          const lowerBound = lowerBounds[k];
+          const upperBound = upperBounds[k];
+          const suffixLoNext = suffixLo[idx + 1][k];
+          const suffixHiNext = suffixHi[idx + 1][k];
+          if (coef > 0) {
+            const maxNumerator = upperBound - suffixLoNext - total;
+            if (Number.isFinite(maxNumerator)) {
+              const allowedMax = Math.floor((maxNumerator + EPS) / coef);
+              if (Number.isFinite(allowedMax)) {
+                localMaxC = Math.min(localMaxC, allowedMax);
+              }
+            }
+            const minNumerator = lowerBound - suffixHiNext - total;
+            if (Number.isFinite(minNumerator)) {
+              const requiredMin = Math.ceil((minNumerator - EPS) / coef);
+              if (Number.isFinite(requiredMin)) {
+                localMinC = Math.max(localMinC, requiredMin);
+              }
+            }
+          } else {
+            const absCoef = Math.abs(coef);
+            const minNumerator = total + suffixLoNext - upperBound;
+            if (Number.isFinite(minNumerator)) {
+              const requiredMin = Math.ceil((minNumerator - EPS) / absCoef);
+              if (Number.isFinite(requiredMin)) {
+                localMinC = Math.max(localMinC, requiredMin);
+              }
+            }
+            const maxNumerator = total + suffixHiNext - lowerBound;
+            if (Number.isFinite(maxNumerator)) {
+              const allowedMax = Math.floor((maxNumerator + EPS) / absCoef);
+              if (Number.isFinite(allowedMax)) {
+                localMaxC = Math.min(localMaxC, allowedMax);
+              }
+            }
+          }
+          if (localMinC > localMaxC) {
+            break;
+          }
+        }
+
+        localMinC = Math.max(localMinC, minC);
+        localMaxC = Math.min(localMaxC, maxC);
+        if (localMinC > localMaxC) {
+          return;
+        }
+
+        for (let c = localMinC; c <= localMaxC; c += 1) {
           counts[idx] = c;
           const newTotals = totals.map((val, k) => val + (vec[k] || 0) * c);
+          const newCost = costSoFar + unitCost * c;
+          if (bestCostBound !== Infinity) {
+            const minimalFutureCost = newCost + suffixMinBaseCost[idx + 1];
+            if (minimalFutureCost > bestCostBound + EPS) {
+              continue;
+            }
+          }
           let feasible = true;
           for (let k = 0; k < attrs.length; k += 1) {
             const minPossible = newTotals[k] + suffixLo[idx + 1][k];
@@ -492,17 +816,31 @@ export const solveRecipe = (params) => {
             }
           }
           if (feasible) {
-            dfs(idx + 1, used + c, newTotals);
+            dfs(idx + 1, used + c, newTotals, newCost);
+            if (aborted) {
+              break;
+            }
           }
         }
         counts[idx] = 0;
+        if (aborted) {
+          return;
+        }
       };
 
-      dfs(0, 0, base.slice());
+      dfs(0, 0, base.slice(), 0);
+      if (aborted) {
+        infoMessages.push(translate(
+          solutions.length > 0 ? 'solver_search_partial' : 'solver_search_timeout',
+        ));
+      }
       return;
     }
 
     for (const interval of perAttrLists[attrIdx]) {
+      if (globalAborted) {
+        break;
+      }
       lower[attrIdx] = interval[0];
       upper[attrIdx] = interval[1];
       iterateBoxes(attrIdx + 1, lower, upper);
@@ -517,5 +855,5 @@ export const solveRecipe = (params) => {
 
   solutions.sort(compareSolutions);
 
-  return { solutions, info: [] };
+  return { solutions, info: infoMessages };
 };

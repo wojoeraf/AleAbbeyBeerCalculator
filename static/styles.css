@@ -944,6 +944,12 @@ input[type="number"]:focus {
   font-size: 1.25rem;
 }
 
+.result-card-subtitle {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  display: block;
+}
+
 .result-card-rank {
   font-size: 0.75rem;
   font-weight: 700;
@@ -968,6 +974,100 @@ input[type="number"]:focus {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.result-cost {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.result-cost-summary {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 6px 24px;
+  margin: 0;
+}
+
+.result-cost-summary dt {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.result-cost-summary dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.result-cost-chart-title {
+  margin: 0;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.result-cost-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 4px 0 8px;
+}
+
+.result-cost-chart-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 48px;
+}
+
+.result-cost-chart-value {
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  color: rgba(15, 23, 42, 0.75);
+}
+
+.result-cost-chart-bar-wrapper {
+  width: 100%;
+  min-height: 60px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.result-cost-chart-bar {
+  width: 60%;
+  min-height: 4px;
+  border-radius: 6px 6px 0 0;
+  background: linear-gradient(180deg, rgba(249, 115, 22, 0.75) 0%, var(--primary) 100%);
+  transition: height 0.3s ease;
+}
+
+.result-cost-chart-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+@media (max-width: 600px) {
+  .result-cost-summary {
+    grid-template-columns: 1fr;
+    gap: 4px 0;
+  }
+
+  .result-cost-summary dd {
+    text-align: left;
+  }
+
+  .result-cost-chart {
+    gap: 12px;
+  }
+
+  .result-cost-chart-column {
+    min-width: 40px;
+  }
 }
 
 .result-ingredients .chips {
