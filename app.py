@@ -1,4 +1,5 @@
 import json
+import math
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Dict, Optional, Set
@@ -18,14 +19,36 @@ TRANSLATIONS = load_json("translations.json")
 LANGUAGE_NAMES = {code: data.get("language_name", code) for code, data in TRANSLATIONS.items()}
 DEFAULT_LANG = "en" if "en" in TRANSLATIONS else next(iter(TRANSLATIONS))
 
+ATTRS = ["taste", "color", "strength", "foam"]
+
 RAW_INGREDIENT_DATA = load_json("ingredients.json")
 
 
-def normalize_ingredients(payload):
+def get_localized_name(names, lang: str) -> str:
+    if isinstance(names, dict):
+        if isinstance(names.get(lang), str) and names[lang].strip():
+            return names[lang]
+        if isinstance(names.get(DEFAULT_LANG), str) and names[DEFAULT_LANG].strip():
+            return names[DEFAULT_LANG]
+        for value in names.values():
+            if isinstance(value, str) and value.strip():
+                return value
+        return ""
+    if isinstance(names, str):
+        stripped = names.strip()
+        return stripped if stripped else ""
+    if names is None:
+        return ""
+    return str(names).strip()
+
+
+def normalize_ingredients(payload, attrs):
+    attr_len = len(attrs)
+
     if isinstance(payload, dict) and "categories" in payload:
-        categories = payload.get("categories", [])
+        raw_categories = payload.get("categories", [])
     elif isinstance(payload, list):
-        categories = [
+        raw_categories = [
             {
                 "id": "uncategorized",
                 "names": {},
@@ -33,44 +56,126 @@ def normalize_ingredients(payload):
             }
         ]
     else:
-        categories = []
+        raw_categories = []
 
-    flat_list = []
-    for category in categories:
-        category_id = category.get("id")
-        category_names = category.get("names", {})
-        for ingredient in category.get("ingredients", []):
-            entry = dict(ingredient)
-            entry.setdefault("names", {})
-            entry["category_id"] = category_id
-            entry["category_names"] = category_names
-            flat_list.append(entry)
-    return categories, flat_list
+    def sanitize_name_map(raw_names):
+        sanitized = {}
+        if isinstance(raw_names, dict):
+            for key, value in raw_names.items():
+                if isinstance(value, str):
+                    candidate = value.strip()
+                elif value is None:
+                    continue
+                else:
+                    candidate = str(value).strip()
+                if not candidate:
+                    continue
+                normalized_key = key if isinstance(key, str) else str(key)
+                sanitized[normalized_key] = candidate
+        return sanitized
+
+    def parse_vector(raw_vec):
+        if not isinstance(raw_vec, (list, tuple)):
+            return None
+        if attr_len and len(raw_vec) != attr_len:
+            return None
+        numeric = []
+        for value in raw_vec:
+            try:
+                number = float(value)
+            except (TypeError, ValueError):
+                return None
+            if not math.isfinite(number):
+                return None
+            numeric.append(number)
+        return numeric
+
+    normalized_categories = []
+    canonical_list = []
+    seen_ids = set()
+
+    for category in raw_categories:
+        if not isinstance(category, dict):
+            continue
+        raw_category_id = category.get("id", "")
+        category_id = str(raw_category_id).strip() if raw_category_id is not None else ""
+        if not category_id:
+            category_id = "uncategorized"
+        category_names = sanitize_name_map(category.get("names", {}))
+
+        category_entry = {
+            "id": category_id,
+            "names": category_names,
+            "ingredients": [],
+        }
+
+        raw_ingredients = category.get("ingredients", [])
+        if not isinstance(raw_ingredients, list):
+            raw_ingredients = []
+
+        for ingredient in raw_ingredients:
+            if not isinstance(ingredient, dict):
+                continue
+            raw_id = ingredient.get("id")
+            if isinstance(raw_id, str):
+                ing_id = raw_id.strip()
+            elif raw_id is None:
+                ing_id = ""
+            else:
+                ing_id = str(raw_id).strip()
+            if not ing_id or ing_id in seen_ids:
+                continue
+
+            names = sanitize_name_map(ingredient.get("names", {}))
+            vec = parse_vector(ingredient.get("vec", []))
+            if vec is None:
+                continue
+
+            default_name = get_localized_name(names, DEFAULT_LANG)
+            if not default_name:
+                fallback_name = ingredient.get("name")
+                if isinstance(fallback_name, str) and fallback_name.strip():
+                    default_name = fallback_name.strip()
+                else:
+                    default_name = ing_id
+
+            canonical_entry = {
+                "id": ing_id,
+                "name": default_name,
+                "names": names,
+                "vec": vec,
+                "category": category_id,
+            }
+
+            category_entry["ingredients"].append(canonical_entry)
+            canonical_list.append(canonical_entry)
+            seen_ids.add(ing_id)
+
+        if category_entry["ingredients"]:
+            normalized_categories.append(category_entry)
+
+    if not normalized_categories and canonical_list:
+        normalized_categories.append(
+            {
+                "id": "uncategorized",
+                "names": {},
+                "ingredients": canonical_list,
+            }
+        )
+
+    return normalized_categories, canonical_list
 
 
-INGREDIENT_CATEGORIES, INGREDIENTS = normalize_ingredients(RAW_INGREDIENT_DATA)
+INGREDIENT_CATEGORIES, INGREDIENTS = normalize_ingredients(RAW_INGREDIENT_DATA, ATTRS)
 INGREDIENT_MAP = {ing["id"]: ing for ing in INGREDIENTS}
 BEER_STYLES = load_json("beer_styles.json")
 STYLE_ORDER = list(BEER_STYLES.keys())
-
-ATTRS = ["taste", "color", "strength", "foam"]
 
 
 def get_translation_data(lang: str):
     if lang in TRANSLATIONS:
         return TRANSLATIONS[lang]
     return TRANSLATIONS.get(DEFAULT_LANG, {})
-
-
-def get_localized_name(names, lang: str) -> str:
-    if isinstance(names, dict):
-        if lang in names:
-            return names[lang]
-        if DEFAULT_LANG in names:
-            return names[DEFAULT_LANG]
-        if names:
-            return next(iter(names.values()))
-    return str(names)
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -92,7 +197,7 @@ def index():
     styles_for_template = [
         {
             "id": style_id,
-            "name": get_localized_name(BEER_STYLES[style_id].get("names", {}), lang),
+            "name": get_localized_name(BEER_STYLES[style_id].get("names", {}), lang) or style_id,
         }
         for style_id in styles_ids
     ]
@@ -192,7 +297,7 @@ def index():
     ingredients_for_template = []
     if INGREDIENT_CATEGORIES:
         for category in INGREDIENT_CATEGORIES:
-            cat_name = get_localized_name(category.get("names", {}), lang)
+            cat_name = get_localized_name(category.get("names", {}), lang) or category.get("id", "")
             entries = []
             for ing in category.get("ingredients", []):
                 ing_id = ing.get("id")
@@ -202,7 +307,9 @@ def index():
                 entries.append(
                     {
                         "id": ing_entry["id"],
-                        "name": get_localized_name(ing_entry.get("names", {}), lang),
+                        "name": get_localized_name(ing_entry.get("names", {}), lang)
+                        or ing_entry.get("name")
+                        or ing_entry["id"],
                         "vec": ing_entry.get("vec", []),
                     }
                 )
@@ -231,11 +338,12 @@ def index():
             }
         )
 
-    ingredient_display_map = {
-        ing["id"]: get_localized_name(ing.get("names", {}), lang) for ing in INGREDIENTS
-    }
+    ingredient_display_map = {}
+    for ing in INGREDIENTS:
+        localized = get_localized_name(ing.get("names", {}), lang)
+        ingredient_display_map[ing["id"]] = localized or ing.get("name") or ing["id"]
     style_display_map = {
-        sid: get_localized_name(BEER_STYLES[sid].get("names", {}), lang) for sid in styles_ids
+        sid: get_localized_name(BEER_STYLES[sid].get("names", {}), lang) or sid for sid in styles_ids
     }
 
     languages = [
@@ -274,7 +382,7 @@ def index():
         style_min_map=style_min_map,
         has_active_constraints=has_active_constraints,
         selected_optional=selected_optional,
-        ingredients_data=RAW_INGREDIENT_DATA,
+        ingredients_data=INGREDIENTS,
         styles_data=BEER_STYLES,
         ui=ui_strings,
         i18n_payload=i18n_payload,
