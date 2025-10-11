@@ -56,6 +56,7 @@ export const DEFAULT_TOP_K = 10;
 export const LOW_SEASON_COST_MULTIPLIER = 1.25;
 export const HIGH_SEASON_COST_MULTIPLIER = 0.75;
 export const SEASON_ORDER = ['spring', 'summer', 'autumn', 'winter'];
+const MAX_STATE_VISITS = 250000;
 
 const SEASONAL_MULTIPLIERS = {
   spring: { malt: LOW_SEASON_COST_MULTIPLIER, fruit: HIGH_SEASON_COST_MULTIPLIER },
@@ -502,12 +503,38 @@ export const solveRecipe = (params) => {
     updateBestCostBound();
   };
 
+  const infoMessages = [];
+  let globalAborted = false;
+
   const iterateBoxes = (attrIdx, lower, upper) => {
     if (attrIdx === attrs.length) {
       const lowerBounds = lower.slice();
       const upperBounds = upper.slice();
 
+      const stateCostMemo = new Map();
+      let visitedStates = 0;
+      let aborted = false;
+
       const dfs = (idx, used, totals, costSoFar) => {
+        if (aborted) {
+          return;
+        }
+        visitedStates += 1;
+        if (visitedStates > MAX_STATE_VISITS) {
+          aborted = true;
+          globalAborted = true;
+          return;
+        }
+        const roundedTotalsKey = totals
+          .map((val) => (Number.isFinite(val) ? Math.round(val * 1000) : 0))
+          .join(',');
+        const memoKey = `${idx}|${used}|${roundedTotalsKey}`;
+        const seenCost = stateCostMemo.get(memoKey);
+        if (seenCost !== undefined && seenCost <= costSoFar + EPS) {
+          return;
+        }
+        stateCostMemo.set(memoKey, costSoFar);
+
         if (idx >= n) {
           for (let k = 0; k < attrs.length; k += 1) {
             if (totals[k] < lowerBounds[k] - EPS || totals[k] > upperBounds[k] + EPS) {
@@ -611,7 +638,63 @@ export const solveRecipe = (params) => {
 
         const vec = orderedVectors[idx];
         const unitCost = orderedCosts[idx];
-        for (let c = minC; c <= maxC; c += 1) {
+
+        let localMinC = minC;
+        let localMaxC = maxC;
+        for (let k = 0; k < attrs.length; k += 1) {
+          const coef = vec[k] || 0;
+          if (coef === 0) {
+            continue;
+          }
+          const total = totals[k];
+          const lowerBound = lowerBounds[k];
+          const upperBound = upperBounds[k];
+          const suffixLoNext = suffixLo[idx + 1][k];
+          const suffixHiNext = suffixHi[idx + 1][k];
+          if (coef > 0) {
+            const maxNumerator = upperBound - suffixLoNext - total;
+            if (Number.isFinite(maxNumerator)) {
+              const allowedMax = Math.floor((maxNumerator + EPS) / coef);
+              if (Number.isFinite(allowedMax)) {
+                localMaxC = Math.min(localMaxC, allowedMax);
+              }
+            }
+            const minNumerator = lowerBound - suffixHiNext - total;
+            if (Number.isFinite(minNumerator)) {
+              const requiredMin = Math.ceil((minNumerator - EPS) / coef);
+              if (Number.isFinite(requiredMin)) {
+                localMinC = Math.max(localMinC, requiredMin);
+              }
+            }
+          } else {
+            const absCoef = Math.abs(coef);
+            const minNumerator = total + suffixLoNext - upperBound;
+            if (Number.isFinite(minNumerator)) {
+              const requiredMin = Math.ceil((minNumerator - EPS) / absCoef);
+              if (Number.isFinite(requiredMin)) {
+                localMinC = Math.max(localMinC, requiredMin);
+              }
+            }
+            const maxNumerator = total + suffixHiNext - lowerBound;
+            if (Number.isFinite(maxNumerator)) {
+              const allowedMax = Math.floor((maxNumerator + EPS) / absCoef);
+              if (Number.isFinite(allowedMax)) {
+                localMaxC = Math.min(localMaxC, allowedMax);
+              }
+            }
+          }
+          if (localMinC > localMaxC) {
+            break;
+          }
+        }
+
+        localMinC = Math.max(localMinC, minC);
+        localMaxC = Math.min(localMaxC, maxC);
+        if (localMinC > localMaxC) {
+          return;
+        }
+
+        for (let c = localMinC; c <= localMaxC; c += 1) {
           counts[idx] = c;
           const newTotals = totals.map((val, k) => val + (vec[k] || 0) * c);
           const newCost = costSoFar + unitCost * c;
@@ -632,16 +715,30 @@ export const solveRecipe = (params) => {
           }
           if (feasible) {
             dfs(idx + 1, used + c, newTotals, newCost);
+            if (aborted) {
+              break;
+            }
           }
         }
         counts[idx] = 0;
+        if (aborted) {
+          return;
+        }
       };
 
       dfs(0, 0, base.slice(), 0);
+      if (aborted) {
+        infoMessages.push(translate(
+          solutions.length > 0 ? 'solver_search_partial' : 'solver_search_timeout',
+        ));
+      }
       return;
     }
 
     for (const interval of perAttrLists[attrIdx]) {
+      if (globalAborted) {
+        break;
+      }
       lower[attrIdx] = interval[0];
       upper[attrIdx] = interval[1];
       iterateBoxes(attrIdx + 1, lower, upper);
@@ -656,5 +753,5 @@ export const solveRecipe = (params) => {
 
   solutions.sort(compareSolutions);
 
-  return { solutions, info: [] };
+  return { solutions, info: infoMessages };
 };
