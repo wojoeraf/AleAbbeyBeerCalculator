@@ -194,7 +194,7 @@
                                                            {% if is_locked %}disabled{% endif %}
                                                            data-user-optional="{{ 'true' if is_optional else 'false' }}">
                                                     <span class="checkbox-visual"></span>
-                                                    <span class="optional-text">{{ ui.label_optional }}</span>
+                                                    <span class="sr-only">{{ ui.label_optional }}</span>
                                                 </label>
                                             </td>
                                             <td class="ingredient-name-cell" data-label="{{ ui.table_name }}">

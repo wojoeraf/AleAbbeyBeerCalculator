@@ -892,13 +892,6 @@ input[type="number"]:focus {
   color: rgba(15, 23, 42, 0.45);
 }
 
-.ingredient-optional .optional-text {
-  font-size: 0.68rem;
-}
-
-.ingredient-optional input:disabled + .checkbox-visual + .optional-text {
-  color: rgba(15, 23, 42, 0.45);
-}
 .ingredient-name {
   display: inline-flex;
   align-items: center;
