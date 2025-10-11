@@ -1374,12 +1374,17 @@ const initSolver = () => {
     return value.toFixed(2);
   };
 
+  const MAX_RESULT_DISPLAY_VALUE = 12;
+
   const formatResultValue = (value) => {
     if (!Number.isFinite(value)) {
       return '0';
     }
-    const safeValue = Math.max(0, value);
+    const safeValue = Math.min(Math.max(0, value), MAX_RESULT_DISPLAY_VALUE);
     const rounded = Math.round(safeValue * 10) / 10;
+    if (safeValue >= MAX_RESULT_DISPLAY_VALUE - 1e-6) {
+      return MAX_RESULT_DISPLAY_VALUE.toFixed(1);
+    }
     if (Math.abs(rounded - Math.round(rounded)) < 1e-6) {
       return String(Math.round(rounded));
     }
