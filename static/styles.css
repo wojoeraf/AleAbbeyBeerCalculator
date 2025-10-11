@@ -20,6 +20,10 @@
   --slider-yellow-muted: rgba(250, 204, 21, 0.22);
   --slider-red-muted: rgba(239, 68, 68, 0.22);
   --slider-neutral: rgba(15, 23, 42, 0.22);
+  --accent-hop: #0d9488;
+  --accent-hop-soft: rgba(13, 148, 136, 0.18);
+  --accent-foam: rgba(255, 255, 255, 0.75);
+  --accent-amber: rgba(249, 115, 22, 0.15);
   font-family: "Inter", "SF Pro Display", "Segoe UI", system-ui, sans-serif;
 }
 * {
@@ -859,10 +863,6 @@ input[type="number"]:focus {
   gap: 16px;
 }
 
-.results-placeholder {
-  margin-top: 4px;
-}
-
 .results-loading {
   display: flex;
   flex-direction: column;
@@ -895,22 +895,196 @@ input[type="number"]:focus {
   }
 }
 
-.results-controls {
+.results-card {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(24px, 3vw, 36px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.7));
+  box-shadow: 0 28px 60px -32px rgba(15, 23, 42, 0.45);
+  display: grid;
+  gap: clamp(16px, 2vw, 24px);
+  isolation: isolate;
+  animation: results-card-rise 0.6s ease 0.1s both;
+}
+
+.results-card::before,
+.results-card::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(0.4px);
+  opacity: 0.85;
+  z-index: -1;
+}
+
+.results-card::before {
+  width: clamp(140px, 22vw, 220px);
+  height: clamp(140px, 22vw, 220px);
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.85), var(--accent-foam));
+  top: -60px;
+  right: clamp(-30px, -4vw, -12px);
+  animation: hop-float 9s ease-in-out infinite;
+}
+
+.results-card::after {
+  width: clamp(160px, 28vw, 260px);
+  height: clamp(160px, 28vw, 260px);
+  background: radial-gradient(circle at 70% 70%, rgba(249, 115, 22, 0.35), var(--accent-amber));
+  bottom: clamp(-80px, -10vw, -32px);
+  left: clamp(-40px, -6vw, -18px);
+  animation: hop-float 11s ease-in-out infinite reverse;
+}
+
+.results-card__header {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
   gap: 16px;
-  align-items: flex-end;
 }
 
-.results-control {
+.results-card__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(6px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.results-card__icon {
+  font-size: 1.4rem;
+  display: inline-flex;
+  transform-origin: center;
+  animation: cheers 3.5s ease-in-out infinite;
+}
+
+.results-card__title {
+  margin: 0;
+  font-size: clamp(1.25rem, 2.6vw, 1.7rem);
+  font-weight: 700;
+}
+
+.results-placeholder {
+  margin: 0;
+  color: rgba(15, 23, 42, 0.65);
+}
+
+.results-card__body {
+  display: grid;
+  gap: 16px;
+}
+
+.results-summary {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 180px;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
 }
 
-.results-control select {
-  min-width: 160px;
+.results-summary__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.85);
+  color: #0f172a;
+  box-shadow: 0 12px 24px -18px rgba(15, 23, 42, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  position: relative;
+  overflow: hidden;
+}
+
+.results-summary__item::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 0%, rgba(249, 115, 22, 0.16) 45%, transparent 100%);
+  opacity: 0;
+  animation: shimmer 4s ease-in-out infinite;
+}
+
+.results-status {
+  margin: 0;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: var(--accent-hop-soft);
+  color: var(--accent-hop);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.results-status::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-hop);
+  box-shadow: 0 0 0 6px rgba(13, 148, 136, 0.12);
+}
+
+.results-empty {
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.04);
+  color: rgba(15, 23, 42, 0.7);
+}
+
+@keyframes results-card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes hop-float {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(0, -12px, 0) scale(1.05);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateX(-120%);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(120%);
+  }
+}
+
+@keyframes cheers {
+  0%,
+  100% {
+    transform: rotate(-4deg) translateY(0);
+  }
+  40% {
+    transform: rotate(4deg) translateY(-3px);
+  }
+  60% {
+    transform: rotate(-2deg) translateY(1px);
+  }
 }
 
 .results-list {

@@ -327,7 +327,6 @@ export const renderResults = (state, dictionaries) => {
     resultsLoading,
     resultsEmpty,
     statusMessage,
-    resultsControls,
   } = selectors;
 
   if (!resultsSection) {
@@ -414,7 +413,6 @@ export const renderResults = (state, dictionaries) => {
     if (resultsSummary) resultsSummary.hidden = true;
     if (statusMessage) statusMessage.hidden = true;
     if (resultsEmpty) resultsEmpty.hidden = true;
-    if (resultsControls) resultsControls.hidden = true;
     return { cards: [] };
   }
 
@@ -424,14 +422,17 @@ export const renderResults = (state, dictionaries) => {
     if (resultsPlaceholder) resultsPlaceholder.hidden = false;
     if (resultsSummary) {
       resultsSummary.hidden = true;
-      resultsSummary.textContent = '';
+      if (typeof resultsSummary.replaceChildren === 'function') {
+        resultsSummary.replaceChildren();
+      } else {
+        resultsSummary.textContent = '';
+      }
     }
     if (statusMessage) {
       statusMessage.hidden = true;
       statusMessage.textContent = '';
     }
     if (resultsEmpty) resultsEmpty.hidden = true;
-    if (resultsControls) resultsControls.hidden = true;
     return { cards: [] };
   }
 
@@ -450,10 +451,30 @@ export const renderResults = (state, dictionaries) => {
   if (resultsSummary) {
     if (summaryLines.length) {
       resultsSummary.hidden = false;
-      resultsSummary.textContent = summaryLines.join(' • ');
+      const summaryItems = summaryLines.map((line) => {
+        const span = document.createElement('span');
+        span.className = 'results-summary__item';
+        span.textContent = line;
+        return span;
+      });
+      if (typeof resultsSummary.replaceChildren === 'function') {
+        resultsSummary.replaceChildren(...summaryItems);
+      } else {
+        resultsSummary.textContent = '';
+        summaryItems.forEach((item, index) => {
+          if (index > 0) {
+            resultsSummary.appendChild(document.createTextNode(' '));
+          }
+          resultsSummary.appendChild(item);
+        });
+      }
     } else {
       resultsSummary.hidden = true;
-      resultsSummary.textContent = '';
+      if (typeof resultsSummary.replaceChildren === 'function') {
+        resultsSummary.replaceChildren();
+      } else {
+        resultsSummary.textContent = '';
+      }
     }
   }
 
@@ -472,10 +493,6 @@ export const renderResults = (state, dictionaries) => {
 
   if (resultsEmpty) {
     resultsEmpty.hidden = count !== 0;
-  }
-
-  if (resultsControls) {
-    resultsControls.hidden = count === 0;
   }
 
   if (count === 0) {

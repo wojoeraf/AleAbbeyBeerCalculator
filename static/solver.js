@@ -332,9 +332,6 @@ const initSolver = () => {
     resultsList,
     resultsEmpty,
     statusMessage,
-    resultsControls,
-    sortAttrSelect,
-    sortOrderSelect,
     debugToggle,
     debugContent,
   } = selectors;
@@ -1404,27 +1401,8 @@ const initSolver = () => {
     return Number.isFinite(num) ? num : 0;
   };
 
-  const getSelectedSortAttr = () => {
-    if (sortAttrSelect && ATTRS.includes(sortAttrSelect.value)) {
-      return sortAttrSelect.value;
-    }
-    return ATTRS.length ? ATTRS[0] : null;
-  };
-
-  const getSelectedSortOrder = () => {
-    if (sortOrderSelect && sortOrderSelect.value === 'asc') {
-      return 'asc';
-    }
-    return 'desc';
-  };
-
   const sortSolutionsForDisplay = (solutions) => {
     if (!Array.isArray(solutions)) return [];
-    const attr = getSelectedSortAttr();
-    const attrIndexRaw = attr ? ATTRS.indexOf(attr) : -1;
-    const attrIndex = attrIndexRaw >= 0 ? attrIndexRaw : 0;
-    const order = getSelectedSortOrder();
-
     const sorted = [...solutions];
     sorted.sort((a, b) => {
       const costA = numericValue((a && a.totalCost) || (a && a.averageCost));
@@ -1436,11 +1414,11 @@ const initSolver = () => {
 
       const totalsA = Array.isArray(a.totals) ? a.totals : [];
       const totalsB = Array.isArray(b.totals) ? b.totals : [];
-      const aVal = numericValue(totalsA[attrIndex]);
-      const bVal = numericValue(totalsB[attrIndex]);
-      const primaryDiff = aVal - bVal;
-      if (Math.abs(primaryDiff) > EPS) {
-        return order === 'asc' ? primaryDiff : -primaryDiff;
+      for (let idx = 0; idx < ATTRS.length; idx += 1) {
+        const diff = numericValue(totalsA[idx]) - numericValue(totalsB[idx]);
+        if (Math.abs(diff) > EPS) {
+          return diff;
+        }
       }
 
       const countA = Number.isFinite(a.ingredientCount)
@@ -1457,14 +1435,6 @@ const initSolver = () => {
       const unitsB = Number.isFinite(b.totalUnits) ? b.totalUnits : numericValue(b.sum);
       if (Math.abs(unitsA - unitsB) > EPS) {
         return unitsA - unitsB;
-      }
-
-      for (let idx = 0; idx < ATTRS.length; idx += 1) {
-        if (idx === attrIndex) continue;
-        const diff = numericValue(totalsA[idx]) - numericValue(totalsB[idx]);
-        if (Math.abs(diff) > EPS) {
-          return diff;
-        }
       }
 
       const keyA = Array.isArray(a.x) ? a.x.join('|') : '';
@@ -1543,18 +1513,6 @@ const initSolver = () => {
     }
     renderState({ loading: next });
   };
-
-  if (sortAttrSelect) {
-    sortAttrSelect.addEventListener('change', () => {
-      renderState();
-    });
-  }
-
-  if (sortOrderSelect) {
-    sortOrderSelect.addEventListener('change', () => {
-      renderState();
-    });
-  }
 
   if (form) {
     form.addEventListener('submit', (event) => {
