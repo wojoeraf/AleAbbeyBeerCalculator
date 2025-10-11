@@ -148,7 +148,7 @@
   },
   {
     "category": "Yeast",
-    "sub_category": "Brewing Yeasts",
+    "sub_category": "Yeasts",
     "name": "Standard Yeast",
     "special_category": "None",
     "flavor": 5,
@@ -169,7 +169,7 @@
   },
   {
     "category": "Yeast",
-    "sub_category": "Brewing Yeasts",
+    "sub_category": "Yeasts",
     "name": "Lager Yeast",
     "special_category": "None",
     "flavor": -5,
@@ -190,7 +190,7 @@
   },
   {
     "category": "Yeast",
-    "sub_category": "Brewing Yeasts",
+    "sub_category": "Yeasts",
     "name": "Estery Yeast",
     "special_category": "None",
     "flavor": 15,
@@ -211,7 +211,7 @@
   },
   {
     "category": "Yeast",
-    "sub_category": "Brewing Yeasts",
+    "sub_category": "Yeasts",
     "name": "Strong Yeast",
     "special_category": "None",
     "flavor": 3,
@@ -232,7 +232,7 @@
   },
   {
     "category": "Yeast",
-    "sub_category": "Brewing Yeasts",
+    "sub_category": "Yeasts",
     "name": "Wild Yeast",
     "special_category": "None",
     "flavor": 15,
@@ -316,7 +316,7 @@
   },
   {
     "category": "Fermentable",
-    "sub_category": "Brewing Sugars",
+    "sub_category": "Sugar & Honey",
     "name": "Sugar",
     "special_category": "Sugar",
     "flavor": -10,
@@ -337,7 +337,7 @@
   },
   {
     "category": "Fermentable",
-    "sub_category": "Brewing Sugars",
+    "sub_category": "Sugar & Honey",
     "name": "Brown Candied Sugar",
     "special_category": "Sugar",
     "flavor": 5,
@@ -358,7 +358,7 @@
   },
   {
     "category": "Fermentable",
-    "sub_category": "Honey & Syrups",
+    "sub_category": "Sugar & Honey",
     "name": "Honey",
     "special_category": "Sugar",
     "flavor": 10,
