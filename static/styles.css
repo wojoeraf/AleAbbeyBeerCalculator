@@ -1084,8 +1084,8 @@ input[type="number"]:focus {
 
 .result-attr-chart {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+  gap: 0px;
   align-items: end;
   padding-top: 8px;
 }
