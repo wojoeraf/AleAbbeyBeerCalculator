@@ -1,4 +1,11 @@
-import { solveRecipe, EPS, getIngredientId } from './solver-core.js';
+import {
+  solveRecipe,
+  EPS,
+  getIngredientId,
+  DEFAULT_TOP_K,
+  computeWeightedOrder,
+  computeSuffixBounds,
+} from './solver-core.js';
 import { initUIState } from './ui-state.js';
 import { renderResults, renderDebug } from './render.js';
 
@@ -462,7 +469,7 @@ const initSolver = () => {
     perCap,
     extraMinCounts,
     allowedIngredientIds,
-    topK = 10,
+    topK = DEFAULT_TOP_K,
   }) => {
     const style = stylesData[styleName];
     if (!style) {
@@ -616,44 +623,19 @@ const initSolver = () => {
       return { solutions: [], info: [translate('no_intervals')] };
     }
 
-    const weightedOrder = Array.from({ length: n }, (_, idx) => {
-      const vec = vectors[idx];
-      let weight = 0;
-      for (let k = 0; k < ATTRS.length; k += 1) {
-        const val = Math.abs(vec[k] || 0);
-        if (val > weight) {
-          weight = val;
-        }
-      }
-      return { idx, weight };
-    });
-    weightedOrder.sort((a, b) => b.weight - a.weight);
-    const orderedIndices = weightedOrder.map((entry) => entry.idx);
+    const orderedIndices = computeWeightedOrder(vectors);
     const orderedVectors = orderedIndices.map((idx) => vectors[idx]);
     const orderedMinCounts = orderedIndices.map((idx) => minCounts[idx]);
     const orderedMaxCounts = orderedIndices.map((idx) => perIngredientCeilValues[idx]);
 
-    const suffixMinCounts = new Array(n + 1).fill(0);
-    for (let idx = n - 1; idx >= 0; idx -= 1) {
-      suffixMinCounts[idx] = orderedMinCounts[idx] + suffixMinCounts[idx + 1];
-    }
+    const { suffixMinCounts, suffixLo, suffixHi } = computeSuffixBounds(
+      orderedVectors,
+      orderedMinCounts,
+      orderedMaxCounts,
+      ATTRS.length,
+    );
     if (suffixMinCounts[0] > adjustedTotalCap) {
       return { solutions: [], info: [translate('cap_too_small')] };
-    }
-
-    const suffixLo = Array.from({ length: n + 1 }, () => new Array(ATTRS.length).fill(0));
-    const suffixHi = Array.from({ length: n + 1 }, () => new Array(ATTRS.length).fill(0));
-    for (let idx = n - 1; idx >= 0; idx -= 1) {
-      const vec = orderedVectors[idx];
-      const loCnt = orderedMinCounts[idx];
-      const hiCnt = orderedMaxCounts[idx];
-      for (let k = 0; k < ATTRS.length; k += 1) {
-        const coef = vec[k] || 0;
-        const loVal = coef >= 0 ? coef * loCnt : coef * hiCnt;
-        const hiVal = coef >= 0 ? coef * hiCnt : coef * loCnt;
-        suffixLo[idx][k] = loVal + suffixLo[idx + 1][k];
-        suffixHi[idx][k] = hiVal + suffixHi[idx + 1][k];
-      }
     }
 
     const counts = new Array(n).fill(0);
