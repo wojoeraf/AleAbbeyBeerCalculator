@@ -941,9 +941,10 @@ input[type="number"]:focus {
 .results-header-card {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.16), rgba(236, 72, 153, 0.12));
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.72));
+  border: 1px solid rgba(255, 255, 255, 0.85);
   box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(26px);
   transition: box-shadow 260ms ease, transform 260ms ease;
 }
 
@@ -953,26 +954,26 @@ input[type="number"]:focus {
   position: absolute;
   border-radius: 50%;
   pointer-events: none;
-  opacity: 0.45;
+  opacity: 0.38;
   filter: blur(0);
   transform: translate3d(0, 0, 0);
 }
 
 .results-header-card::before {
-  width: 240px;
-  height: 240px;
-  top: -140px;
-  right: -100px;
-  background: radial-gradient(circle at center, rgba(59, 130, 246, 0.55), rgba(59, 130, 246, 0));
+  width: 260px;
+  height: 260px;
+  top: -150px;
+  right: -110px;
+  background: radial-gradient(circle at center, rgba(59, 130, 246, 0.28), rgba(59, 130, 246, 0));
   animation: results-orbit 18s linear infinite;
 }
 
 .results-header-card::after {
-  width: 180px;
-  height: 180px;
-  bottom: -110px;
-  left: -60px;
-  background: radial-gradient(circle at center, rgba(236, 72, 153, 0.4), rgba(236, 72, 153, 0));
+  width: 210px;
+  height: 210px;
+  bottom: -120px;
+  left: -70px;
+  background: radial-gradient(circle at center, rgba(236, 72, 153, 0.26), rgba(236, 72, 153, 0));
   animation: results-orbit 16s linear infinite reverse;
 }
 
@@ -998,14 +999,6 @@ input[type="number"]:focus {
   flex-direction: column;
   gap: 8px;
   max-width: min(520px, 100%);
-}
-
-.results-eyebrow {
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: rgba(15, 23, 42, 0.6);
-  font-weight: 700;
 }
 
 .results-title {
@@ -1065,10 +1058,6 @@ input[type="number"]:focus {
 .results-status-empty {
   margin-top: 16px;
   color: rgba(15, 23, 42, 0.7);
-}
-
-.results-controls {
-  margin-top: 22px;
 }
 
 .results-section {

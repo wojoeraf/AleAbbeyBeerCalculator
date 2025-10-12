@@ -237,7 +237,6 @@
         <div class="card results-header-card" data-results-header>
             <div class="results-header-top">
                 <div class="results-heading">
-                    <span class="results-eyebrow">{{ ui.section_results }}</span>
                     <h2 class="section-title results-title" data-results-title>{{ ui.section_results }}</h2>
                     <p class="hint results-placeholder" data-results-placeholder>{{ ui.results_placeholder }}</p>
                 </div>
@@ -248,23 +247,6 @@
             </div>
             <div class="results-summary-list" data-results-summary hidden></div>
             <p class="hint results-status" data-status-message hidden></p>
-            <div class="results-controls" data-results-controls hidden>
-                <label class="results-control">
-                    <span class="label">{{ ui.results_sort_label }}</span>
-                    <select data-sort-attr>
-                        {% for a in attrs %}
-                            <option value="{{ a }}" {% if loop.first %}selected{% endif %}>{{ attr_labels[a] }}</option>
-                        {% endfor %}
-                    </select>
-                </label>
-                <label class="results-control">
-                    <span class="label">{{ ui.results_sort_order_label }}</span>
-                    <select data-sort-order>
-                        <option value="desc" selected>{{ ui.results_sort_desc }}</option>
-                        <option value="asc">{{ ui.results_sort_asc }}</option>
-                    </select>
-                </label>
-            </div>
             <p class="hint results-status-empty" data-results-empty hidden><strong>{{ ui.section_results }}</strong> {{ ui.results_empty }}</p>
         </div>
         <div class="results-list" data-results-list></div>

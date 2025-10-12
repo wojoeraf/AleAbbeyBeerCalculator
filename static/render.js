@@ -327,7 +327,6 @@ export const renderResults = (state, dictionaries) => {
     resultsLoading,
     resultsEmpty,
     statusMessage,
-    resultsControls,
     resultsHeader,
   } = selectors;
 
@@ -416,7 +415,6 @@ export const renderResults = (state, dictionaries) => {
     clearSummary();
     if (statusMessage) statusMessage.hidden = true;
     if (resultsEmpty) resultsEmpty.hidden = true;
-    if (resultsControls) resultsControls.hidden = true;
     return { cards: [] };
   }
 
@@ -430,7 +428,6 @@ export const renderResults = (state, dictionaries) => {
       statusMessage.textContent = '';
     }
     if (resultsEmpty) resultsEmpty.hidden = true;
-    if (resultsControls) resultsControls.hidden = true;
     if (resultsHeader) {
       resultsHeader.classList.remove('is-ready');
     }
@@ -469,10 +466,6 @@ export const renderResults = (state, dictionaries) => {
 
   if (resultsEmpty) {
     resultsEmpty.hidden = count !== 0;
-  }
-
-  if (resultsControls) {
-    resultsControls.hidden = count === 0;
   }
 
   if (count === 0) {
