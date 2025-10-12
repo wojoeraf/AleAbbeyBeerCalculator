@@ -346,7 +346,7 @@ def index():
         for a in ATTRS:
             band_choice = request.form.get(f"band_{a}", "any")
             mode = request.form.get(f"mode_{a}", "any")
-            if mode not in {"any", "eq", "ge", "le"}:
+            if mode not in {"any", "eq", "ge", "le", "between"}:
                 mode = "any"
             min_raw = request.form.get(f"min_{a}", "").strip()
             max_raw = request.form.get(f"max_{a}", "").strip()
@@ -354,10 +354,12 @@ def index():
             max_val = parse_and_clamp(max_raw)
 
             slider_value = 5.5
+            slider_upper_value = slider_value
             if mode == "eq":
                 base_value = min_val if min_val is not None else max_val
                 if base_value is not None:
                     slider_value = base_value
+                    slider_upper_value = base_value
                     display_min = f"{base_value:.1f}"
                     display_max = f"{base_value:.1f}"
                 else:
@@ -366,6 +368,7 @@ def index():
             elif mode == "ge":
                 if min_val is not None:
                     slider_value = min_val
+                    slider_upper_value = min_val
                     display_min = f"{min_val:.1f}"
                 else:
                     display_min = ""
@@ -374,8 +377,23 @@ def index():
                 display_min = ""
                 if max_val is not None:
                     slider_value = max_val
+                    slider_upper_value = max_val
                     display_max = f"{max_val:.1f}"
                 else:
+                    display_max = ""
+            elif mode == "between":
+                if min_val is not None and max_val is not None and min_val > max_val:
+                    min_val, max_val = max_val, min_val
+                if min_val is not None:
+                    slider_value = min_val
+                    display_min = f"{min_val:.1f}"
+                else:
+                    display_min = ""
+                if max_val is not None:
+                    slider_upper_value = max_val
+                    display_max = f"{max_val:.1f}"
+                else:
+                    slider_upper_value = slider_value
                     display_max = ""
             else:
                 display_min = ""
@@ -387,11 +405,17 @@ def index():
                 min=display_min,
                 max=display_max,
                 value=f"{slider_value:.1f}",
+                value_upper=f"{slider_upper_value:.1f}" if slider_upper_value is not None else "",
             )
     else:
         constraints = {
             a: SimpleNamespace(
-                band="any", mode="any", min="", max="", value=f"{5.5:.1f}"
+                band="any",
+                mode="any",
+                min="",
+                max="",
+                value=f"{5.5:.1f}",
+                value_upper=f"{5.5:.1f}",
             )
             for a in ATTRS
         }

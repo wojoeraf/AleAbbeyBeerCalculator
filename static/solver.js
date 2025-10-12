@@ -892,7 +892,22 @@ const initSolver = () => {
 
   attrCards.forEach((card) => {
     const slider = card.querySelector('[data-attr-range]');
-    const sliderValueEl = card.querySelector('[data-slider-value]');
+    const sliderMax = card.querySelector('[data-attr-range-max]');
+    const sliderRow = card.querySelector('[data-slider-row]');
+    const sliderValueSingleBox = card.querySelector('[data-slider-value-single]');
+    const sliderSingleValueEl = card.querySelector('[data-slider-single-value]');
+    const sliderRangeBox = card.querySelector('[data-slider-value-range]');
+    const sliderMinValueEl = card.querySelector('[data-slider-min-value]');
+    const sliderMaxValueEl = card.querySelector('[data-slider-max-value]');
+    const sliderDefaultAriaLabel = slider
+      ? slider.dataset.ariaLabelDefault || slider.getAttribute('aria-label')
+      : null;
+    const sliderLowerAriaLabel = slider
+      ? slider.dataset.ariaLabelLower || sliderDefaultAriaLabel
+      : sliderDefaultAriaLabel;
+    const sliderUpperAriaLabel = sliderMax
+      ? sliderMax.dataset.ariaLabelUpper || sliderMax.getAttribute('aria-label')
+      : null;
     const modeButtons = Array.from(card.querySelectorAll('[data-mode-btn]'));
     const modeInput = card.querySelector('[data-mode-input]');
     const minInput = card.querySelector('[data-min-input]');
@@ -904,6 +919,9 @@ const initSolver = () => {
     const clearBtn = card.querySelector('[data-clear-color]');
     const sliderInitialValue = slider
       ? Number(slider.dataset.initialValue || sliderStepToNumber(slider.value))
+      : null;
+    const sliderMaxInitialValue = sliderMax
+      ? Number(sliderMax.dataset.initialValue || sliderStepToNumber(sliderMax.value))
       : null;
     const hasAdvancedControls = !!(modeInput && minInput && maxInput);
     const cardType = hasAdvancedControls ? 'range' : 'simple';
@@ -1032,35 +1050,103 @@ const initSolver = () => {
     }
 
     const sanitizeMode = (mode) => {
-      if (mode === 'ge' || mode === 'le' || mode === 'eq') {
+      if (mode === 'ge' || mode === 'le' || mode === 'eq' || mode === 'between') {
         return mode;
       }
       return 'eq';
     };
 
+    let lastRangeMinValue = slider ? sliderStepToNumber(slider.value) : 0;
+    let lastRangeMaxValue = sliderMax ? sliderStepToNumber(sliderMax.value) : lastRangeMinValue;
+
+    const isBetweenMode = () => modeInput.value === 'between';
+
+    const ensureRangeOrder = (origin = 'min') => {
+      if (!slider || !sliderMax) return;
+      const minStep = Number(slider.value);
+      const maxStep = Number(sliderMax.value);
+      if (!Number.isFinite(minStep) || !Number.isFinite(maxStep)) {
+        return;
+      }
+      if (minStep > maxStep) {
+        if (origin === 'max') {
+          slider.value = String(maxStep);
+        } else {
+          sliderMax.value = String(minStep);
+        }
+      }
+    };
+
     const syncSliderDisplay = () => {
       if (!slider) return;
-      const numeric = sliderStepToNumber(slider.value);
-      if (sliderValueEl) {
-        sliderValueEl.textContent = formatSliderValue(numeric);
+      const numericMin = sliderStepToNumber(slider.value);
+      const numericMax = sliderMax ? sliderStepToNumber(sliderMax.value) : numericMin;
+      const lower = Math.min(numericMin, numericMax);
+      const upper = Math.max(numericMin, numericMax);
+
+      if (sliderSingleValueEl) {
+        sliderSingleValueEl.textContent = formatSliderValue(numericMin);
       }
-      slider.setAttribute('aria-valuenow', formatSliderValue(numeric));
+      if (sliderMinValueEl) {
+        sliderMinValueEl.textContent = formatSliderValue(lower);
+      }
+      if (sliderMaxValueEl) {
+        sliderMaxValueEl.textContent = formatSliderValue(upper);
+      }
+
+      slider.setAttribute('aria-valuenow', formatSliderValue(numericMin));
+      if (sliderMax) {
+        sliderMax.setAttribute('aria-valuenow', formatSliderValue(numericMax));
+      }
+
       updateSliderProgress(slider);
+
+      if (slider && sliderMax && isBetweenMode()) {
+        const maxStepValue = Number(slider.max) || SLIDER_MAX_VALUE * SLIDER_STEP_SCALE;
+        const minStep = clamp(Number(slider.value), 0, maxStepValue);
+        const maxStep = clamp(Number(sliderMax.value), 0, maxStepValue);
+        const lowerStep = Math.min(minStep, maxStep);
+        const upperStep = Math.max(minStep, maxStep);
+        const startPercent = (lowerStep / maxStepValue) * 100;
+        const endPercent = (upperStep / maxStepValue) * 100;
+        slider.style.setProperty('--slider-range-start', `${startPercent}%`);
+        slider.style.setProperty('--slider-progress', `${endPercent}%`);
+      } else {
+        slider.style.setProperty('--slider-range-start', '0%');
+      }
+
+      const mode = modeInput.value;
+      if (mode === 'between') {
+        lastRangeMinValue = lower;
+        lastRangeMaxValue = upper;
+      } else {
+        lastRangeMinValue = numericMin;
+        if (mode === 'le' || mode === 'eq') {
+          lastRangeMaxValue = numericMin;
+        }
+      }
     };
 
     const syncHiddenValues = () => {
       if (!slider) return;
-      const formatted = formatSliderValue(sliderStepToNumber(slider.value));
       const mode = modeInput.value;
+      const numericMin = sliderStepToNumber(slider.value);
+      const numericMax = sliderMax ? sliderStepToNumber(sliderMax.value) : numericMin;
+      const lower = Math.min(numericMin, numericMax);
+      const upper = Math.max(numericMin, numericMax);
       if (mode === 'ge') {
-        minInput.value = formatted;
+        minInput.value = formatSliderValue(numericMin);
         maxInput.value = '';
       } else if (mode === 'le') {
         minInput.value = '';
-        maxInput.value = formatted;
+        maxInput.value = formatSliderValue(numericMin);
       } else if (mode === 'eq') {
+        const formatted = formatSliderValue(numericMin);
         minInput.value = formatted;
         maxInput.value = formatted;
+      } else if (mode === 'between') {
+        minInput.value = formatSliderValue(lower);
+        maxInput.value = formatSliderValue(upper);
       } else {
         minInput.value = '';
         maxInput.value = '';
@@ -1068,9 +1154,17 @@ const initSolver = () => {
     };
 
     const setModeButtonsState = () => {
+      const currentMode = modeInput.value;
       modeButtons.forEach((btn) => {
         const isDisabled = slider ? slider.disabled : false;
-        const isActive = !isDisabled && btn.dataset.mode === modeInput.value;
+        if (isDisabled) {
+          btn.setAttribute('aria-pressed', 'false');
+          return;
+        }
+        const btnMode = btn.dataset.mode;
+        const isActive =
+          (currentMode === 'between' && (btnMode === 'ge' || btnMode === 'le')) ||
+          currentMode === btnMode;
         btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
       });
     };
@@ -1078,18 +1172,60 @@ const initSolver = () => {
     const fallbackMode = 'eq';
     let storedMode = modeInput.value === 'any' ? null : sanitizeMode(modeInput.value);
 
+    const setRangeUIActive = (active) => {
+      if (sliderValueSingleBox) {
+        sliderValueSingleBox.hidden = !!active;
+      }
+      if (sliderRangeBox) {
+        sliderRangeBox.hidden = !active;
+      }
+      if (sliderMax) {
+        sliderMax.hidden = !active;
+      }
+      if (slider && sliderDefaultAriaLabel) {
+        slider.setAttribute('aria-label', active ? sliderLowerAriaLabel : sliderDefaultAriaLabel);
+      }
+      if (sliderMax && sliderUpperAriaLabel) {
+        sliderMax.setAttribute('aria-label', sliderUpperAriaLabel);
+      }
+      if (sliderRow) {
+        if (active) {
+          sliderRow.dataset.rangeActive = 'true';
+        } else {
+          delete sliderRow.dataset.rangeActive;
+        }
+      }
+      if (active && slider && sliderMax) {
+        const minStep = Math.round(clamp(lastRangeMinValue, 0, SLIDER_MAX_VALUE) * SLIDER_STEP_SCALE);
+        const maxStep = Math.round(clamp(lastRangeMaxValue, 0, SLIDER_MAX_VALUE) * SLIDER_STEP_SCALE);
+        slider.value = String(minStep);
+        sliderMax.value = String(maxStep);
+        ensureRangeOrder('max');
+      }
+      if (slider && !active) {
+        slider.style.setProperty('--slider-range-start', '0%');
+      }
+      if (active) {
+        syncSliderDisplay();
+      }
+    };
+
     const setSliderDisabled = (disabled) => {
+      const isDisabled = !!disabled;
       if (slider) {
-        slider.disabled = !!disabled;
-        if (!disabled) {
+        slider.disabled = isDisabled;
+        if (!isDisabled) {
           syncSliderDisplay();
         }
       }
+      if (sliderMax) {
+        sliderMax.disabled = isDisabled;
+      }
       if (attrControls) {
-        attrControls.classList.toggle('is-disabled', !!disabled);
+        attrControls.classList.toggle('is-disabled', isDisabled);
       }
       modeButtons.forEach((btn) => {
-        btn.disabled = !!disabled;
+        btn.disabled = isDisabled;
       });
       setModeButtonsState();
     };
@@ -1102,10 +1238,12 @@ const initSolver = () => {
     };
 
     const applyMode = (mode) => {
+      const previousMode = modeInput.value;
       if (mode === 'any') {
         storedMode = null;
         modeInput.value = 'any';
         delete card.dataset.savedMode;
+        setRangeUIActive(false);
         setSliderDisabled(slider ? slider.disabled : false);
         minInput.value = '';
         maxInput.value = '';
@@ -1118,6 +1256,24 @@ const initSolver = () => {
       storedMode = normalized;
       modeInput.value = normalized;
       delete card.dataset.savedMode;
+
+      if (slider) {
+        if (normalized === 'between') {
+          // handled by setRangeUIActive
+        } else if (normalized === 'le') {
+          const upperStep = Math.round(clamp(lastRangeMaxValue, 0, SLIDER_MAX_VALUE) * SLIDER_STEP_SCALE);
+          slider.value = String(upperStep);
+        } else {
+          const lowerStep = Math.round(clamp(lastRangeMinValue, 0, SLIDER_MAX_VALUE) * SLIDER_STEP_SCALE);
+          slider.value = String(lowerStep);
+        }
+      }
+
+      setRangeUIActive(normalized === 'between');
+      if (previousMode === 'between' && normalized !== 'between' && slider && sliderMax) {
+        ensureRangeOrder('max');
+        syncSliderDisplay();
+      }
       setSliderDisabled(slider ? slider.disabled : false);
       syncHiddenValues();
       updateSubmitState();
@@ -1140,6 +1296,7 @@ const initSolver = () => {
           delete card.dataset.savedMode;
         }
         modeInput.value = 'any';
+        setRangeUIActive(false);
         setSliderDisabled(true);
         minInput.value = '';
         maxInput.value = '';
@@ -1160,6 +1317,7 @@ const initSolver = () => {
         if (!storedMode) {
           delete card.dataset.savedMode;
         }
+        setRangeUIActive(modeInput.value === 'between');
         syncHiddenValues();
       }
       updateSubmitState();
@@ -1172,11 +1330,25 @@ const initSolver = () => {
       modeInput.value = 'any';
       if (slider) {
         const baseValue = Number.isFinite(sliderInitialValue)
-          ? clamp(sliderInitialValue, 0, 11)
+          ? clamp(sliderInitialValue, 0, SLIDER_MAX_VALUE)
           : sliderStepToNumber(slider.value);
-        slider.value = String(Math.round(baseValue * 10));
+        slider.value = String(Math.round(baseValue * SLIDER_STEP_SCALE));
+        lastRangeMinValue = sliderStepToNumber(slider.value);
       }
+      if (sliderMax) {
+        const baseUpper = Number.isFinite(sliderMaxInitialValue)
+          ? clamp(sliderMaxInitialValue, 0, SLIDER_MAX_VALUE)
+          : sliderStepToNumber(sliderMax.value || slider.value);
+        sliderMax.value = String(Math.round(baseUpper * SLIDER_STEP_SCALE));
+        lastRangeMaxValue = sliderStepToNumber(sliderMax.value);
+      }
+      setRangeUIActive(false);
       applyColorSelection(null, { focus: false });
+      syncSliderDisplay();
+      syncHiddenValues();
+      setModeButtonsState();
+      updateSubmitState();
+      syncClearButtonState();
     };
 
     if (clearBtn) {
@@ -1185,6 +1357,42 @@ const initSolver = () => {
       });
     }
 
+    const toggleModeSelection = (targetMode) => {
+      const current = modeInput.value;
+      let nextMode = current;
+      if (targetMode === 'eq') {
+        nextMode = current === 'eq' ? 'any' : 'eq';
+      } else if (targetMode === 'ge') {
+        const geActive = current === 'ge' || current === 'between';
+        const leActive = current === 'le' || current === 'between';
+        if (geActive && leActive) {
+          nextMode = 'le';
+        } else if (geActive) {
+          nextMode = 'any';
+        } else if (leActive) {
+          nextMode = 'between';
+        } else {
+          nextMode = 'ge';
+        }
+      } else if (targetMode === 'le') {
+        const geActive = current === 'ge' || current === 'between';
+        const leActive = current === 'le' || current === 'between';
+        if (geActive && leActive) {
+          nextMode = 'ge';
+        } else if (leActive) {
+          nextMode = 'any';
+        } else if (geActive) {
+          nextMode = 'between';
+        } else {
+          nextMode = 'le';
+        }
+      } else {
+        nextMode = targetMode;
+      }
+      applyMode(nextMode);
+      setModeButtonsState();
+    };
+
     modeButtons.forEach((btn) => {
       btn.addEventListener('click', () => {
         if (slider && slider.disabled) {
@@ -1192,14 +1400,15 @@ const initSolver = () => {
         }
 
         const targetMode = btn.dataset.mode || 'eq';
-        const isActive = modeInput.value === targetMode;
-        applyMode(isActive ? 'any' : targetMode);
-        setModeButtonsState();
+        toggleModeSelection(targetMode);
       });
     });
 
     if (slider) {
       slider.addEventListener('input', () => {
+        if (isBetweenMode()) {
+          ensureRangeOrder('min');
+        }
         syncSliderDisplay();
         if (modeInput.value === 'any') {
           applyMode(storedMode || fallbackMode);
@@ -1210,6 +1419,9 @@ const initSolver = () => {
         syncClearButtonState();
       });
       slider.addEventListener('change', () => {
+        if (isBetweenMode()) {
+          ensureRangeOrder('min');
+        }
         syncSliderDisplay();
         syncHiddenValues();
         syncClearButtonState();
@@ -1217,8 +1429,35 @@ const initSolver = () => {
       syncSliderDisplay();
     }
 
+    if (sliderMax) {
+      sliderMax.addEventListener('input', () => {
+        if (!isBetweenMode()) {
+          return;
+        }
+        ensureRangeOrder('max');
+        syncSliderDisplay();
+        if (modeInput.value === 'any') {
+          applyMode(storedMode || fallbackMode);
+        } else {
+          syncHiddenValues();
+          updateSubmitState();
+        }
+        syncClearButtonState();
+      });
+      sliderMax.addEventListener('change', () => {
+        if (!isBetweenMode()) {
+          return;
+        }
+        ensureRangeOrder('max');
+        syncSliderDisplay();
+        syncHiddenValues();
+        syncClearButtonState();
+      });
+    }
+
     syncHiddenValues();
     setModeButtonsState();
+    setRangeUIActive(isBetweenMode());
     updateColorState();
     colorStateUpdaters.push(updateColorState);
   });
@@ -1674,6 +1913,29 @@ const initSolver = () => {
               } else {
                 debugLo = 0;
                 debugHi = 11;
+              }
+            } else if (mode === 'between') {
+              if (minVal !== null) {
+                lo = minVal;
+                debugLo = minVal;
+              } else {
+                lo = 0;
+                debugLo = 0;
+              }
+              if (maxVal !== null) {
+                hi = maxVal;
+                debugHi = maxVal;
+              } else {
+                hi = 11;
+                debugHi = 11;
+              }
+              if (lo > hi) {
+                const mid = lo;
+                lo = hi;
+                hi = mid;
+                const dbgMid = debugLo;
+                debugLo = debugHi;
+                debugHi = dbgMid;
               }
             } else {
               debugLo = 0;

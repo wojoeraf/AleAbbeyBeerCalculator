@@ -17,6 +17,8 @@
       "button_clear_color": "Zurücksetzen",
       "label_mode": "Modus",
       "label_value_display": "Zielwert",
+      "label_value_lower": "Untergrenze",
+      "label_value_upper": "Obergrenze",
       "section_ingredients": "Zutatenübersicht",
       "toggle_show_attributes": "Attributwerte anzeigen",
       "table_name": "Name",
@@ -70,7 +72,8 @@
       "any": "Egal",
       "eq": "Genau",
       "ge": "Mindestens",
-      "le": "Höchstens"
+      "le": "Höchstens",
+      "between": "Zwischen"
     },
     "messages": {
       "parse_error": "Konnte {id} nicht parsen",
@@ -129,6 +132,8 @@
       "button_clear_color": "Clear",
       "label_mode": "Mode",
       "label_value_display": "Target value",
+      "label_value_lower": "Lower limit",
+      "label_value_upper": "Upper limit",
       "section_ingredients": "Ingredient overview",
       "toggle_show_attributes": "Show attribute details",
       "table_name": "Name",
@@ -182,7 +187,8 @@
       "any": "Any",
       "eq": "Exactly",
       "ge": "At least",
-      "le": "At most"
+      "le": "At most",
+      "between": "Between"
     },
     "messages": {
       "parse_error": "Failed to parse {id}",

@@ -411,7 +411,33 @@ input[type="number"]:focus {
   width: 100%;
   order: -1;
 }
+.range-slider {
+  position: relative;
+  width: 100%;
+}
+.range-slider input[type='range'][data-slider-handle='min'] {
+  position: relative;
+  z-index: 2;
+}
+.range-slider input[type='range'][data-slider-handle='max'] {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: none;
+  box-shadow: none;
+  pointer-events: none;
+}
+.range-slider input[type='range'][data-slider-handle='max']::-webkit-slider-thumb {
+  pointer-events: auto;
+}
+.range-slider input[type='range'][data-slider-handle='max']::-moz-range-thumb {
+  pointer-events: auto;
+}
+.range-slider input[type='range'][data-slider-handle='max']::-ms-thumb {
+  pointer-events: auto;
+}
 .attr-card input[type='range'] {
+  --slider-range-start: 0%;
   width: 100%;
   -webkit-appearance: none;
   appearance: none;
@@ -420,7 +446,9 @@ input[type="number"]:focus {
   background:
     linear-gradient(
       90deg,
-      rgba(255, 255, 255, 0) var(--slider-progress, 50%),
+      rgba(15, 23, 42, 0.12) 0%,
+      rgba(15, 23, 42, 0.12) var(--slider-range-start, 0%),
+      rgba(255, 255, 255, 0) var(--slider-range-start, 0%),
       rgba(255, 255, 255, 0) var(--slider-progress, 50%),
       rgba(15, 23, 42, 0.12) var(--slider-progress, 50%),
       rgba(15, 23, 42, 0.12) 100%
@@ -521,6 +549,14 @@ input[type="number"]:focus {
   padding: 6px 12px;
   border-radius: 12px;
   margin-left: auto;
+}
+.slider-value-range {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+.slider-value-range .slider-value {
+  margin-left: 0;
 }
 .slider-value-label {
   font-size: 0.7rem;

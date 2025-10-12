@@ -66,7 +66,10 @@
                         {% set constraint = constraints[a] %}
                         {% set slider_value_str = constraint.value if constraint.value else '5.5' %}
                         {% set slider_value = slider_value_str|float %}
+                        {% set slider_upper_value_str = constraint.value_upper if constraint.value_upper else (constraint.max if constraint.max else slider_value_str) %}
+                        {% set slider_upper_value = slider_upper_value_str|float %}
                         {% set slider_step = '%.0f'|format(slider_value * 10) %}
+                        {% set slider_upper_step = '%.0f'|format(slider_upper_value * 10) %}
                         <div class="attr-card" data-attr-card data-attr="{{ a }}">
                             <div class="attr-card-header">
                                 <h4>{{ attr_labels[a] }}</h4>
@@ -100,17 +103,37 @@
                                                 aria-label="{{ mode_labels.get('le', '≤') }}"
                                                 title="{{ mode_labels.get('le', '≤') }}"
                                                 aria-pressed="{{ 'true' if constraints[a].mode == 'le' else 'false' }}">≤</button>
-                                        <div class="slider-value">
+                                        <div class="slider-value" data-slider-value-single>
                                             <span class="slider-value-label">{{ ui.label_value_display }}</span>
-                                            <span class="slider-value-number" data-slider-value>{{ '%.1f'|format(slider_value) }}</span>
+                                            <span class="slider-value-number" data-slider-single-value>{{ '%.1f'|format(slider_value) }}</span>
+                                        </div>
+                                        <div class="slider-value-range" data-slider-value-range hidden>
+                                            <div class="slider-value">
+                                                <span class="slider-value-label">{{ ui.label_value_lower }}</span>
+                                                <span class="slider-value-number" data-slider-min-value>{{ '%.1f'|format(slider_value) }}</span>
+                                            </div>
+                                            <div class="slider-value">
+                                                <span class="slider-value-label">{{ ui.label_value_upper }}</span>
+                                                <span class="slider-value-number" data-slider-max-value>{{ '%.1f'|format(slider_upper_value) }}</span>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div class="slider-row">
-                                        <input type="range" min="0" max="110" step="1" value="{{ slider_step }}"
-                                               data-attr-range data-initial-value="{{ '%.1f'|format(slider_value) }}"
-                                               aria-valuemin="0" aria-valuemax="11" aria-valuenow="{{ '%.1f'|format(slider_value) }}"
-                                               aria-label="{{ attr_labels[a] }}">
-
+                                    <div class="slider-row" data-slider-row>
+                                        <div class="range-slider" data-range-slider>
+                                            <input type="range" min="0" max="110" step="1" value="{{ slider_step }}"
+                                                   data-attr-range data-initial-value="{{ '%.1f'|format(slider_value) }}"
+                                                   data-slider-handle="min"
+                                                   data-aria-label-default="{{ attr_labels[a] }} ({{ ui.label_value_display }})"
+                                                   data-aria-label-lower="{{ attr_labels[a] }} ({{ ui.label_value_lower }})"
+                                                   aria-valuemin="0" aria-valuemax="11" aria-valuenow="{{ '%.1f'|format(slider_value) }}"
+                                                   aria-label="{{ attr_labels[a] }} ({{ ui.label_value_display }})">
+                                            <input type="range" min="0" max="110" step="1" value="{{ slider_upper_step }}"
+                                                   data-attr-range-max data-initial-value="{{ '%.1f'|format(slider_upper_value) }}"
+                                                   data-slider-handle="max" hidden
+                                                   data-aria-label-upper="{{ attr_labels[a] }} ({{ ui.label_value_upper }})"
+                                                   aria-valuemin="0" aria-valuemax="11" aria-valuenow="{{ '%.1f'|format(slider_upper_value) }}"
+                                                   aria-label="{{ attr_labels[a] }} ({{ ui.label_value_upper }})">
+                                        </div>
                                     </div>
                                 </div>
                             </div>
