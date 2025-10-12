@@ -1061,23 +1061,16 @@ input[type="number"]:focus {
 
 .results-status {
   margin: 0;
-  padding: 10px 16px;
-  border-radius: 12px;
-  background: var(--accent-hop-soft);
-  color: var(--accent-hop);
+  padding: 0;
+  color: rgba(15, 23, 42, 0.62);
   font-weight: 600;
-  display: inline-flex;
+  display: none;
   align-items: center;
   gap: 8px;
 }
 
-.results-status::before {
-  content: "";
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--accent-hop);
-  box-shadow: 0 0 0 6px rgba(13, 148, 136, 0.12);
+.results-status:not([hidden]) {
+  display: inline-flex;
 }
 
 .results-empty {
@@ -1305,66 +1298,6 @@ input[type="number"]:focus {
   gap: 10px;
 }
 
-.result-attr-chart {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
-  gap: 0px;
-  align-items: end;
-  padding-top: 8px;
-}
-
-.result-attr-bar {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-
-.result-attr-value {
-  font-size: 1.1rem;
-  font-weight: 700;
-}
-
-.result-attr-track {
-  width: 36px;
-  height: 160px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.08) 0%, rgba(15, 23, 42, 0.18) 100%);
-  display: flex;
-  align-items: flex-end;
-  overflow: hidden;
-  position: relative;
-}
-
-.result-attr-fill {
-  width: 100%;
-  border-radius: inherit;
-  transition: height 0.3s ease;
-  background: rgba(15, 23, 42, 0.5);
-}
-
-.result-attr-fill[data-band='green'] {
-  background: linear-gradient(180deg, #bbf7d0 0%, #16a34a 100%);
-}
-
-.result-attr-fill[data-band='yellow'] {
-  background: linear-gradient(180deg, #fef3c7 0%, #f59e0b 100%);
-}
-
-.result-attr-fill[data-band='red'] {
-  background: linear-gradient(180deg, #fee2e2 0%, #ef4444 100%);
-}
-
-.result-attr-fill[data-band='n-a'] {
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.18) 0%, rgba(15, 23, 42, 0.35) 100%);
-}
-
-.result-attr-name {
-  font-size: 0.85rem;
-  text-align: center;
-  color: var(--text-muted);
-}
-
 .result-band-pills {
   display: flex;
   flex-wrap: wrap;
@@ -1408,10 +1341,6 @@ input[type="number"]:focus {
 }
 
 @media (max-width: 720px) {
-  .result-attr-track {
-    height: 120px;
-  }
-
   .result-card-header {
     flex-direction: column;
     align-items: flex-start;

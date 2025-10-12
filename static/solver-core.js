@@ -235,6 +235,11 @@ export const solveRecipe = (params) => {
     displayStyleName,
   } = params;
 
+  const now = typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? () => performance.now()
+    : () => Date.now();
+  const startedAt = now();
+
   const style = styles[styleName];
   if (!style) {
     return {
@@ -894,6 +899,8 @@ export const solveRecipe = (params) => {
     branchesPruned,
     searchAborted: globalAborted,
     solutionsReturned: solutions.length,
+    elapsedMs: Math.max(0, Math.round(now() - startedAt)),
+    topK,
   };
 
   return { solutions, info: infoMessages, metrics: metricsPayload };

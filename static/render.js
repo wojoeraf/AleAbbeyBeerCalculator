@@ -18,54 +18,6 @@ const createBandPill = (attr, band, dictionaries = {}) => {
   return pill;
 };
 
-const createAttributeBar = (attr, value, band, scaleMax, dictionaries = {}) => {
-  const {
-    attrLabels = {},
-    bandLabels = {},
-    formatResultValue = (val) => String(val),
-    sanitizeBand = (val) => val,
-    clamp = (val) => val,
-  } = dictionaries;
-
-  const label = attrLabels[attr] || attr;
-  const bandLabel = bandLabels[band] || band || 'n/a';
-  const sanitized = sanitizeBand(band);
-
-  const bar = document.createElement('div');
-  bar.className = 'result-attr-bar';
-  bar.setAttribute('role', 'group');
-  bar.setAttribute(
-    'aria-label',
-    `${label}: ${formatResultValue(value)} (${bandLabel})`,
-  );
-
-  const valueLabel = document.createElement('span');
-  valueLabel.className = 'result-attr-value';
-  valueLabel.textContent = formatResultValue(value);
-  bar.appendChild(valueLabel);
-
-  const track = document.createElement('div');
-  track.className = 'result-attr-track';
-
-  const fill = document.createElement('div');
-  fill.className = 'result-attr-fill';
-  fill.dataset.band = sanitized;
-
-  const percent = scaleMax > 0 ? clamp((value / scaleMax) * 100, 0, 100) : 0;
-  fill.style.height = `${percent}%`;
-  fill.title = `${label}: ${formatResultValue(value)}`;
-
-  track.appendChild(fill);
-  bar.appendChild(track);
-
-  const nameLabel = document.createElement('span');
-  nameLabel.className = 'result-attr-name';
-  nameLabel.textContent = label;
-  bar.appendChild(nameLabel);
-
-  return bar;
-};
-
 export const renderResultCard = (solution, dictionaries = {}) => {
   const {
     translate = (key) => key,
@@ -258,30 +210,6 @@ export const renderResultCard = (solution, dictionaries = {}) => {
     }
   }
 
-  const attrTitle = document.createElement('p');
-  attrTitle.className = 'result-section-title';
-  attrTitle.textContent = translate('section_attributes');
-  card.appendChild(attrTitle);
-
-  const chart = document.createElement('div');
-  chart.className = 'result-attr-chart';
-
-  const totals = Array.isArray(solution && solution.totals) ? solution.totals : [];
-  const scaleMax = Math.max(
-    12,
-    ...totals.map((value) => (Number.isFinite(value) ? value : 0)),
-  );
-
-  ATTRS.forEach((attr, idx) => {
-    const rawValue = Number(totals[idx]);
-    const value = Number.isFinite(rawValue) ? Math.max(0, rawValue) : 0;
-    const band = solution && solution.bands ? solution.bands[attr] : null;
-    const bar = createAttributeBar(attr, value, band, scaleMax, dictionaries);
-    chart.appendChild(bar);
-  });
-
-  card.appendChild(chart);
-
   ATTRS.forEach((attr) => {
     const band = solution && solution.bands ? solution.bands[attr] : null;
     const pill = createBandPill(attr, band, dictionaries);
@@ -304,9 +232,6 @@ export const renderResults = (state, dictionaries) => {
     bandLabels = {},
     ATTRS = [],
     displayIngredientName = (value) => value,
-    sanitizeBand = (value) => value,
-    formatResultValue = (value) => String(value),
-    clamp = (value) => value,
     formatCost = (value) => String(value),
     formatInteger = (value) => String(value),
     seasonOrder = [],
@@ -337,6 +262,7 @@ export const renderResults = (state, dictionaries) => {
   }
 
   const summaryLines = Array.isArray(summary) ? [...summary] : [];
+  const metricsData = metrics && typeof metrics === 'object' ? metrics : {};
   if (Array.isArray(solutions) && solutions.length > 0) {
     const topSolution = solutions[0] || {};
     const averageCost = Number.isFinite(topSolution && topSolution.averageCost)
@@ -398,9 +324,43 @@ export const renderResults = (state, dictionaries) => {
         }),
       );
     }
-    const attrHint = translate('summary_attr_hint');
-    if (typeof attrHint === 'string' && attrHint !== 'summary_attr_hint') {
-      summaryLines.push(attrHint);
+  }
+
+  const solverCount = Number.isFinite(metricsData.solutionsReturned)
+    ? metricsData.solutionsReturned
+    : Array.isArray(solutions)
+      ? solutions.length
+      : NaN;
+  const solverElapsed = Number.isFinite(metricsData.elapsedMs) ? metricsData.elapsedMs : NaN;
+  const solverStates = Number.isFinite(metricsData.visitedStates) ? metricsData.visitedStates : NaN;
+  const solverTop = Number.isFinite(metricsData.topK)
+    ? metricsData.topK
+    : Number.isFinite(metricsData.solutionsReturned)
+      ? metricsData.solutionsReturned
+      : Array.isArray(solutions)
+        ? solutions.length
+        : NaN;
+
+  if (
+    Number.isFinite(solverCount)
+    && Number.isFinite(solverElapsed)
+    && Number.isFinite(solverStates)
+    && Number.isFinite(solverTop)
+  ) {
+    const elapsedLabel = `${formatInteger(Math.round(Math.max(0, solverElapsed)))} ms`;
+    const overviewText = translate('summary_solver_overview', {
+      count: formatInteger(solverCount),
+      elapsed: elapsedLabel,
+      states: formatInteger(solverStates),
+      top: formatInteger(solverTop),
+    });
+    if (typeof overviewText === 'string' && overviewText !== 'summary_solver_overview') {
+      summaryLines.unshift(overviewText);
+    } else {
+      summaryLines.unshift(
+        `Found ${formatInteger(solverCount)} mixes in ${elapsedLabel} • `
+        + `explored ${formatInteger(solverStates)} states • kept top ${formatInteger(solverTop)}.`,
+      );
     }
   }
 
@@ -502,7 +462,6 @@ export const renderResults = (state, dictionaries) => {
   }
 
   const metricsContainer = resultsMetrics;
-  const metricsData = metrics && typeof metrics === 'object' ? metrics : {};
   if (metricsContainer) {
     const metricItems = [];
     const addMetric = (value, labelKey, hintKey) => {
