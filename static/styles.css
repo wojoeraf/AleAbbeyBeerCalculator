@@ -532,6 +532,12 @@ input[type="number"]:focus {
   display: flex;
   gap: 12px;
 }
+.slider-value-single {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
 .slider-range-value {
   display: flex;
   flex-direction: column;
