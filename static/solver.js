@@ -1115,6 +1115,37 @@ const initSolver = () => {
       return safe;
     };
 
+    const setHandleState = (handle, { visible, role, value, zIndex }) => {
+      if (!handle) {
+        return;
+      }
+      const safeValue = setSliderHandleValue(handle, value);
+      if (role) {
+        handle.dataset.handleRole = role;
+      } else {
+        delete handle.dataset.handleRole;
+      }
+      if (typeof zIndex === 'number') {
+        handle.style.zIndex = String(zIndex);
+      } else {
+        handle.style.removeProperty('z-index');
+      }
+      if (visible) {
+        handle.classList.remove('slider-handle--hidden');
+        handle.style.removeProperty('display');
+        handle.removeAttribute('aria-hidden');
+        handle.removeAttribute('tabindex');
+        handle.disabled = false;
+      } else {
+        handle.classList.add('slider-handle--hidden');
+        handle.style.display = 'none';
+        handle.setAttribute('aria-hidden', 'true');
+        handle.setAttribute('tabindex', '-1');
+        handle.disabled = true;
+      }
+      return safeValue;
+    };
+
     const getModeFlags = () => ({
       eq: currentMode === 'eq',
       ge: currentMode === 'ge' || currentMode === 'between',
@@ -1195,70 +1226,34 @@ const initSolver = () => {
         storedValues.eq = value;
         storedValues.ge = value;
         storedValues.le = value;
-        if (sliderMinHandle) {
-          sliderMinHandle.classList.remove('slider-handle--hidden');
-          sliderMinHandle.dataset.handleRole = 'eq';
-          setSliderHandleValue(sliderMinHandle, value);
-        }
-        if (sliderMaxHandle) {
-          sliderMaxHandle.classList.add('slider-handle--hidden');
-          sliderMaxHandle.dataset.handleRole = 'le';
-          setSliderHandleValue(sliderMaxHandle, value);
-        }
+        setHandleState(sliderMinHandle, { visible: true, role: 'eq', value, zIndex: 3 });
+        setHandleState(sliderMaxHandle, { visible: false, role: 'le', value, zIndex: 2 });
       } else if (showRange) {
         const minValue = clampSliderValue(storedValues.ge);
         const maxValue = clampSliderValue(Math.max(storedValues.le, minValue));
         storedValues.ge = minValue;
         storedValues.le = maxValue;
-        if (sliderMinHandle) {
-          sliderMinHandle.classList.remove('slider-handle--hidden');
-          sliderMinHandle.dataset.handleRole = 'ge';
-          setSliderHandleValue(sliderMinHandle, minValue);
-        }
-        if (sliderMaxHandle) {
-          sliderMaxHandle.classList.remove('slider-handle--hidden');
-          sliderMaxHandle.dataset.handleRole = 'le';
-          setSliderHandleValue(sliderMaxHandle, maxValue);
-        }
+        setHandleState(sliderMinHandle, { visible: true, role: 'ge', value: minValue, zIndex: 2 });
+        setHandleState(sliderMaxHandle, { visible: true, role: 'le', value: maxValue, zIndex: 3 });
       } else if (ge) {
         const value = clampSliderValue(storedValues.ge);
         storedValues.ge = value;
-        if (sliderMinHandle) {
-          sliderMinHandle.classList.remove('slider-handle--hidden');
-          sliderMinHandle.dataset.handleRole = 'ge';
-          setSliderHandleValue(sliderMinHandle, value);
-        }
-        if (sliderMaxHandle) {
-          sliderMaxHandle.classList.add('slider-handle--hidden');
-          sliderMaxHandle.dataset.handleRole = 'le';
-          setSliderHandleValue(sliderMaxHandle, value);
-        }
+        storedValues.le = Math.max(storedValues.le, value);
+        setHandleState(sliderMinHandle, { visible: true, role: 'ge', value, zIndex: 3 });
+        setHandleState(sliderMaxHandle, { visible: false, role: 'le', value, zIndex: 2 });
       } else if (le) {
         const value = clampSliderValue(storedValues.le);
         storedValues.le = value;
-        if (sliderMinHandle) {
-          sliderMinHandle.classList.add('slider-handle--hidden');
-          sliderMinHandle.dataset.handleRole = 'ge';
-          setSliderHandleValue(sliderMinHandle, value);
-        }
-        if (sliderMaxHandle) {
-          sliderMaxHandle.classList.remove('slider-handle--hidden');
-          sliderMaxHandle.dataset.handleRole = 'le';
-          setSliderHandleValue(sliderMaxHandle, value);
-        }
+        storedValues.ge = Math.min(storedValues.ge, value);
+        setHandleState(sliderMinHandle, { visible: false, role: 'ge', value, zIndex: 2 });
+        setHandleState(sliderMaxHandle, { visible: true, role: 'le', value, zIndex: 3 });
       } else {
         const value = clampSliderValue(storedValues.eq);
         storedValues.eq = value;
-        if (sliderMinHandle) {
-          sliderMinHandle.classList.remove('slider-handle--hidden');
-          sliderMinHandle.dataset.handleRole = 'eq';
-          setSliderHandleValue(sliderMinHandle, value);
-        }
-        if (sliderMaxHandle) {
-          sliderMaxHandle.classList.add('slider-handle--hidden');
-          sliderMaxHandle.dataset.handleRole = 'le';
-          setSliderHandleValue(sliderMaxHandle, value);
-        }
+        storedValues.ge = value;
+        storedValues.le = value;
+        setHandleState(sliderMinHandle, { visible: true, role: 'eq', value, zIndex: 3 });
+        setHandleState(sliderMaxHandle, { visible: false, role: 'le', value, zIndex: 2 });
       }
       updateSliderDisplay();
     };
