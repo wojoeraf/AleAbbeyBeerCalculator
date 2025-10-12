@@ -1178,46 +1178,29 @@ const initSolver = () => {
 
     const setRangeUIActive = (active) => {
       const showRange = !!active;
-      if (sliderValueSingleBox) {
-        sliderValueSingleBox.hidden = showRange;
-        if (showRange) {
-          sliderValueSingleBox.setAttribute('aria-hidden', 'true');
-        } else {
-          sliderValueSingleBox.removeAttribute('aria-hidden');
+      const toggleHidden = (el, shouldHide) => {
+        if (!el) {
+          return;
         }
-      }
-      if (sliderTargetLabel) {
-        sliderTargetLabel.hidden = showRange;
-        if (showRange) {
-          sliderTargetLabel.setAttribute('aria-hidden', 'true');
+        if (shouldHide) {
+          el.setAttribute('hidden', '');
+          el.setAttribute('aria-hidden', 'true');
         } else {
-          sliderTargetLabel.removeAttribute('aria-hidden');
+          el.removeAttribute('hidden');
+          el.removeAttribute('aria-hidden');
         }
-      }
-      if (sliderRangeBox) {
-        sliderRangeBox.hidden = !showRange;
-        if (showRange) {
-          sliderRangeBox.removeAttribute('aria-hidden');
-        } else {
-          sliderRangeBox.setAttribute('aria-hidden', 'true');
-        }
-      }
+      };
+
+      toggleHidden(sliderValueSingleBox, showRange);
+      toggleHidden(sliderTargetLabel, showRange);
+      toggleHidden(sliderRangeBox, !showRange);
       if (sliderMax) {
-        sliderMax.hidden = !showRange;
+        toggleHidden(sliderMax, !showRange);
         sliderMax.disabled = !showRange;
-        if (!showRange) {
-          sliderMax.setAttribute('aria-hidden', 'true');
-        } else {
-          sliderMax.removeAttribute('aria-hidden');
-        }
       }
       if (copyButton) {
+        toggleHidden(copyButton, !showRange);
         copyButton.disabled = !showRange;
-        if (!showRange) {
-          copyButton.setAttribute('aria-hidden', 'true');
-        } else {
-          copyButton.removeAttribute('aria-hidden');
-        }
       }
       if (slider && sliderDefaultAriaLabel) {
         slider.setAttribute('aria-label', showRange ? sliderLowerAriaLabel : sliderDefaultAriaLabel);
