@@ -1177,55 +1177,76 @@ const initSolver = () => {
     let storedMode = modeInput.value === 'any' ? null : sanitizeMode(modeInput.value);
 
     const setRangeUIActive = (active) => {
+      const showRange = !!active;
       if (sliderValueSingleBox) {
-        sliderValueSingleBox.hidden = !!active;
-        if (active) {
+        sliderValueSingleBox.hidden = showRange;
+        if (showRange) {
           sliderValueSingleBox.setAttribute('aria-hidden', 'true');
         } else {
           sliderValueSingleBox.removeAttribute('aria-hidden');
         }
       }
       if (sliderTargetLabel) {
-        sliderTargetLabel.hidden = !!active;
-        if (active) {
+        sliderTargetLabel.hidden = showRange;
+        if (showRange) {
           sliderTargetLabel.setAttribute('aria-hidden', 'true');
         } else {
           sliderTargetLabel.removeAttribute('aria-hidden');
         }
       }
       if (sliderRangeBox) {
-        sliderRangeBox.hidden = !active;
+        sliderRangeBox.hidden = !showRange;
+        if (showRange) {
+          sliderRangeBox.removeAttribute('aria-hidden');
+        } else {
+          sliderRangeBox.setAttribute('aria-hidden', 'true');
+        }
       }
       if (sliderMax) {
-        sliderMax.hidden = !active;
+        sliderMax.hidden = !showRange;
+        sliderMax.disabled = !showRange;
+        if (!showRange) {
+          sliderMax.setAttribute('aria-hidden', 'true');
+        } else {
+          sliderMax.removeAttribute('aria-hidden');
+        }
       }
       if (copyButton) {
-        copyButton.disabled = !active;
+        copyButton.disabled = !showRange;
+        if (!showRange) {
+          copyButton.setAttribute('aria-hidden', 'true');
+        } else {
+          copyButton.removeAttribute('aria-hidden');
+        }
       }
       if (slider && sliderDefaultAriaLabel) {
-        slider.setAttribute('aria-label', active ? sliderLowerAriaLabel : sliderDefaultAriaLabel);
+        slider.setAttribute('aria-label', showRange ? sliderLowerAriaLabel : sliderDefaultAriaLabel);
       }
       if (sliderMax && sliderUpperAriaLabel) {
-        sliderMax.setAttribute('aria-label', sliderUpperAriaLabel);
+        if (showRange) {
+          sliderMax.setAttribute('aria-label', sliderUpperAriaLabel);
+        } else {
+          sliderMax.removeAttribute('aria-label');
+        }
       }
       if (sliderRow) {
-        if (active) {
+        if (showRange) {
           sliderRow.dataset.rangeActive = 'true';
         } else {
           delete sliderRow.dataset.rangeActive;
         }
       }
-      if (active && slider && sliderMax) {
+      if (showRange && slider && sliderMax) {
         const minStep = Math.round(clamp(lastRangeMinValue, 0, SLIDER_MAX_VALUE) * SLIDER_STEP_SCALE);
         const maxStep = Math.round(clamp(lastRangeMaxValue, 0, SLIDER_MAX_VALUE) * SLIDER_STEP_SCALE);
         slider.value = String(minStep);
         sliderMax.value = String(maxStep);
         ensureRangeOrder('max');
       }
-      if (slider && !active) {
+      if (slider && !showRange) {
         slider.style.setProperty('--slider-range-start', '0%');
       }
-      if (active) {
+      if (showRange) {
         syncSliderDisplay();
       }
     };
@@ -1250,7 +1271,13 @@ const initSolver = () => {
         }
       }
       if (sliderMax) {
-        sliderMax.disabled = isDisabled;
+        const shouldDisableMax = isDisabled || !isBetweenMode();
+        sliderMax.disabled = shouldDisableMax;
+        if (shouldDisableMax) {
+          sliderMax.setAttribute('aria-hidden', 'true');
+        } else {
+          sliderMax.removeAttribute('aria-hidden');
+        }
       }
       if (attrControls) {
         attrControls.classList.toggle('is-disabled', isDisabled);
