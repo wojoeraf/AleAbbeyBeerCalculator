@@ -18,6 +18,54 @@ const createBandPill = (attr, band, dictionaries = {}) => {
   return pill;
 };
 
+const createAttributeBar = (attr, value, band, scaleMax, dictionaries = {}) => {
+  const {
+    attrLabels = {},
+    bandLabels = {},
+    formatResultValue = (val) => String(val),
+    sanitizeBand = (val) => val,
+    clamp = (val, min = 0, max = 100) => Math.min(Math.max(val, min), max),
+  } = dictionaries;
+
+  const label = attrLabels[attr] || attr;
+  const bandLabel = bandLabels[band] || band || 'n/a';
+  const sanitized = sanitizeBand(band);
+
+  const bar = document.createElement('div');
+  bar.className = 'result-attr-bar';
+  bar.setAttribute('role', 'group');
+  bar.setAttribute(
+    'aria-label',
+    `${label}: ${formatResultValue(value)} (${bandLabel})`,
+  );
+
+  const valueLabel = document.createElement('span');
+  valueLabel.className = 'result-attr-value';
+  valueLabel.textContent = formatResultValue(value);
+  bar.appendChild(valueLabel);
+
+  const track = document.createElement('div');
+  track.className = 'result-attr-track';
+
+  const fill = document.createElement('div');
+  fill.className = 'result-attr-fill';
+  fill.dataset.band = sanitized;
+
+  const percent = scaleMax > 0 ? clamp((value / scaleMax) * 100, 0, 100) : 0;
+  fill.style.height = `${percent}%`;
+  fill.title = `${label}: ${formatResultValue(value)} (${bandLabel})`;
+
+  track.appendChild(fill);
+  bar.appendChild(track);
+
+  const nameLabel = document.createElement('span');
+  nameLabel.className = 'result-attr-name';
+  nameLabel.textContent = label;
+  bar.appendChild(nameLabel);
+
+  return bar;
+};
+
 export const renderResultCard = (solution, dictionaries = {}) => {
   const {
     translate = (key) => key,
@@ -26,6 +74,9 @@ export const renderResultCard = (solution, dictionaries = {}) => {
     formatCost = (value) => String(value),
     seasonOrder = [],
     seasonLabels = {},
+    formatResultValue = (value) => String(value),
+    sanitizeBand = (value) => value,
+    clamp = (value, min = 0, max = 100) => Math.min(Math.max(value, min), max),
   } = dictionaries;
 
   const index = typeof dictionaries.index === 'number' ? dictionaries.index : 0;
@@ -210,9 +261,52 @@ export const renderResultCard = (solution, dictionaries = {}) => {
     }
   }
 
+  const totals = Array.isArray(solution && solution.totals) ? solution.totals : [];
+  const hasAttrData = Array.isArray(ATTRS) && ATTRS.length > 0;
+
+  if (hasAttrData) {
+    const attrSection = document.createElement('div');
+    attrSection.className = 'result-attributes';
+
+    const attrTitle = document.createElement('p');
+    attrTitle.className = 'result-section-title';
+    attrTitle.textContent = translate('section_attributes');
+    attrSection.appendChild(attrTitle);
+
+    const chart = document.createElement('div');
+    chart.className = 'result-attr-chart';
+
+    const scaleMax = ATTRS.reduce((max, _, idx) => {
+      const raw = Number(totals[idx]);
+      if (Number.isFinite(raw)) {
+        return Math.max(max, raw);
+      }
+      return max;
+    }, 12);
+
+    ATTRS.forEach((attr, idx) => {
+      const rawValue = Number(totals[idx]);
+      const value = Number.isFinite(rawValue) ? Math.max(0, rawValue) : 0;
+      const band = solution && solution.bands ? solution.bands[attr] : null;
+      const bar = createAttributeBar(attr, value, band, scaleMax, {
+        ...dictionaries,
+        formatResultValue,
+        sanitizeBand,
+        clamp,
+      });
+      chart.appendChild(bar);
+    });
+
+    attrSection.appendChild(chart);
+    card.appendChild(attrSection);
+  }
+
   ATTRS.forEach((attr) => {
     const band = solution && solution.bands ? solution.bands[attr] : null;
-    const pill = createBandPill(attr, band, dictionaries);
+    const pill = createBandPill(attr, band, {
+      ...dictionaries,
+      sanitizeBand,
+    });
     bandContainer.appendChild(pill);
   });
 
