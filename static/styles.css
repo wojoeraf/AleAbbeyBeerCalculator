@@ -411,6 +411,97 @@ input[type="number"]:focus {
   width: 100%;
   order: -1;
 }
+.slider-range {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+.slider-range input[type='range'] {
+  width: 100%;
+  pointer-events: none;
+}
+.slider-range input[type='range']::-webkit-slider-thumb {
+  pointer-events: auto;
+}
+.slider-range input[type='range']::-moz-range-thumb {
+  pointer-events: auto;
+}
+.slider-range input[type='range']::-ms-thumb {
+  pointer-events: auto;
+}
+.slider-range input[data-slider-role='min'] {
+  position: relative;
+  z-index: 2;
+}
+.slider-range input[data-slider-role='max'] {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+}
+.slider-range input.slider-handle--hidden {
+  pointer-events: none;
+}
+.slider-range input.slider-handle--hidden::-webkit-slider-thumb {
+  opacity: 0;
+  border-color: transparent;
+  box-shadow: none;
+}
+.slider-range input.slider-handle--hidden::-moz-range-thumb {
+  opacity: 0;
+  border-color: transparent;
+  box-shadow: none;
+}
+.slider-range input.slider-handle--hidden::-ms-thumb {
+  opacity: 0;
+  border-color: transparent;
+  box-shadow: none;
+}
+.slider-value {
+  position: relative;
+}
+.slider-value-range {
+  display: flex;
+  gap: 12px;
+}
+.slider-range-value {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.slider-value-single[hidden],
+.slider-value-range[hidden] {
+  display: none;
+}
+.icon-btn {
+  border: none;
+  background: rgba(15, 23, 42, 0.08);
+  border-radius: 12px;
+  padding: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+  color: inherit;
+}
+.icon-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+.icon-btn:hover {
+  background: rgba(15, 23, 42, 0.12);
+  transform: translateY(-1px);
+}
+.icon-btn:active {
+  transform: translateY(0);
+}
+.icon-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
 .attr-card input[type='range'] {
   width: 100%;
   -webkit-appearance: none;
