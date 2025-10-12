@@ -319,6 +319,7 @@ const initSolver = () => {
     form,
     ingredientsWrapper,
     optionalToggle: optionalToggleBtn,
+    categoryToggleAll: categoryToggleAllBtn,
     categoryBodies,
     categoryHeaders,
     categoryToggles,
@@ -396,6 +397,41 @@ const initSolver = () => {
 
   syncAttributeToggleVisibility();
 
+  const getCategoryExpansionStats = () => {
+    let total = 0;
+    let expandedCount = 0;
+    categoryBodies.forEach((body) => {
+      if (!body) {
+        return;
+      }
+      total += 1;
+      if (!body.hidden) {
+        expandedCount += 1;
+      }
+    });
+    return { total, expandedCount };
+  };
+
+  const updateCategoryToggleAllState = () => {
+    if (!categoryToggleAllBtn) {
+      return;
+    }
+    const { total, expandedCount } = getCategoryExpansionStats();
+    const shouldShowCollapse = expandedCount > 0;
+    const labelEl = categoryToggleAllBtn.querySelector('[data-toggle-categories-label]');
+    const collapseLabel = categoryToggleAllBtn.dataset.labelCollapse || categoryToggleAllBtn.textContent || '';
+    const expandLabel = categoryToggleAllBtn.dataset.labelExpand || categoryToggleAllBtn.textContent || '';
+    const nextLabel = shouldShowCollapse ? collapseLabel : expandLabel;
+    if (labelEl) {
+      labelEl.textContent = nextLabel;
+    } else {
+      categoryToggleAllBtn.textContent = nextLabel;
+    }
+    categoryToggleAllBtn.dataset.state =
+      expandedCount === 0 ? 'collapsed' : expandedCount === total ? 'expanded' : 'mixed';
+    categoryToggleAllBtn.disabled = total === 0;
+  };
+
   const setCategoryExpanded = (categoryId, expanded) => {
     const value = expanded ? 'true' : 'false';
     const toggle = categoryToggles.get(categoryId);
@@ -411,6 +447,7 @@ const initSolver = () => {
     if (body) {
       body.hidden = !expanded;
     }
+    updateCategoryToggleAllState();
   };
 
   categoryToggles.forEach((toggle, categoryId) => {
@@ -418,6 +455,18 @@ const initSolver = () => {
     const initialExpanded = initialAttr !== 'false';
     setCategoryExpanded(categoryId, initialExpanded);
   });
+
+  updateCategoryToggleAllState();
+
+  if (categoryToggleAllBtn) {
+    categoryToggleAllBtn.addEventListener('click', () => {
+      const { expandedCount } = getCategoryExpansionStats();
+      const shouldExpand = expandedCount === 0;
+      categoryToggles.forEach((_, categoryId) => {
+        setCategoryExpanded(categoryId, shouldExpand);
+      });
+    });
+  }
 
   let parallaxTicking = false;
   const updateParallax = () => {
