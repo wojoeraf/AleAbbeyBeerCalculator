@@ -623,15 +623,15 @@ input[type="number"]:focus {
   font-size: 0.8rem;
   padding: 8px 10px;
 }
-.ingredients-table--compact th.col-checkbox,
-.ingredients-table--compact td.checkbox-cell {
-  width: 70px;
-  text-align: center;
+.ingredients-table--compact th.col-selection,
+.ingredients-table--compact td.ingredient-selection-cell {
+  min-width: 220px;
 }
-
-.ingredients-table--compact th.col-optional,
-.ingredients-table--compact td.optional-cell {
-  width: 150px;
+.ingredients-legend {
+  margin: 8px 0 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  max-width: 32ch;
 }
 .hint {
   font-size: 0.8rem;
@@ -753,12 +753,27 @@ input[type="number"]:focus {
   text-align: left;
   font-size: 0.92rem;
 }
-.ingredients-table th.col-checkbox {
-  width: 52px;
-  text-align: center;
+.ingredients-table th.col-selection {
+  min-width: 240px;
 }
-.ingredients-table td.checkbox-cell {
-  text-align: center;
+.ingredients-table td.ingredient-selection-cell {
+  padding-right: 18px;
+}
+.ingredient-selection {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.ingredient-selection-checkboxes {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.ingredient-selection .ingredient-name {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .ingredients-table thead {
   background: rgba(15, 23, 42, 0.85);
@@ -1856,7 +1871,7 @@ details summary {
     background: rgba(255, 255, 255, 0.95);
     border: 1px solid rgba(148, 163, 184, 0.3);
     border-radius: 16px;
-    padding: 16px 18px 16px 64px;
+    padding: 16px 18px;
     position: relative;
     box-shadow: 0 12px 20px -18px rgba(15, 23, 42, 0.5);
   }
@@ -1890,15 +1905,12 @@ details summary {
     display: none;
   }
 
-  .table-wrapper[data-hide-attributes="true"] .ingredients-table tbody tr {
-    gap: 10px;
+  .table-wrapper[data-hide-attributes="true"] .ingredients-table th[data-attr-header] {
+    display: none;
   }
 
-  .ingredients-table td.checkbox-cell {
-    position: absolute;
-    left: 18px;
-    top: 14px;
-    padding: 0;
+  .table-wrapper[data-hide-attributes="true"] .ingredients-table tbody tr {
+    gap: 10px;
   }
 
   .ingredient-name {
@@ -1908,9 +1920,22 @@ details summary {
     flex-wrap: wrap;
   }
 
-  .ingredients-table td.ingredient-name-cell::before {
-    display: none;
-    content: none;
+  .ingredients-table td.ingredient-selection-cell {
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .ingredients-table td.ingredient-selection-cell::before {
+    margin-bottom: 4px;
+  }
+
+  .ingredient-selection {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .ingredient-selection-checkboxes {
+    gap: 10px;
   }
 
   .ingredient-option {
