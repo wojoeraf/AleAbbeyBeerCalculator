@@ -52,7 +52,7 @@
  */
 
 export const EPS = 1e-9;
-export const DEFAULT_TOP_K = 10;
+export const DEFAULT_TOP_K = 12;
 export const LOW_SEASON_COST_MULTIPLIER = 1.25;
 export const HIGH_SEASON_COST_MULTIPLIER = 0.75;
 export const SEASON_ORDER = ['spring', 'summer', 'autumn', 'winter'];
