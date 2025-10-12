@@ -87,30 +87,56 @@
                                     {% endfor %}
                                 </div>
                                 <div class="attr-controls" data-slider-area data-mode="{{ constraint.mode }}">
-                                    <div class="mode-toggle" role="group" aria-label="{{ ui.label_mode }}">
-                                        <button type="button" class="mode-btn" data-mode-btn data-mode="eq"
-                                                aria-label="{{ mode_labels.get('eq', '=') }}"
-                                                title="{{ mode_labels.get('eq', '=') }}"
-                                                aria-pressed="{{ 'true' if constraints[a].mode == 'eq' else 'false' }}">=</button>
-                                        <button type="button" class="mode-btn" data-mode-btn data-mode="ge"
-                                                aria-label="{{ mode_labels.get('ge', '≥') }}"
-                                                title="{{ mode_labels.get('ge', '≥') }}"
-                                                aria-pressed="{{ 'true' if constraints[a].mode == 'ge' else 'false' }}">≥</button>
-                                        <button type="button" class="mode-btn" data-mode-btn data-mode="le"
-                                                aria-label="{{ mode_labels.get('le', '≤') }}"
-                                                title="{{ mode_labels.get('le', '≤') }}"
-                                                aria-pressed="{{ 'true' if constraints[a].mode == 'le' else 'false' }}">≤</button>
-                                        <div class="slider-value">
-                                            <span class="slider-value-label">{{ ui.label_value_display }}</span>
-                                            <span class="slider-value-number" data-slider-value>{{ '%.1f'|format(slider_value) }}</span>
-                                        </div>
-                                    </div>
                                     <div class="slider-row">
-                                        <input type="range" min="0" max="110" step="1" value="{{ slider_step }}"
-                                               data-attr-range data-initial-value="{{ '%.1f'|format(slider_value) }}"
-                                               aria-valuemin="0" aria-valuemax="11" aria-valuenow="{{ '%.1f'|format(slider_value) }}"
-                                               aria-label="{{ attr_labels[a] }}">
-
+                                        <div class="slider-range" data-slider-wrapper>
+                                            <div class="range-slider" data-attr-range data-slider aria-label="{{ attr_labels[a] }}">
+                                                <button type="button" class="range-slider-thumb" data-slider-thumb="min"
+                                                        data-initial-value="{{ constraint.min if constraint.min else '%.1f'|format(slider_value) }}"
+                                                        aria-label="{{ attr_labels[a] }}"></button>
+                                                <button type="button" class="range-slider-thumb" data-slider-thumb="max"
+                                                        data-initial-value="{{ constraint.max if constraint.max else '%.1f'|format(slider_value) }}"
+                                                        aria-label="{{ attr_labels[a] }}"></button>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="icon-btn" data-copy-attr
+                                                aria-label="{{ ui.button_copy_attr }}" title="{{ ui.button_copy_attr }}">
+                                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                                <path d="M8 3h9a2 2 0 0 1 2 2v11h-2V5H8z" />
+                                                <path d="M5 8h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2zm0 2v9h9v-9z" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <div class="slider-meta">
+                                        <div class="mode-toggle" role="group" aria-label="{{ ui.label_mode }}">
+                                            <button type="button" class="mode-btn" data-mode-btn data-mode="eq"
+                                                    aria-label="{{ mode_labels.get('eq', '=') }}"
+                                                    title="{{ mode_labels.get('eq', '=') }}"
+                                                    aria-pressed="{{ 'true' if constraints[a].mode == 'eq' else 'false' }}">=</button>
+                                            <button type="button" class="mode-btn" data-mode-btn data-mode="ge"
+                                                    aria-label="{{ mode_labels.get('ge', '≥') }}"
+                                                    title="{{ mode_labels.get('ge', '≥') }}"
+                                                    aria-pressed="{{ 'true' if constraints[a].mode in ['ge', 'between'] else 'false' }}">≥</button>
+                                            <button type="button" class="mode-btn" data-mode-btn data-mode="le"
+                                                    aria-label="{{ mode_labels.get('le', '≤') }}"
+                                                    title="{{ mode_labels.get('le', '≤') }}"
+                                                    aria-pressed="{{ 'true' if constraints[a].mode in ['le', 'between'] else 'false' }}">≤</button>
+                                        </div>
+                                        <div class="slider-value" data-slider-display>
+                                            <div class="slider-value-single" data-slider-single>
+                                                <span class="slider-value-label">{{ ui.label_value_display }}</span>
+                                                <span class="slider-value-number" data-slider-single-value>{{ '%.1f'|format(slider_value) }}</span>
+                                            </div>
+                                            <div class="slider-value-range" data-slider-range hidden>
+                                                <div class="slider-range-value">
+                                                    <span class="slider-value-label">{{ ui.label_lower_limit }}</span>
+                                                    <span class="slider-value-number" data-slider-min-value>{{ constraint.min if constraint.min else '%.1f'|format(slider_value) }}</span>
+                                                </div>
+                                                <div class="slider-range-value">
+                                                    <span class="slider-value-label">{{ ui.label_upper_limit }}</span>
+                                                    <span class="slider-value-number" data-slider-max-value>{{ constraint.max if constraint.max else '%.1f'|format(slider_value) }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

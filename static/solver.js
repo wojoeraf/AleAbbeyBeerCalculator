@@ -223,13 +223,8 @@ const initSolver = () => {
     mutedColorMap: sliderBandMutedColorMap,
     neutralColor: sliderNeutralColor,
   });
-  const {
-    sliderStepToNumber,
-    formatSliderValue,
-    updateSliderProgress,
-    normalizeTrackBand,
-    applyTrack,
-  } = sliderHelpers;
+  const { sliderStepToNumber, formatSliderValue, normalizeTrackBand, applyTrack, createSlider } =
+    sliderHelpers;
   let sliderTrackController = applyTrack({});
 
   const messages = i18nData.messages || {};
@@ -868,18 +863,17 @@ const initSolver = () => {
         return;
       }
       const attr = card.dataset.attr;
+      const highlightBand = card.dataset.activeColorBand || null;
       if (!attr) {
         slider.style.removeProperty('--slider-track');
-        updateSliderProgress(slider);
         return;
       }
-      const highlightBand = card.dataset.activeColorBand || null;
       sliderTrackController.setTrack(slider, attr, highlightBand);
-      updateSliderProgress(slider);
     });
   };
 
   const colorStateUpdaters = selectionState.colorUpdaters;
+  const attrControllers = new Map();
   const colorCardEventHandlersByType = new Map();
   const colorEventContainers = new Map();
 
@@ -937,8 +931,18 @@ const initSolver = () => {
   };
 
   attrCards.forEach((card) => {
-    const slider = card.querySelector('[data-attr-range]');
-    const sliderValueEl = card.querySelector('[data-slider-value]');
+    const sliderRoot = card.querySelector('[data-slider]');
+    const sliderController = sliderRoot ? createSlider(sliderRoot) : null;
+    const sliderMinHandle = sliderController ? sliderController.getHandle('min') : null;
+    const sliderMaxHandle = sliderController ? sliderController.getHandle('max') : null;
+    const sliderHandles = sliderController ? sliderController.getHandles() : [];
+    const sliderDisplay = card.querySelector('[data-slider-display]');
+    const sliderSingleContainer = sliderDisplay ? sliderDisplay.querySelector('[data-slider-single]') : null;
+    const sliderRangeContainer = sliderDisplay ? sliderDisplay.querySelector('[data-slider-range]') : null;
+    const sliderSingleValueEl = sliderDisplay ? sliderDisplay.querySelector('[data-slider-single-value]') : null;
+    const sliderMinValueEl = sliderDisplay ? sliderDisplay.querySelector('[data-slider-min-value]') : null;
+    const sliderMaxValueEl = sliderDisplay ? sliderDisplay.querySelector('[data-slider-max-value]') : null;
+    const copyBtn = card.querySelector('[data-copy-attr]');
     const modeButtons = Array.from(card.querySelectorAll('[data-mode-btn]'));
     const modeInput = card.querySelector('[data-mode-input]');
     const minInput = card.querySelector('[data-min-input]');
@@ -948,9 +952,6 @@ const initSolver = () => {
     const colorRadios = Array.from(card.querySelectorAll('input[type="radio"][data-color-radio]'));
     const colorChips = colorRadios.map((radio) => radio.closest('[data-color]'));
     const clearBtn = card.querySelector('[data-clear-color]');
-    const sliderInitialValue = slider
-      ? Number(slider.dataset.initialValue || sliderStepToNumber(slider.value))
-      : null;
     const hasAdvancedControls = !!(modeInput && minInput && maxInput);
     const cardType = hasAdvancedControls ? 'range' : 'simple';
 
@@ -958,14 +959,28 @@ const initSolver = () => {
       const sanitizedBand = normalizeTrackBand(band);
       if (sanitizedBand) {
         card.dataset.activeColorBand = sanitizedBand;
-        if (slider) {
-          slider.dataset.activeColorBand = sanitizedBand;
+        if (sliderController) {
+          sliderController.setActiveBand(sanitizedBand);
+        } else if (sliderRoot) {
+          sliderRoot.dataset.activeColorBand = sanitizedBand;
         }
+        sliderHandles.forEach((handle) => {
+          if (handle) {
+            handle.dataset.activeColorBand = sanitizedBand;
+          }
+        });
       } else {
         delete card.dataset.activeColorBand;
-        if (slider) {
-          delete slider.dataset.activeColorBand;
+        if (sliderController) {
+          sliderController.setActiveBand(null);
+        } else if (sliderRoot) {
+          delete sliderRoot.dataset.activeColorBand;
         }
+        sliderHandles.forEach((handle) => {
+          if (handle) {
+            delete handle.dataset.activeColorBand;
+          }
+        });
       }
       applyHighlightToCardSlider(card, sanitizedBand);
     };
@@ -1077,59 +1092,244 @@ const initSolver = () => {
       return;
     }
 
-    const sanitizeMode = (mode) => {
-      if (mode === 'ge' || mode === 'le' || mode === 'eq') {
-        return mode;
+    const attrName = card.dataset.attr || null;
+
+    const readInitialSliderValue = () => {
+      const source = sliderMinHandle || sliderMaxHandle;
+      if (!source) {
+        return null;
       }
-      return 'eq';
+      const raw = Number(source.dataset.initialValue);
+      if (Number.isFinite(raw)) {
+        return clamp(raw, 0, 11);
+      }
+      if (sliderController) {
+        const key = sliderController.getHandleKey(source);
+        if (key) {
+          return clamp(sliderController.getValue(key), 0, 11);
+        }
+      }
+      return null;
     };
 
-    const syncSliderDisplay = () => {
-      if (!slider) return;
-      const numeric = sliderStepToNumber(slider.value);
-      if (sliderValueEl) {
-        sliderValueEl.textContent = formatSliderValue(numeric);
+    const sliderInitialValue = readInitialSliderValue();
+
+    const parseNumeric = (raw, fallback) => {
+      if (raw === null || raw === undefined || raw === '') {
+        return fallback;
       }
-      slider.setAttribute('aria-valuenow', formatSliderValue(numeric));
-      updateSliderProgress(slider);
+      const numeric = Number(raw);
+      return Number.isFinite(numeric) ? clamp(numeric, 0, 11) : fallback;
+    };
+
+    const sanitizeModeValue = (mode) => {
+      if (mode === 'ge' || mode === 'le' || mode === 'eq' || mode === 'between') {
+        return mode;
+      }
+      return 'any';
+    };
+
+    let currentMode = sanitizeModeValue(modeInput.value);
+    if (currentMode === 'between' && (!sliderMinHandle || !sliderMaxHandle)) {
+      currentMode = sliderMinHandle ? 'ge' : sliderMaxHandle ? 'le' : 'any';
+      modeInput.value = currentMode;
+    }
+
+    const fallbackValue = Number.isFinite(sliderInitialValue) ? sliderInitialValue : 5.5;
+
+    const storedValues = {
+      eq: parseNumeric(currentMode === 'eq' ? (minInput.value || maxInput.value) : null, null),
+      ge: parseNumeric(minInput.value, null),
+      le: parseNumeric(maxInput.value, null),
+    };
+
+    if (!Number.isFinite(storedValues.eq)) {
+      storedValues.eq = fallbackValue;
+    }
+    if (!Number.isFinite(storedValues.ge)) {
+      storedValues.ge = storedValues.eq;
+    }
+    if (!Number.isFinite(storedValues.le)) {
+      storedValues.le = storedValues.eq;
+    }
+
+    let savedNumericMode = currentMode !== 'any' ? currentMode : null;
+    let isUpdatingHandles = false;
+
+    const clampSliderValue = (value) => clamp(Number.isFinite(value) ? value : fallbackValue, 0, 11);
+
+    const setSliderHandleValue = (handle, value) => {
+      const safe = clampSliderValue(value);
+      if (!handle || !sliderController) {
+        return safe;
+      }
+      const key = sliderController.getHandleKey(handle);
+      if (key) {
+        sliderController.setValue(key, safe);
+      }
+      handle.setAttribute('aria-valuenow', formatSliderValue(safe));
+      return safe;
+    };
+
+    const setHandleState = (handle, { visible, role, value, zIndex }) => {
+      if (!handle) {
+        return;
+      }
+      const safeValue = setSliderHandleValue(handle, value);
+      if (role) {
+        handle.dataset.handleRole = role;
+      } else {
+        delete handle.dataset.handleRole;
+      }
+      if (sliderController) {
+        const key = sliderController.getHandleKey(handle);
+        if (key) {
+          sliderController.setVisibility(key, visible);
+          sliderController.setZIndex(key, zIndex);
+        }
+      } else {
+        if (typeof zIndex === 'number') {
+          handle.style.zIndex = String(zIndex);
+        } else {
+          handle.style.removeProperty('z-index');
+        }
+        if (visible) {
+          handle.style.removeProperty('display');
+          handle.removeAttribute('aria-hidden');
+          handle.removeAttribute('tabindex');
+          handle.removeAttribute('disabled');
+        } else {
+          handle.style.display = 'none';
+          handle.setAttribute('aria-hidden', 'true');
+          handle.setAttribute('tabindex', '-1');
+          handle.setAttribute('disabled', 'true');
+        }
+      }
+      return safeValue;
+    };
+
+    const getModeFlags = () => ({
+      eq: currentMode === 'eq',
+      ge: currentMode === 'ge' || currentMode === 'between',
+      le: currentMode === 'le' || currentMode === 'between',
+    });
+
+    const setModeButtonsState = () => {
+      modeButtons.forEach((btn) => {
+        const btnMode = btn.dataset.mode;
+        let isActive = false;
+        if (btnMode === 'eq') {
+          isActive = currentMode === 'eq';
+        } else if (btnMode === 'ge') {
+          isActive = currentMode === 'ge' || currentMode === 'between';
+        } else if (btnMode === 'le') {
+          isActive = currentMode === 'le' || currentMode === 'between';
+        }
+        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+      });
+    };
+
+    const updateSliderDisplay = () => {
+      const { eq, ge, le } = getModeFlags();
+      const showRange = !eq && ge && le;
+      if (sliderRangeContainer) {
+        sliderRangeContainer.hidden = !showRange;
+      }
+      if (sliderSingleContainer) {
+        sliderSingleContainer.hidden = showRange;
+      }
+      if (showRange) {
+        if (sliderMinValueEl) {
+          sliderMinValueEl.textContent = formatSliderValue(clampSliderValue(storedValues.ge));
+        }
+        if (sliderMaxValueEl) {
+          sliderMaxValueEl.textContent = formatSliderValue(clampSliderValue(storedValues.le));
+        }
+      } else if (sliderSingleValueEl) {
+        let displayValue;
+        if (eq) {
+          displayValue = storedValues.eq;
+        } else if (ge) {
+          displayValue = storedValues.ge;
+        } else if (le) {
+          displayValue = storedValues.le;
+        } else {
+          displayValue = storedValues.eq;
+        }
+        sliderSingleValueEl.textContent = formatSliderValue(clampSliderValue(displayValue));
+      }
     };
 
     const syncHiddenValues = () => {
-      if (!slider) return;
-      const formatted = formatSliderValue(sliderStepToNumber(slider.value));
-      const mode = modeInput.value;
-      if (mode === 'ge') {
-        minInput.value = formatted;
+      if (currentMode === 'ge') {
+        minInput.value = formatSliderValue(clampSliderValue(storedValues.ge));
         maxInput.value = '';
-      } else if (mode === 'le') {
+      } else if (currentMode === 'le') {
         minInput.value = '';
-        maxInput.value = formatted;
-      } else if (mode === 'eq') {
+        maxInput.value = formatSliderValue(clampSliderValue(storedValues.le));
+      } else if (currentMode === 'eq') {
+        const formatted = formatSliderValue(clampSliderValue(storedValues.eq));
         minInput.value = formatted;
         maxInput.value = formatted;
+      } else if (currentMode === 'between') {
+        minInput.value = formatSliderValue(clampSliderValue(storedValues.ge));
+        maxInput.value = formatSliderValue(clampSliderValue(storedValues.le));
       } else {
         minInput.value = '';
         maxInput.value = '';
       }
     };
 
-    const setModeButtonsState = () => {
-      modeButtons.forEach((btn) => {
-        const isDisabled = slider ? slider.disabled : false;
-        const isActive = !isDisabled && btn.dataset.mode === modeInput.value;
-        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
-      });
+    const syncSliderHandles = () => {
+      const { eq, ge, le } = getModeFlags();
+      const showRange = !eq && ge && le;
+      if (eq) {
+        const value = clampSliderValue(storedValues.eq);
+        storedValues.eq = value;
+        storedValues.ge = value;
+        storedValues.le = value;
+        setHandleState(sliderMinHandle, { visible: true, role: 'eq', value, zIndex: 3 });
+        setHandleState(sliderMaxHandle, { visible: false, role: 'le', value, zIndex: 2 });
+      } else if (showRange) {
+        const minValue = clampSliderValue(storedValues.ge);
+        const maxValue = clampSliderValue(Math.max(storedValues.le, minValue));
+        storedValues.ge = minValue;
+        storedValues.le = maxValue;
+        setHandleState(sliderMinHandle, { visible: true, role: 'ge', value: minValue, zIndex: 2 });
+        setHandleState(sliderMaxHandle, { visible: true, role: 'le', value: maxValue, zIndex: 3 });
+      } else if (ge) {
+        const value = clampSliderValue(storedValues.ge);
+        storedValues.ge = value;
+        storedValues.le = Math.max(storedValues.le, value);
+        setHandleState(sliderMinHandle, { visible: true, role: 'ge', value, zIndex: 3 });
+        setHandleState(sliderMaxHandle, { visible: false, role: 'le', value, zIndex: 2 });
+      } else if (le) {
+        const value = clampSliderValue(storedValues.le);
+        storedValues.le = value;
+        storedValues.ge = Math.min(storedValues.ge, value);
+        setHandleState(sliderMinHandle, { visible: false, role: 'ge', value, zIndex: 2 });
+        setHandleState(sliderMaxHandle, { visible: true, role: 'le', value, zIndex: 3 });
+      } else {
+        const value = clampSliderValue(storedValues.eq);
+        storedValues.eq = value;
+        storedValues.ge = value;
+        storedValues.le = value;
+        setHandleState(sliderMinHandle, { visible: true, role: 'eq', value, zIndex: 3 });
+        setHandleState(sliderMaxHandle, { visible: false, role: 'le', value, zIndex: 2 });
+      }
+      updateSliderDisplay();
     };
 
-    const fallbackMode = 'eq';
-    let storedMode = modeInput.value === 'any' ? null : sanitizeMode(modeInput.value);
-
     const setSliderDisabled = (disabled) => {
-      if (slider) {
-        slider.disabled = !!disabled;
-        if (!disabled) {
-          syncSliderDisplay();
-        }
+      if (sliderController) {
+        sliderController.setDisabled(disabled);
+        sliderController.refresh();
+      } else {
+        sliderHandles.forEach((handle) => {
+          if (handle) {
+            handle.disabled = !!disabled;
+          }
+        });
       }
       if (attrControls) {
         attrControls.classList.toggle('is-disabled', !!disabled);
@@ -1147,82 +1347,139 @@ const initSolver = () => {
       clearBtn.disabled = !(hasColorSelection || hasModeSelection);
     };
 
-    const applyMode = (mode) => {
-      if (mode === 'any') {
-        storedMode = null;
-        modeInput.value = 'any';
-        delete card.dataset.savedMode;
-        setSliderDisabled(slider ? slider.disabled : false);
-        minInput.value = '';
-        maxInput.value = '';
-        updateSubmitState();
-        syncClearButtonState();
-        return;
+    const setModeValue = (nextMode) => {
+      let sanitized = sanitizeModeValue(nextMode);
+      if (sanitized === 'between' && (!sliderMinHandle || !sliderMaxHandle)) {
+        sanitized = sliderMinHandle ? 'ge' : sliderMaxHandle ? 'le' : 'any';
       }
-
-      const normalized = sanitizeMode(mode);
-      storedMode = normalized;
-      modeInput.value = normalized;
-      delete card.dataset.savedMode;
-      setSliderDisabled(slider ? slider.disabled : false);
+      currentMode = sanitized;
+      modeInput.value = sanitized;
+      if (sanitized === 'eq') {
+        const base = clampSliderValue(storedValues.ge);
+        storedValues.eq = clampSliderValue(storedValues.eq);
+        storedValues.ge = clampSliderValue(storedValues.ge ?? base);
+        storedValues.le = storedValues.ge;
+        storedValues.eq = storedValues.ge;
+      } else if (sanitized === 'ge') {
+        storedValues.ge = clampSliderValue(storedValues.ge);
+      } else if (sanitized === 'le') {
+        storedValues.le = clampSliderValue(storedValues.le);
+      } else if (sanitized === 'between') {
+        storedValues.ge = clampSliderValue(storedValues.ge);
+        storedValues.le = clampSliderValue(storedValues.le);
+        if (storedValues.le < storedValues.ge) {
+          storedValues.le = storedValues.ge;
+        }
+      }
+      if (sanitized !== 'any') {
+        savedNumericMode = sanitized;
+      }
+      setModeButtonsState();
+      syncSliderHandles();
       syncHiddenValues();
       updateSubmitState();
       syncClearButtonState();
     };
 
-    updateColorState = () => {
-      const selected = colorRadios.find((radio) => radio.checked) || null;
-      syncColorChipVisuals();
-      syncCardSliderHighlight(selected ? selected.value : null);
-      const isColorActive = !!selected;
-      if (isColorActive) {
-        if (modeInput.value !== 'any') {
-          const preserved = sanitizeMode(modeInput.value);
-          storedMode = preserved;
-          card.dataset.savedMode = preserved;
-        } else if (storedMode) {
-          card.dataset.savedMode = storedMode;
-        } else {
-          delete card.dataset.savedMode;
-        }
-        modeInput.value = 'any';
-        setSliderDisabled(true);
-        minInput.value = '';
-        maxInput.value = '';
+    const handleSliderInput = (handleEl, roleHint) => {
+      if (!handleEl) return;
+      const role = roleHint || handleEl.dataset.handleRole || 'eq';
+      let value = 0;
+      if (sliderController) {
+        const key = sliderController.getHandleKey(handleEl);
+        value = clampSliderValue(key ? sliderController.getValue(key) : 0);
       } else {
-        setSliderDisabled(false);
-        const saved = card.dataset.savedMode;
-        if (saved) {
-          const restored = sanitizeMode(saved);
-          storedMode = restored;
-          modeInput.value = restored;
-        } else if (storedMode) {
-          modeInput.value = storedMode;
-        } else {
-          modeInput.value = 'any';
-          minInput.value = '';
-          maxInput.value = '';
-        }
-        if (!storedMode) {
-          delete card.dataset.savedMode;
-        }
-        syncHiddenValues();
+        value = clampSliderValue(sliderStepToNumber(handleEl.value));
       }
+      if (role === 'ge') {
+        storedValues.ge = value;
+        if (currentMode === 'eq') {
+          storedValues.eq = value;
+          storedValues.le = value;
+          if (sliderMaxHandle) {
+            isUpdatingHandles = true;
+            setSliderHandleValue(sliderMaxHandle, value);
+            isUpdatingHandles = false;
+          }
+        } else if (currentMode === 'between' && storedValues.le < value) {
+          storedValues.le = value;
+          if (sliderMaxHandle) {
+            isUpdatingHandles = true;
+            setSliderHandleValue(sliderMaxHandle, value);
+            isUpdatingHandles = false;
+          }
+        }
+      } else if (role === 'le') {
+        storedValues.le = value;
+        if (currentMode === 'between' && storedValues.ge > value) {
+          storedValues.ge = value;
+          if (sliderMinHandle) {
+            isUpdatingHandles = true;
+            setSliderHandleValue(sliderMinHandle, value);
+            isUpdatingHandles = false;
+          }
+        }
+      } else {
+        storedValues.eq = value;
+        storedValues.ge = value;
+        storedValues.le = value;
+        if (sliderMaxHandle) {
+          isUpdatingHandles = true;
+          setSliderHandleValue(sliderMaxHandle, value);
+          isUpdatingHandles = false;
+        }
+      }
+      setSliderHandleValue(handleEl, value);
+      syncHiddenValues();
+      updateSliderDisplay();
       updateSubmitState();
       syncClearButtonState();
     };
 
-    const clearAttributeConstraints = () => {
-      storedMode = null;
-      delete card.dataset.savedMode;
-      modeInput.value = 'any';
-      if (slider) {
-        const baseValue = Number.isFinite(sliderInitialValue)
-          ? clamp(sliderInitialValue, 0, 11)
-          : sliderStepToNumber(slider.value);
-        slider.value = String(Math.round(baseValue * 10));
+    const toggleEq = () => {
+      if (currentMode === 'eq') {
+        setModeValue('any');
+      } else {
+        setModeValue('eq');
       }
+    };
+
+    const toggleGe = () => {
+      if (currentMode === 'ge') {
+        setModeValue('any');
+      } else if (currentMode === 'between') {
+        setModeValue('le');
+      } else if (currentMode === 'le') {
+        setModeValue('between');
+      } else {
+        setModeValue('ge');
+      }
+    };
+
+    const toggleLe = () => {
+      if (currentMode === 'le') {
+        setModeValue('any');
+      } else if (currentMode === 'between') {
+        setModeValue('ge');
+      } else if (currentMode === 'ge') {
+        setModeValue('between');
+      } else {
+        setModeValue('le');
+      }
+    };
+
+    const clearAttributeConstraints = () => {
+      savedNumericMode = null;
+      currentMode = 'any';
+      modeInput.value = 'any';
+      storedValues.eq = fallbackValue;
+      storedValues.ge = fallbackValue;
+      storedValues.le = fallbackValue;
+      syncSliderHandles();
+      syncHiddenValues();
       applyColorSelection(null, { focus: false });
+      updateSubmitState();
+      syncClearButtonState();
     };
 
     if (clearBtn) {
@@ -1233,36 +1490,126 @@ const initSolver = () => {
 
     modeButtons.forEach((btn) => {
       btn.addEventListener('click', () => {
-        if (slider && slider.disabled) {
+        if (sliderHandles.length && sliderHandles.every((handle) => handle && handle.disabled)) {
           return;
         }
-
         const targetMode = btn.dataset.mode || 'eq';
-        const isActive = modeInput.value === targetMode;
-        applyMode(isActive ? 'any' : targetMode);
-        setModeButtonsState();
+        if (targetMode === 'eq') {
+          toggleEq();
+        } else if (targetMode === 'ge') {
+          toggleGe();
+        } else if (targetMode === 'le') {
+          toggleLe();
+        }
       });
     });
 
-    if (slider) {
-      slider.addEventListener('input', () => {
-        syncSliderDisplay();
-        if (modeInput.value === 'any') {
-          applyMode(storedMode || fallbackMode);
-        } else {
-          syncHiddenValues();
-          updateSubmitState();
+    if (sliderMinHandle) {
+      sliderMinHandle.addEventListener('input', () => {
+        if (isUpdatingHandles || sliderMinHandle.disabled) {
+          return;
         }
-        syncClearButtonState();
+        handleSliderInput(sliderMinHandle, sliderMinHandle.dataset.handleRole || 'ge');
       });
-      slider.addEventListener('change', () => {
-        syncSliderDisplay();
+      sliderMinHandle.addEventListener('change', () => {
         syncHiddenValues();
-        syncClearButtonState();
       });
-      syncSliderDisplay();
     }
 
+    if (sliderMaxHandle) {
+      sliderMaxHandle.addEventListener('input', () => {
+        if (isUpdatingHandles || sliderMaxHandle.disabled) {
+          return;
+        }
+        handleSliderInput(sliderMaxHandle, sliderMaxHandle.dataset.handleRole || 'le');
+      });
+      sliderMaxHandle.addEventListener('change', () => {
+        syncHiddenValues();
+      });
+    }
+
+    const getSelectedColor = () => {
+      const selected = colorRadios.find((radio) => radio.checked) || null;
+      return selected ? selected.value : null;
+    };
+
+    const controller = {
+      getState: () => ({
+        color: getSelectedColor(),
+        mode: modeInput.value,
+        values: {
+          eq: storedValues.eq,
+          ge: storedValues.ge,
+          le: storedValues.le,
+        },
+      }),
+      applyState: (state) => {
+        if (!state || typeof state !== 'object') {
+          return;
+        }
+        const { color = null, mode = 'any', values = {} } = state;
+        applyColorSelection(color, { focus: false });
+        if (!color) {
+          if (Number.isFinite(values.eq)) {
+            storedValues.eq = clampSliderValue(values.eq);
+          }
+          if (Number.isFinite(values.ge)) {
+            storedValues.ge = clampSliderValue(values.ge);
+          }
+          if (Number.isFinite(values.le)) {
+            storedValues.le = clampSliderValue(values.le);
+          }
+          setModeValue(mode || 'any');
+        } else if (mode && mode !== 'any') {
+          savedNumericMode = mode;
+        }
+        syncCardSliderHighlight(color);
+        syncColorChipVisuals();
+        syncClearButtonState();
+      },
+    };
+
+    if (attrName) {
+      attrControllers.set(attrName, controller);
+    }
+
+    if (copyBtn && attrName) {
+      copyBtn.addEventListener('click', () => {
+        const state = controller.getState();
+        attrControllers.forEach((target, key) => {
+          if (key === attrName) {
+            return;
+          }
+          target.applyState(state);
+        });
+      });
+    }
+
+    updateColorState = () => {
+      const selected = colorRadios.find((radio) => radio.checked) || null;
+      syncColorChipVisuals();
+      syncCardSliderHighlight(selected ? selected.value : null);
+      const isColorActive = !!selected;
+      if (isColorActive) {
+        if (currentMode !== 'any') {
+          savedNumericMode = currentMode;
+        }
+        currentMode = 'any';
+        modeInput.value = 'any';
+        setSliderDisabled(true);
+        minInput.value = '';
+        maxInput.value = '';
+        syncSliderHandles();
+      } else {
+        setSliderDisabled(false);
+        const restoreMode = savedNumericMode || 'any';
+        setModeValue(restoreMode);
+      }
+      updateSubmitState();
+      syncClearButtonState();
+    };
+
+    syncSliderHandles();
     syncHiddenValues();
     setModeButtonsState();
     updateColorState();
@@ -1695,6 +2042,13 @@ const initSolver = () => {
                 debugLo = 0;
                 debugHi = 11;
               }
+            } else if (mode === 'between') {
+              const loVal = minVal === null ? 0 : minVal;
+              const hiVal = maxVal === null ? 11 : Math.max(loVal, maxVal);
+              lo = loVal;
+              hi = hiVal;
+              debugLo = loVal;
+              debugHi = hiVal;
             } else {
               debugLo = 0;
               debugHi = 11;

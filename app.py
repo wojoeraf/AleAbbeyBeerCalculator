@@ -346,7 +346,7 @@ def index():
         for a in ATTRS:
             band_choice = request.form.get(f"band_{a}", "any")
             mode = request.form.get(f"mode_{a}", "any")
-            if mode not in {"any", "eq", "ge", "le"}:
+            if mode not in {"any", "eq", "ge", "le", "between"}:
                 mode = "any"
             min_raw = request.form.get(f"min_{a}", "").strip()
             max_raw = request.form.get(f"max_{a}", "").strip()
@@ -377,6 +377,18 @@ def index():
                     display_max = f"{max_val:.1f}"
                 else:
                     display_max = ""
+            elif mode == "between":
+                if min_val is not None:
+                    slider_value = min_val
+                    display_min = f"{min_val:.1f}"
+                else:
+                    display_min = ""
+                if max_val is not None:
+                    display_max = f"{max_val:.1f}"
+                else:
+                    display_max = ""
+                if min_val is None and max_val is not None:
+                    slider_value = max_val
             else:
                 display_min = ""
                 display_max = ""
