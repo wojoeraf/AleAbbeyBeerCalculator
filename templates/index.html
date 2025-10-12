@@ -89,14 +89,14 @@
                                 <div class="attr-controls" data-slider-area data-mode="{{ constraint.mode }}">
                                     <div class="slider-row">
                                         <div class="slider-range" data-slider-wrapper>
-                                            <input type="range" min="0" max="110" step="1" value="{{ slider_step }}"
-                                                   data-slider-role="min" data-initial-value="{{ '%.1f'|format(slider_value) }}"
-                                                   aria-valuemin="0" aria-valuemax="11" aria-valuenow="{{ '%.1f'|format(slider_value) }}"
-                                                   aria-label="{{ attr_labels[a] }}">
-                                            <input type="range" min="0" max="110" step="1" value="{{ slider_step }}"
-                                                   data-slider-role="max" data-initial-value="{{ '%.1f'|format(slider_value) }}"
-                                                   aria-valuemin="0" aria-valuemax="11" aria-valuenow="{{ '%.1f'|format(slider_value) }}"
-                                                   aria-label="{{ attr_labels[a] }}">
+                                            <div class="range-slider" data-attr-range data-slider aria-label="{{ attr_labels[a] }}">
+                                                <button type="button" class="range-slider-thumb" data-slider-thumb="min"
+                                                        data-initial-value="{{ constraint.min if constraint.min else '%.1f'|format(slider_value) }}"
+                                                        aria-label="{{ attr_labels[a] }}"></button>
+                                                <button type="button" class="range-slider-thumb" data-slider-thumb="max"
+                                                        data-initial-value="{{ constraint.max if constraint.max else '%.1f'|format(slider_value) }}"
+                                                        aria-label="{{ attr_labels[a] }}"></button>
+                                            </div>
                                         </div>
                                         <button type="button" class="icon-btn" data-copy-attr
                                                 aria-label="{{ ui.button_copy_attr }}" title="{{ ui.button_copy_attr }}">

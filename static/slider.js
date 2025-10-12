@@ -24,14 +24,6 @@ export const initSlider = ({
     return value.toFixed(1);
   };
 
-  const updateSliderProgress = (slider) => {
-    if (!slider) return;
-    const max = Number(slider.max) || 1;
-    const value = clamp(Number(slider.value), 0, max);
-    const percent = (value / max) * 100;
-    slider.style.setProperty('--slider-progress', `${percent}%`);
-  };
-
   const sliderValueToPercent = (value) => {
     const safeValue = clamp(Number(value) || 0, 0, maxValue);
     return `${((safeValue / maxValue) * 100).toFixed(2)}%`;
@@ -189,11 +181,347 @@ export const initSlider = ({
     };
   };
 
+  const createSlider = (root) => {
+    if (!root || typeof root !== 'object') {
+      return null;
+    }
+
+    const clampValue = (value) => clamp(Number.isFinite(value) ? value : 0, 0, maxValue);
+    const snapValue = (value) => Math.round(clampValue(value) * stepScale) / stepScale;
+    const percentFromValue = (value) => {
+      const safe = clampValue(value);
+      return (safe / maxValue) * 100;
+    };
+
+    const handles = new Map();
+    const handleList = [];
+
+    const getHandleKey = (el) => {
+      for (const [key, state] of handles.entries()) {
+        if (state.el === el) {
+          return key;
+        }
+      }
+      return null;
+    };
+
+    const updateHandlePosition = (state) => {
+      const percent = percentFromValue(state.value);
+      state.el.style.left = `${percent}%`;
+      state.el.style.setProperty('--slider-thumb-position', `${percent.toFixed(2)}%`);
+      state.el.setAttribute('aria-valuenow', formatSliderValue(state.value));
+    };
+
+    const updateTrackState = () => {
+      const visibleHandles = handleList.filter((state) => state.visible);
+      let start = 0;
+      let end = 0;
+      if (visibleHandles.length === 1) {
+        end = percentFromValue(visibleHandles[0].value);
+      } else if (visibleHandles.length >= 2) {
+        const percents = visibleHandles.map((state) => percentFromValue(state.value));
+        start = Math.min(...percents);
+        end = Math.max(...percents);
+      }
+      root.style.setProperty('--slider-range-start', `${start.toFixed(2)}%`);
+      root.style.setProperty('--slider-range-end', `${end.toFixed(2)}%`);
+    };
+
+    const emitHandleEvent = (state, type) => {
+      const event = new Event(type, { bubbles: true });
+      state.el.dispatchEvent(event);
+    };
+
+    const setHandleValue = (state, value, { emit = false } = {}) => {
+      const next = snapValue(value);
+      if (Math.abs(state.value - next) <= EPS) {
+        if (emit) {
+          emitHandleEvent(state, 'input');
+        }
+        return next;
+      }
+      state.value = next;
+      updateHandlePosition(state);
+      updateTrackState();
+      if (emit) {
+        emitHandleEvent(state, 'input');
+      }
+      return next;
+    };
+
+    const setHandleVisibility = (state, visible) => {
+      state.visible = !!visible;
+      if (state.visible) {
+        state.el.removeAttribute('aria-hidden');
+        state.el.hidden = false;
+        state.el.style.display = '';
+        if (!state.disabled) {
+          state.el.setAttribute('tabindex', '0');
+        }
+      } else {
+        state.el.setAttribute('aria-hidden', 'true');
+        state.el.hidden = true;
+        state.el.style.display = 'none';
+        state.el.setAttribute('tabindex', '-1');
+      }
+      updateTrackState();
+    };
+
+    const setHandleDisabled = (state, disabled) => {
+      state.disabled = !!disabled;
+      if (state.disabled) {
+        state.el.setAttribute('disabled', 'true');
+        state.el.setAttribute('tabindex', '-1');
+      } else if (state.visible) {
+        state.el.removeAttribute('disabled');
+        state.el.setAttribute('tabindex', '0');
+      } else {
+        state.el.removeAttribute('disabled');
+      }
+    };
+
+    const createHandleState = (el, key) => {
+      if (!el || !key || handles.has(key)) {
+        return null;
+      }
+      const state = {
+        key,
+        el,
+        value: 0,
+        visible: true,
+        disabled: false,
+        keyInteraction: false,
+      };
+      handles.set(key, state);
+      handleList.push(state);
+      el.dataset.sliderHandle = key;
+      el.setAttribute('role', 'slider');
+      el.setAttribute('tabindex', '0');
+      el.setAttribute('aria-valuemin', formatSliderValue(0));
+      el.setAttribute('aria-valuemax', formatSliderValue(maxValue));
+      const initial = Number(el.dataset.initialValue);
+      if (Number.isFinite(initial)) {
+        state.value = snapValue(initial);
+      } else {
+        state.value = 0;
+      }
+      updateHandlePosition(state);
+      return state;
+    };
+
+    const handleElements = Array.from(root.querySelectorAll('[data-slider-thumb]'));
+    handleElements.forEach((el) => {
+      const rawKey = el.dataset.sliderThumb || '';
+      const key = rawKey === 'max' ? 'max' : 'min';
+      createHandleState(el, key);
+    });
+
+    if (!handles.size) {
+      return null;
+    }
+
+    updateTrackState();
+
+    const valueFromClientX = (clientX) => {
+      const rect = root.getBoundingClientRect();
+      if (!rect || rect.width === 0) {
+        return 0;
+      }
+      const ratio = clamp((clientX - rect.left) / rect.width, 0, 1);
+      return clampValue(ratio * maxValue);
+    };
+
+    const pickNearestHandle = (value) => {
+      const visibleHandles = handleList.filter((state) => state.visible && !state.disabled);
+      if (!visibleHandles.length) {
+        return null;
+      }
+      let best = visibleHandles[0];
+      let bestDist = Math.abs(best.value - value);
+      for (let idx = 1; idx < visibleHandles.length; idx += 1) {
+        const candidate = visibleHandles[idx];
+        const dist = Math.abs(candidate.value - value);
+        if (dist < bestDist) {
+          best = candidate;
+          bestDist = dist;
+        }
+      }
+      return best;
+    };
+
+    const handlePointerDrag = (state, event) => {
+      if (!state || state.disabled) {
+        return;
+      }
+      event.preventDefault();
+      state.el.focus({ preventScroll: true });
+      const pointerId = event.pointerId;
+      const onMove = (moveEvent) => {
+        if (moveEvent.pointerId !== pointerId) {
+          return;
+        }
+        const nextValue = valueFromClientX(moveEvent.clientX);
+        setHandleValue(state, nextValue, { emit: true });
+      };
+      const onUp = (upEvent) => {
+        if (upEvent.pointerId !== pointerId) {
+          return;
+        }
+        state.el.removeEventListener('pointermove', onMove);
+        state.el.removeEventListener('pointerup', onUp);
+        state.el.removeEventListener('pointercancel', onUp);
+        try {
+          state.el.releasePointerCapture(pointerId);
+        } catch (error) {
+          // ignore
+        }
+        emitHandleEvent(state, 'change');
+      };
+      state.el.addEventListener('pointermove', onMove);
+      state.el.addEventListener('pointerup', onUp);
+      state.el.addEventListener('pointercancel', onUp);
+      state.el.setPointerCapture(pointerId);
+      setHandleValue(state, valueFromClientX(event.clientX), { emit: true });
+    };
+
+    handleList.forEach((state) => {
+      state.el.addEventListener('pointerdown', (event) => {
+        handlePointerDrag(state, event);
+      });
+
+      state.el.addEventListener('keydown', (event) => {
+        if (state.disabled) {
+          return;
+        }
+        const key = event.key;
+        let nextValue = state.value;
+        const step = 1 / stepScale;
+        if (key === 'ArrowLeft' || key === 'ArrowDown') {
+          event.preventDefault();
+          nextValue = state.value - step;
+        } else if (key === 'ArrowRight' || key === 'ArrowUp') {
+          event.preventDefault();
+          nextValue = state.value + step;
+        } else if (key === 'PageDown') {
+          event.preventDefault();
+          nextValue = state.value - Math.max(step, 1);
+        } else if (key === 'PageUp') {
+          event.preventDefault();
+          nextValue = state.value + Math.max(step, 1);
+        } else if (key === 'Home') {
+          event.preventDefault();
+          nextValue = 0;
+        } else if (key === 'End') {
+          event.preventDefault();
+          nextValue = maxValue;
+        } else {
+          return;
+        }
+        state.keyInteraction = true;
+        setHandleValue(state, nextValue, { emit: true });
+      });
+
+      state.el.addEventListener('keyup', (event) => {
+        if (!state.keyInteraction) {
+          return;
+        }
+        const key = event.key;
+        if (
+          key === 'ArrowLeft' ||
+          key === 'ArrowRight' ||
+          key === 'ArrowUp' ||
+          key === 'ArrowDown' ||
+          key === 'PageUp' ||
+          key === 'PageDown' ||
+          key === 'Home' ||
+          key === 'End'
+        ) {
+          state.keyInteraction = false;
+          emitHandleEvent(state, 'change');
+        }
+      });
+    });
+
+    root.addEventListener('pointerdown', (event) => {
+      const target = event.target;
+      if (target && target.closest('[data-slider-thumb]')) {
+        return;
+      }
+      const value = valueFromClientX(event.clientX);
+      const handle = pickNearestHandle(value);
+      if (!handle) {
+        return;
+      }
+      event.preventDefault();
+      setHandleValue(handle, value, { emit: true });
+      emitHandleEvent(handle, 'change');
+    });
+
+    const setActiveBand = (band) => {
+      if (band) {
+        root.dataset.activeColorBand = band;
+      } else {
+        delete root.dataset.activeColorBand;
+      }
+      handleList.forEach((state) => {
+        if (band) {
+          state.el.dataset.activeColorBand = band;
+        } else {
+          delete state.el.dataset.activeColorBand;
+        }
+      });
+    };
+
+    return {
+      root,
+      getHandle: (key) => (handles.has(key) ? handles.get(key).el : null),
+      getHandles: () => handleList.map((state) => state.el),
+      getHandleKey,
+      getValue: (key) => (handles.has(key) ? handles.get(key).value : 0),
+      setValue: (key, value, options = {}) => {
+        if (!handles.has(key)) {
+          return 0;
+        }
+        return setHandleValue(handles.get(key), value, options);
+      },
+      setVisibility: (key, visible) => {
+        if (!handles.has(key)) {
+          return;
+        }
+        setHandleVisibility(handles.get(key), visible);
+      },
+      setZIndex: (key, z) => {
+        if (!handles.has(key)) {
+          return;
+        }
+        const el = handles.get(key).el;
+        if (typeof z === 'number') {
+          el.style.zIndex = String(z);
+        } else {
+          el.style.removeProperty('z-index');
+        }
+      },
+      setDisabled: (disabled) => {
+        handleList.forEach((state) => {
+          setHandleDisabled(state, disabled);
+        });
+        root.classList.toggle('range-slider--disabled', !!disabled);
+      },
+      setActiveBand,
+      refresh: () => {
+        handleList.forEach((state) => {
+          updateHandlePosition(state);
+        });
+        updateTrackState();
+      },
+    };
+  };
+
   return {
     sliderStepToNumber,
     formatSliderValue,
-    updateSliderProgress,
     normalizeTrackBand,
     applyTrack,
+    createSlider,
   };
 };

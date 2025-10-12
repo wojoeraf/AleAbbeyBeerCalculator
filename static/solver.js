@@ -223,13 +223,8 @@ const initSolver = () => {
     mutedColorMap: sliderBandMutedColorMap,
     neutralColor: sliderNeutralColor,
   });
-  const {
-    sliderStepToNumber,
-    formatSliderValue,
-    updateSliderProgress,
-    normalizeTrackBand,
-    applyTrack,
-  } = sliderHelpers;
+  const { sliderStepToNumber, formatSliderValue, normalizeTrackBand, applyTrack, createSlider } =
+    sliderHelpers;
   let sliderTrackController = applyTrack({});
 
   const messages = i18nData.messages || {};
@@ -817,24 +812,17 @@ const initSolver = () => {
     sliderTrackController = applyTrack(styleBands);
 
     attrCards.forEach((card) => {
-      const sliders = Array.from(card.querySelectorAll('[data-slider-role]'));
-      if (!sliders.length) {
+      const slider = card.querySelector('[data-attr-range]');
+      if (!slider) {
         return;
       }
       const attr = card.dataset.attr;
       const highlightBand = card.dataset.activeColorBand || null;
-      sliders.forEach((slider) => {
-        if (!slider) {
-          return;
-        }
-        if (!attr) {
-          slider.style.removeProperty('--slider-track');
-          updateSliderProgress(slider);
-          return;
-        }
-        sliderTrackController.setTrack(slider, attr, highlightBand);
-        updateSliderProgress(slider);
-      });
+      if (!attr) {
+        slider.style.removeProperty('--slider-track');
+        return;
+      }
+      sliderTrackController.setTrack(slider, attr, highlightBand);
     });
   };
 
@@ -897,9 +885,11 @@ const initSolver = () => {
   };
 
   attrCards.forEach((card) => {
-    const sliderMinHandle = card.querySelector('[data-slider-role="min"]');
-    const sliderMaxHandle = card.querySelector('[data-slider-role="max"]');
-    const sliderHandles = [sliderMinHandle, sliderMaxHandle].filter(Boolean);
+    const sliderRoot = card.querySelector('[data-slider]');
+    const sliderController = sliderRoot ? createSlider(sliderRoot) : null;
+    const sliderMinHandle = sliderController ? sliderController.getHandle('min') : null;
+    const sliderMaxHandle = sliderController ? sliderController.getHandle('max') : null;
+    const sliderHandles = sliderController ? sliderController.getHandles() : [];
     const sliderDisplay = card.querySelector('[data-slider-display]');
     const sliderSingleContainer = sliderDisplay ? sliderDisplay.querySelector('[data-slider-single]') : null;
     const sliderRangeContainer = sliderDisplay ? sliderDisplay.querySelector('[data-slider-range]') : null;
@@ -923,6 +913,11 @@ const initSolver = () => {
       const sanitizedBand = normalizeTrackBand(band);
       if (sanitizedBand) {
         card.dataset.activeColorBand = sanitizedBand;
+        if (sliderController) {
+          sliderController.setActiveBand(sanitizedBand);
+        } else if (sliderRoot) {
+          sliderRoot.dataset.activeColorBand = sanitizedBand;
+        }
         sliderHandles.forEach((handle) => {
           if (handle) {
             handle.dataset.activeColorBand = sanitizedBand;
@@ -930,6 +925,11 @@ const initSolver = () => {
         });
       } else {
         delete card.dataset.activeColorBand;
+        if (sliderController) {
+          sliderController.setActiveBand(null);
+        } else if (sliderRoot) {
+          delete sliderRoot.dataset.activeColorBand;
+        }
         sliderHandles.forEach((handle) => {
           if (handle) {
             delete handle.dataset.activeColorBand;
@@ -1057,7 +1057,13 @@ const initSolver = () => {
       if (Number.isFinite(raw)) {
         return clamp(raw, 0, 11);
       }
-      return clamp(sliderStepToNumber(source.value), 0, 11);
+      if (sliderController) {
+        const key = sliderController.getHandleKey(source);
+        if (key) {
+          return clamp(sliderController.getValue(key), 0, 11);
+        }
+      }
+      return null;
     };
 
     const sliderInitialValue = readInitialSliderValue();
@@ -1107,11 +1113,15 @@ const initSolver = () => {
     const clampSliderValue = (value) => clamp(Number.isFinite(value) ? value : fallbackValue, 0, 11);
 
     const setSliderHandleValue = (handle, value) => {
-      if (!handle) return;
       const safe = clampSliderValue(value);
-      handle.value = String(Math.round(safe * 10));
+      if (!handle || !sliderController) {
+        return safe;
+      }
+      const key = sliderController.getHandleKey(handle);
+      if (key) {
+        sliderController.setValue(key, safe);
+      }
       handle.setAttribute('aria-valuenow', formatSliderValue(safe));
-      updateSliderProgress(handle);
       return safe;
     };
 
@@ -1125,23 +1135,29 @@ const initSolver = () => {
       } else {
         delete handle.dataset.handleRole;
       }
-      if (typeof zIndex === 'number') {
-        handle.style.zIndex = String(zIndex);
+      if (sliderController) {
+        const key = sliderController.getHandleKey(handle);
+        if (key) {
+          sliderController.setVisibility(key, visible);
+          sliderController.setZIndex(key, zIndex);
+        }
       } else {
-        handle.style.removeProperty('z-index');
-      }
-      if (visible) {
-        handle.classList.remove('slider-handle--hidden');
-        handle.style.removeProperty('display');
-        handle.removeAttribute('aria-hidden');
-        handle.removeAttribute('tabindex');
-        handle.disabled = false;
-      } else {
-        handle.classList.add('slider-handle--hidden');
-        handle.style.display = 'none';
-        handle.setAttribute('aria-hidden', 'true');
-        handle.setAttribute('tabindex', '-1');
-        handle.disabled = true;
+        if (typeof zIndex === 'number') {
+          handle.style.zIndex = String(zIndex);
+        } else {
+          handle.style.removeProperty('z-index');
+        }
+        if (visible) {
+          handle.style.removeProperty('display');
+          handle.removeAttribute('aria-hidden');
+          handle.removeAttribute('tabindex');
+          handle.removeAttribute('disabled');
+        } else {
+          handle.style.display = 'none';
+          handle.setAttribute('aria-hidden', 'true');
+          handle.setAttribute('tabindex', '-1');
+          handle.setAttribute('disabled', 'true');
+        }
       }
       return safeValue;
     };
@@ -1259,14 +1275,16 @@ const initSolver = () => {
     };
 
     const setSliderDisabled = (disabled) => {
-      sliderHandles.forEach((handle) => {
-        if (handle) {
-          handle.disabled = !!disabled;
-          if (!disabled) {
-            updateSliderProgress(handle);
+      if (sliderController) {
+        sliderController.setDisabled(disabled);
+        sliderController.refresh();
+      } else {
+        sliderHandles.forEach((handle) => {
+          if (handle) {
+            handle.disabled = !!disabled;
           }
-        }
-      });
+        });
+      }
       if (attrControls) {
         attrControls.classList.toggle('is-disabled', !!disabled);
       }
@@ -1320,7 +1338,13 @@ const initSolver = () => {
     const handleSliderInput = (handleEl, roleHint) => {
       if (!handleEl) return;
       const role = roleHint || handleEl.dataset.handleRole || 'eq';
-      const value = clampSliderValue(sliderStepToNumber(handleEl.value));
+      let value = 0;
+      if (sliderController) {
+        const key = sliderController.getHandleKey(handleEl);
+        value = clampSliderValue(key ? sliderController.getValue(key) : 0);
+      } else {
+        value = clampSliderValue(sliderStepToNumber(handleEl.value));
+      }
       if (role === 'ge') {
         storedValues.ge = value;
         if (currentMode === 'eq') {
