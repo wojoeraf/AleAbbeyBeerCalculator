@@ -245,8 +245,19 @@ input[type="number"]:focus {
   gap: 16px;
 }
 
-.ingredients-header .optional-toggle {
+.ingredients-actions {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ingredients-actions > * {
+  flex-shrink: 0;
+}
+
+.ingredients-header .optional-toggle {
+  margin-left: 0;
 }
 
 .column-header .section-title {

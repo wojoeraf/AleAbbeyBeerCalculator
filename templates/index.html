@@ -124,12 +124,20 @@
                 <aside class="ingredients-column">
                     <div class="column-header ingredients-header">
                         <h3 class="section-title">{{ ui.section_ingredients }}</h3>
-                        <button type="button" class="btn-secondary optional-toggle"
-                                data-toggle-optional
-                                data-label-select="{{ ui.button_optional_all }}"
-                                data-label-clear="{{ ui.button_optional_none }}">
-                            <span data-toggle-optional-label>{{ ui.button_optional_all }}</span>
-                        </button>
+                        <div class="ingredients-actions">
+                            <button type="button" class="btn-secondary categories-toggle"
+                                    data-toggle-categories
+                                    data-label-collapse="{{ ui.button_collapse_categories }}"
+                                    data-label-expand="{{ ui.button_expand_categories }}">
+                                <span data-toggle-categories-label>{{ ui.button_collapse_categories }}</span>
+                            </button>
+                            <button type="button" class="btn-secondary optional-toggle"
+                                    data-toggle-optional
+                                    data-label-select="{{ ui.button_optional_all }}"
+                                    data-label-clear="{{ ui.button_optional_none }}">
+                                <span data-toggle-optional-label>{{ ui.button_optional_all }}</span>
+                            </button>
+                        </div>
                     </div>
                     <div class="mobile-attr-toggle" data-attribute-toggle hidden>
                         <label>
@@ -154,7 +162,7 @@
                             {% for category in ingredient_categories %}
                                 <tbody data-category-header data-category-id="{{ category.id }}">
                                     <tr class="ingredient-category-header">
-                                        <td colspan="7">
+                                        <td colspan="8">
                                             <button type="button" class="category-toggle" data-category-toggle
                                                     data-category-id="{{ category.id }}" aria-expanded="true">
                                                 <span class="category-toggle-icon" aria-hidden="true"></span>
