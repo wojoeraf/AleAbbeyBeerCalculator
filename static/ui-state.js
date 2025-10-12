@@ -45,6 +45,7 @@ export const initUIState = () => {
     resultsEmpty: document.querySelector('[data-results-empty]'),
     statusMessage: document.querySelector('[data-status-message]'),
     resultsControls: document.querySelector('[data-results-controls]'),
+    resultsHeader: document.querySelector('[data-results-header]'),
     sortAttrSelect: document.querySelector('[data-sort-attr]'),
     sortOrderSelect: document.querySelector('[data-sort-order]'),
     debugPanel: document.querySelector('[data-debug-panel]'),
