@@ -327,12 +327,57 @@ export const renderResults = (state, dictionaries) => {
     resultsLoading,
     resultsEmpty,
     statusMessage,
-    resultsControls,
+    resultsHeader,
   } = selectors;
 
   if (!resultsSection) {
     return { cards: [] };
   }
+
+  const clearSummary = () => {
+    if (!resultsSummary) {
+      return;
+    }
+    resultsSummary.hidden = true;
+    if (resultsSummary.dataset) {
+      resultsSummary.dataset.visible = 'false';
+    }
+    if (typeof resultsSummary.replaceChildren === 'function') {
+      resultsSummary.replaceChildren();
+    } else {
+      resultsSummary.innerHTML = '';
+    }
+  };
+
+  const renderSummaryHighlights = (lines) => {
+    if (!resultsSummary) {
+      return;
+    }
+    const entries = Array.isArray(lines) ? lines.slice(0, 3) : [];
+    if (!entries.length) {
+      clearSummary();
+      return;
+    }
+
+    const items = entries.map((line, index) => {
+      const item = document.createElement('span');
+      item.className = 'results-summary-item';
+      item.textContent = line;
+      item.style.setProperty('--item-index', index);
+      return item;
+    });
+
+    resultsSummary.hidden = false;
+    if (resultsSummary.dataset) {
+      resultsSummary.dataset.visible = 'true';
+    }
+    if (typeof resultsSummary.replaceChildren === 'function') {
+      resultsSummary.replaceChildren(...items);
+    } else {
+      resultsSummary.innerHTML = '';
+      items.forEach((item) => resultsSummary.appendChild(item));
+    }
+  };
 
   const summaryLines = Array.isArray(summary) ? [...summary] : [];
   if (Array.isArray(solutions) && solutions.length > 0) {
@@ -345,61 +390,17 @@ export const renderResults = (state, dictionaries) => {
     if (Number.isFinite(averageCost)) {
       summaryLines.push(translate('summary_average_cost', { value: formatCost(averageCost) }));
     }
-    const minCost = Number.isFinite(topSolution && topSolution.minCost) ? topSolution.minCost : averageCost;
-    const maxCost = Number.isFinite(topSolution && topSolution.maxCost) ? topSolution.maxCost : averageCost;
-    if (Number.isFinite(minCost) && Number.isFinite(maxCost)) {
-      summaryLines.push(
-        translate('summary_cost_range', {
-          min: formatCost(minCost),
-          max: formatCost(maxCost),
-        }),
-      );
-    }
-    const seasonalCosts =
-      topSolution && typeof topSolution.seasonalCosts === 'object' ? topSolution.seasonalCosts : {};
-    const orderedSeasons = Array.isArray(seasonOrder) && seasonOrder.length
-      ? seasonOrder
-      : Object.keys(seasonalCosts);
-    let cheapestSeason = null;
-    let cheapestValue = Infinity;
-    let priciestSeason = null;
-    let priciestValue = -Infinity;
-    orderedSeasons.forEach((season) => {
-      const value = Number(seasonalCosts[season]);
-      if (!Number.isFinite(value)) {
-        return;
-      }
-      if (value < cheapestValue) {
-        cheapestValue = value;
-        cheapestSeason = season;
-      }
-      if (value > priciestValue) {
-        priciestValue = value;
-        priciestSeason = season;
-      }
-    });
-    if (cheapestSeason) {
-      const label = seasonLabels[cheapestSeason] || cheapestSeason;
-      summaryLines.push(
-        translate('summary_cheapest_season', {
-          season: label,
-          value: formatCost(cheapestValue),
-        }),
-      );
-    }
-    if (priciestSeason && priciestSeason !== cheapestSeason) {
-      const label = seasonLabels[priciestSeason] || priciestSeason;
-      summaryLines.push(
-        translate('summary_most_expensive_season', {
-          season: label,
-          value: formatCost(priciestValue),
-        }),
-      );
-    }
   }
 
   resultsSection.hidden = false;
   resultsSection.setAttribute('aria-busy', loading ? 'true' : 'false');
+
+  if (resultsHeader) {
+    resultsHeader.classList.toggle('is-loading', Boolean(loading));
+    if (loading) {
+      resultsHeader.classList.remove('is-ready');
+    }
+  }
 
   if (resultsLoading) {
     resultsLoading.hidden = !loading;
@@ -411,10 +412,9 @@ export const renderResults = (state, dictionaries) => {
 
   if (loading) {
     if (resultsPlaceholder) resultsPlaceholder.hidden = true;
-    if (resultsSummary) resultsSummary.hidden = true;
+    clearSummary();
     if (statusMessage) statusMessage.hidden = true;
     if (resultsEmpty) resultsEmpty.hidden = true;
-    if (resultsControls) resultsControls.hidden = true;
     return { cards: [] };
   }
 
@@ -422,16 +422,15 @@ export const renderResults = (state, dictionaries) => {
 
   if (!hasSolutions) {
     if (resultsPlaceholder) resultsPlaceholder.hidden = false;
-    if (resultsSummary) {
-      resultsSummary.hidden = true;
-      resultsSummary.textContent = '';
-    }
+    clearSummary();
     if (statusMessage) {
       statusMessage.hidden = true;
       statusMessage.textContent = '';
     }
     if (resultsEmpty) resultsEmpty.hidden = true;
-    if (resultsControls) resultsControls.hidden = true;
+    if (resultsHeader) {
+      resultsHeader.classList.remove('is-ready');
+    }
     return { cards: [] };
   }
 
@@ -445,17 +444,12 @@ export const renderResults = (state, dictionaries) => {
     resultsTitle.textContent = typeof titleText === 'string'
       ? titleText
       : translate('results_heading');
-  }
-
-  if (resultsSummary) {
-    if (summaryLines.length) {
-      resultsSummary.hidden = false;
-      resultsSummary.textContent = summaryLines.join(' • ');
-    } else {
-      resultsSummary.hidden = true;
-      resultsSummary.textContent = '';
+    if (resultsHeader) {
+      resultsHeader.classList.toggle('is-ready', count > 0);
     }
   }
+
+  renderSummaryHighlights(summaryLines);
 
   if (statusMessage) {
     if (Array.isArray(info) && info.length > 0) {
@@ -472,10 +466,6 @@ export const renderResults = (state, dictionaries) => {
 
   if (resultsEmpty) {
     resultsEmpty.hidden = count !== 0;
-  }
-
-  if (resultsControls) {
-    resultsControls.hidden = count === 0;
   }
 
   if (count === 0) {
