@@ -415,6 +415,11 @@ input[type="number"]:focus {
   position: relative;
   width: 100%;
 }
+.range-slider input[type='range'] {
+  display: block;
+  height: 10px;
+  margin: 0;
+}
 .range-slider input[type='range'][data-slider-handle='min'] {
   position: relative;
   z-index: 2;
@@ -426,6 +431,8 @@ input[type="number"]:focus {
   background: none;
   box-shadow: none;
   pointer-events: none;
+  height: 10px;
+  margin: auto 0;
 }
 .range-slider input[type='range'][data-slider-handle='max']::-webkit-slider-thumb {
   pointer-events: auto;
@@ -549,6 +556,10 @@ input[type="number"]:focus {
   padding: 6px 12px;
   border-radius: 12px;
   margin-left: auto;
+  position: relative;
+}
+.slider-value[hidden] {
+  display: none !important;
 }
 .slider-value-range {
   display: flex;
@@ -557,6 +568,9 @@ input[type="number"]:focus {
 }
 .slider-value-range .slider-value {
   margin-left: 0;
+}
+.slider-value--with-action {
+  padding-right: 44px;
 }
 .slider-value-label {
   font-size: 0.7rem;
@@ -567,6 +581,41 @@ input[type="number"]:focus {
 .slider-value-number {
   font-size: 1.25rem;
   font-weight: 700;
+}
+.slider-value-copy-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 9px;
+  background: rgba(249, 115, 22, 0.12);
+  color: var(--primary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  line-height: 1;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+.slider-value-copy-btn:hover {
+  background: var(--primary);
+  color: #fff;
+  transform: translateY(-1px);
+}
+.slider-value-copy-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.slider-value-copy-btn:active {
+  transform: translateY(0);
+}
+.slider-value-copy-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  transform: none;
 }
 .ingredients-column {
   align-self: stretch;

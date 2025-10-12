@@ -104,7 +104,7 @@
                                                 title="{{ mode_labels.get('le', '≤') }}"
                                                 aria-pressed="{{ 'true' if constraints[a].mode == 'le' else 'false' }}">≤</button>
                                         <div class="slider-value" data-slider-value-single>
-                                            <span class="slider-value-label">{{ ui.label_value_display }}</span>
+                                            <span class="slider-value-label" data-slider-target-label>{{ ui.label_value_display }}</span>
                                             <span class="slider-value-number" data-slider-single-value>{{ '%.1f'|format(slider_value) }}</span>
                                         </div>
                                         <div class="slider-value-range" data-slider-value-range hidden>
@@ -112,9 +112,16 @@
                                                 <span class="slider-value-label">{{ ui.label_value_lower }}</span>
                                                 <span class="slider-value-number" data-slider-min-value>{{ '%.1f'|format(slider_value) }}</span>
                                             </div>
-                                            <div class="slider-value">
+                                            <div class="slider-value slider-value--with-action">
                                                 <span class="slider-value-label">{{ ui.label_value_upper }}</span>
                                                 <span class="slider-value-number" data-slider-max-value>{{ '%.1f'|format(slider_upper_value) }}</span>
+                                                <button type="button"
+                                                        class="slider-value-copy-btn"
+                                                        data-slider-copy-range
+                                                        title="{{ ui.button_copy_slider }}"
+                                                        aria-label="{{ ui.button_copy_slider }}">
+                                                    <span aria-hidden="true">⎘</span>
+                                                </button>
                                             </div>
                                         </div>
                                     </div>

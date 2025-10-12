@@ -890,15 +890,19 @@ const initSolver = () => {
     submitBtn.disabled = !hasConstraint;
   };
 
+  const attrCardControllers = new Map();
+
   attrCards.forEach((card) => {
     const slider = card.querySelector('[data-attr-range]');
     const sliderMax = card.querySelector('[data-attr-range-max]');
     const sliderRow = card.querySelector('[data-slider-row]');
     const sliderValueSingleBox = card.querySelector('[data-slider-value-single]');
+    const sliderTargetLabel = card.querySelector('[data-slider-target-label]');
     const sliderSingleValueEl = card.querySelector('[data-slider-single-value]');
     const sliderRangeBox = card.querySelector('[data-slider-value-range]');
     const sliderMinValueEl = card.querySelector('[data-slider-min-value]');
     const sliderMaxValueEl = card.querySelector('[data-slider-max-value]');
+    const copyButton = card.querySelector('[data-slider-copy-range]');
     const sliderDefaultAriaLabel = slider
       ? slider.dataset.ariaLabelDefault || slider.getAttribute('aria-label')
       : null;
@@ -1175,12 +1179,28 @@ const initSolver = () => {
     const setRangeUIActive = (active) => {
       if (sliderValueSingleBox) {
         sliderValueSingleBox.hidden = !!active;
+        if (active) {
+          sliderValueSingleBox.setAttribute('aria-hidden', 'true');
+        } else {
+          sliderValueSingleBox.removeAttribute('aria-hidden');
+        }
+      }
+      if (sliderTargetLabel) {
+        sliderTargetLabel.hidden = !!active;
+        if (active) {
+          sliderTargetLabel.setAttribute('aria-hidden', 'true');
+        } else {
+          sliderTargetLabel.removeAttribute('aria-hidden');
+        }
       }
       if (sliderRangeBox) {
         sliderRangeBox.hidden = !active;
       }
       if (sliderMax) {
         sliderMax.hidden = !active;
+      }
+      if (copyButton) {
+        copyButton.disabled = !active;
       }
       if (slider && sliderDefaultAriaLabel) {
         slider.setAttribute('aria-label', active ? sliderLowerAriaLabel : sliderDefaultAriaLabel);
@@ -1208,6 +1228,17 @@ const initSolver = () => {
       if (active) {
         syncSliderDisplay();
       }
+    };
+
+    const getRangeBounds = () => {
+      if (!slider) {
+        return { lower: 0, upper: 0 };
+      }
+      const numericMin = sliderStepToNumber(slider.value);
+      const numericMax = sliderMax ? sliderStepToNumber(sliderMax.value) : numericMin;
+      const lower = Math.min(numericMin, numericMax);
+      const upper = Math.max(numericMin, numericMax);
+      return { lower, upper };
     };
 
     const setSliderDisabled = (disabled) => {
@@ -1354,6 +1385,49 @@ const initSolver = () => {
     if (clearBtn) {
       clearBtn.addEventListener('click', () => {
         clearAttributeConstraints();
+      });
+    }
+
+    const controller = {
+      applyBetweenRange(lower, upper) {
+        if (!slider || !sliderMax) {
+          return;
+        }
+        const safeLower = clamp(Math.min(lower, upper), 0, SLIDER_MAX_VALUE);
+        const safeUpper = clamp(Math.max(lower, upper), 0, SLIDER_MAX_VALUE);
+        lastRangeMinValue = safeLower;
+        lastRangeMaxValue = safeUpper;
+        storedMode = 'between';
+        modeInput.value = 'between';
+        delete card.dataset.savedMode;
+        applyColorSelection(null, { focus: false });
+        setSliderDisabled(false);
+        setRangeUIActive(true);
+        ensureRangeOrder('max');
+        syncSliderDisplay();
+        syncHiddenValues();
+        setModeButtonsState();
+        updateSubmitState();
+        syncClearButtonState();
+      },
+    };
+
+    attrCardControllers.set(card, controller);
+
+    if (copyButton) {
+      copyButton.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!slider || !sliderMax || modeInput.value !== 'between') {
+          return;
+        }
+        const { lower, upper } = getRangeBounds();
+        attrCardControllers.forEach((otherController, otherCard) => {
+          if (!otherController || otherCard === card) {
+            return;
+          }
+          otherController.applyBetweenRange(lower, upper);
+        });
       });
     }
 
