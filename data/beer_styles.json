@@ -1,6 +1,6 @@
 {
   "light_ale": {
-    "names": {"de": "Leichtes Ale", "en": "Light Ale"},
+    "names": {"en": "Light Ale"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {"pale_malt": 1, "standard_yeast": 1},
     "bands": {
@@ -30,7 +30,7 @@
     }
   },
   "blonde_ale": {
-    "names": {"de": "Blonde Ale", "en": "Blonde Ale"},
+    "names": {"en": "Blonde Ale"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {"gruit": 1, "pale_malt": 1, "standard_yeast": 1},
     "bands": {
@@ -62,7 +62,7 @@
     }
   },
   "old_ale": {
-    "names": {"de": "Old Ale", "en": "Old Ale"},
+    "names": {"en": "Old Ale"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {"gruit": 1, "brown_malt": 1, "pale_malt": 1, "standard_yeast": 1},
     "bands": {
@@ -95,7 +95,7 @@
     }
   },
   "herbal_beer": {
-    "names": {"de": "Kräuterbier", "en": "Herbal Ale"},
+    "names": {"en": "Herbal Ale"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "eucalyptus": 1,
@@ -135,7 +135,7 @@
     }
   },
   "amber_ale": {
-    "names": {"de": "Amber Ale", "en": "Amber Ale"},
+    "names": {"en": "Amber Ale"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "amber_malt": 1,
@@ -171,7 +171,7 @@
     }
   },
   "farmhouse_ale": {
-    "names": {"de": "Bauernbier", "en": "Farmhouse Ale"},
+    "names": {"en": "Farmhouse Ale"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -210,7 +210,7 @@
     }
   },
   "hefeweizen": {
-    "names": {"de": "Hefeweizen", "en": "Hefeweizen"},
+    "names": {"en": "Hefeweizen"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -244,7 +244,7 @@
     }
   },
   "fruit_ale": {
-    "names": {"de": "Fruchtbier", "en": "Fruit Ale"},
+    "names": {"en": "Fruit Ale"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -283,7 +283,7 @@
     }
   },
   "saison": {
-    "names": {"de": "Saison", "en": "Saison"},
+    "names": {"en": "Saison"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -322,7 +322,7 @@
     }
   },
   "mughali_pale_ale": {
-    "names": {"de": "Mughali Pale Ale", "en": "Mughali Pale Ale"},
+    "names": {"en": "Mughali Pale Ale"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -361,7 +361,7 @@
     }
   },
   "abbey_ale": {
-    "names": {"de": "Abbey Ale", "en": "Abbey Ale"},
+    "names": {"en": "Abbey Ale"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -399,7 +399,7 @@
     }
   },
   "dubbel": {
-    "names": {"de": "Dubbel", "en": "Dubbel"},
+    "names": {"en": "Dubbel"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -439,7 +439,7 @@
     }
   },
   "witbier": {
-    "names": {"de": "Witbier ", "en": "Witbier"},
+    "names": {"en": "Witbier"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -478,7 +478,7 @@
     }
   },
   "bohemian_pilsner": {
-    "names": {"de": "Böhmisches Pilsner", "en": "Bohemian Pilsner"},
+    "names": {"en": "Bohemian Pilsner"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -514,7 +514,7 @@
     }
   },
   "munchener_dunkel": {
-    "names": {"de": "Münchner Dunkel", "en": "Münchener Dunkel"},
+    "names": {"en": "Münchener Dunkel"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -553,7 +553,7 @@
     }
   },
   "tripel": {
-    "names": {"de": "Tripel", "en": "Tripel"},
+    "names": {"en": "Tripel"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -591,7 +591,7 @@
     }
   },
   "bock_beer": {
-    "names": {"de": "Bockbier", "en": "Bock Beer"},
+    "names": {"en": "Bock Beer"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -628,7 +628,7 @@
     }
   },
   "smoked_beer": {
-    "names": {"de": "Rauchbier", "en": "Smoked Beer"},
+    "names": {"en": "Smoked Beer"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -665,7 +665,7 @@
     }
   },
   "gose": {
-    "names": {"de": "Gose", "en": "Gose"},
+    "names": {"en": "Gose"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -701,7 +701,7 @@
     }
   },
   "belgian_kriek": {
-    "names": {"de": "Belgisches Kriek", "en": "Belgian Kriek"},
+    "names": {"en": "Belgian Kriek"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -740,7 +740,7 @@
     }
   },
   "italic_grape_ale": {
-    "names": {"de": "Italisches Traubenbier", "en": "Italic Grape Ale"},
+    "names": {"en": "Italic Grape Ale"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -779,7 +779,7 @@
     }
   },
   "livonian_porter": {
-    "names": {"de": "Livländisches Porter", "en": "Livonian Porter"},
+    "names": {"en": "Livonian Porter"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -817,7 +817,7 @@
     }
   },
   "scotch_wee_heavy": {
-    "names": {"de": "Scotch Wee Heavy", "en": "Scotch Wee Heavy"},
+    "names": {"en": "Scotch Wee Heavy"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -856,7 +856,7 @@
     }
   },
   "barley_wine": {
-    "names": {"de": "Gerstenwein", "en": "Barley Wine"},
+    "names": {"en": "Barley Wine"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,

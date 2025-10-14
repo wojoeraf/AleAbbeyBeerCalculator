@@ -16,8 +16,9 @@ def load_json(filename: str):
         return json.load(f)
 
 
-TRANSLATIONS = load_json("translations.json")
+TRANSLATIONS = load_json("app_translations.json")
 INGREDIENT_NAME_TRANSLATIONS = load_json("ingredient_translations.json")
+BEER_STYLE_NAME_TRANSLATIONS = load_json("beer_styles_translations.json")
 LANGUAGE_NAMES = {code: data.get("language_name", code) for code, data in TRANSLATIONS.items()}
 DEFAULT_LANG = "en" if "en" in TRANSLATIONS else next(iter(TRANSLATIONS))
 
@@ -44,6 +45,34 @@ def enrich_with_ingredient_translations(ingredients, translations):
             if not localized_name:
                 continue
             names = ingredient.setdefault("names", {})
+            names[lang] = localized_name
+
+
+def enrich_with_style_translations(styles, translations):
+    if not isinstance(styles, dict) or not isinstance(translations, dict):
+        return
+
+    for lang, mapping in translations.items():
+        if not isinstance(mapping, dict):
+            continue
+
+        for style_id, localized_name in mapping.items():
+            if not isinstance(localized_name, str):
+                continue
+
+            localized_name = localized_name.strip()
+            if not localized_name:
+                continue
+
+            style_entry = styles.get(style_id)
+            if not isinstance(style_entry, dict):
+                continue
+
+            names = style_entry.get("names")
+            if not isinstance(names, dict):
+                names = {}
+                style_entry["names"] = names
+
             names[lang] = localized_name
 
 
@@ -298,6 +327,7 @@ INGREDIENT_CATEGORIES, INGREDIENTS = normalize_ingredients(RAW_INGREDIENT_DATA, 
 enrich_with_ingredient_translations(INGREDIENTS, INGREDIENT_NAME_TRANSLATIONS)
 INGREDIENT_MAP = {ing["id"]: ing for ing in INGREDIENTS}
 BEER_STYLES = load_json("beer_styles.json")
+enrich_with_style_translations(BEER_STYLES, BEER_STYLE_NAME_TRANSLATIONS)
 STYLE_ORDER = list(BEER_STYLES.keys())
 
 
