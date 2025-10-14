@@ -163,22 +163,33 @@
                 </div>
                 <aside class="ingredients-column">
                     <div class="column-header ingredients-header">
-                        <h3 class="section-title">{{ ui.section_ingredients }}</h3>
-                        <div class="ingredients-actions">
-                            <button type="button" class="btn-secondary categories-toggle"
-                                    data-toggle-categories
-                                    data-label-collapse="{{ ui.button_collapse_categories }}"
-                                    data-label-expand="{{ ui.button_expand_categories }}">
-                                <span data-toggle-categories-label>{{ ui.button_collapse_categories }}</span>
-                            </button>
-                            <button type="button" class="btn-secondary optional-toggle"
-                                    data-toggle-optional
-                                    data-label-select="{{ ui.button_optional_all }}"
-                                    data-label-clear="{{ ui.button_optional_none }}">
-                                <span data-toggle-optional-label>{{ ui.button_optional_all }}</span>
-                            </button>
+                        <div class="ingredients-header-top">
+                            <h3 class="section-title">{{ ui.section_ingredients }}</h3>
+                            <div class="ingredients-actions">
+                                <button type="button" class="btn-secondary categories-toggle"
+                                        data-toggle-categories
+                                        data-label-collapse="{{ ui.button_collapse_categories }}"
+                                        data-label-expand="{{ ui.button_expand_categories }}">
+                                    <span data-toggle-categories-label>{{ ui.button_collapse_categories }}</span>
+                                </button>
+                                <button type="button" class="btn-secondary optional-toggle"
+                                        data-toggle-optional
+                                        data-label-select="{{ ui.button_optional_all }}"
+                                        data-label-clear="{{ ui.button_optional_none }}">
+                                    <span data-toggle-optional-label>{{ ui.button_optional_all }}</span>
+                                </button>
+                            </div>
                         </div>
-                        <p class="ingredients-legend">{{ ui.checkbox_legend }}</p>
+                        <div class="ingredients-header-bottom">
+                            <p class="ingredients-legend">{{ ui.checkbox_legend }}</p>
+                            <div class="mobile-selection-heading" aria-hidden="true">
+                                <span class="mobile-selection-title">{{ ui.table_selection }}</span>
+                                <div class="mobile-selection-options">
+                                    <span class="mobile-selection-option mobile-selection-option--include">{{ ui.table_include }}</span>
+                                    <span class="mobile-selection-option mobile-selection-option--optional">{{ ui.table_optional }}</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="mobile-attr-toggle" data-attribute-toggle hidden>
                         <label>

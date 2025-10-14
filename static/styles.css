@@ -240,10 +240,20 @@ input[type="number"]:focus {
 }
 
 .ingredients-header {
-  flex-direction: row;
-  align-items: flex-start;
-  gap: 16px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+}
+
+.ingredients-header-top {
+  display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.ingredients-header-top .section-title {
+  margin-bottom: 0;
 }
 
 .ingredients-actions {
@@ -251,15 +261,64 @@ input[type="number"]:focus {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .ingredients-actions > * {
   flex-shrink: 0;
 }
 
-.ingredients-header .ingredients-legend {
-  flex-basis: 100%;
-  margin-left: 0;
+.ingredients-header-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.mobile-selection-heading {
+  display: none;
+  align-items: center;
+  gap: 14px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.mobile-selection-title {
+  font-size: inherit;
+}
+
+.mobile-selection-options {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.mobile-selection-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mobile-selection-option::before {
+  content: "";
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  border: 2px solid rgba(15, 23, 42, 0.35);
+  background: #fff;
+}
+
+.mobile-selection-option--include::before {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.mobile-selection-option--optional::before {
+  border-style: dashed;
 }
 
 .ingredients-header .optional-toggle {
@@ -634,10 +693,10 @@ input[type="number"]:focus {
   min-width: 220px;
 }
 .ingredients-legend {
-  margin: 8px 0 0;
+  margin: 0;
   font-size: 0.78rem;
   color: var(--text-muted);
-  max-width: 32ch;
+  max-width: 34ch;
 }
 .hint {
   font-size: 0.8rem;
@@ -769,7 +828,9 @@ input[type="number"]:focus {
   display: flex;
   align-items: center;
   gap: 14px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  width: 100%;
+  justify-content: flex-start;
 }
 .ingredient-selection-checkboxes {
   display: inline-flex;
@@ -1926,18 +1987,65 @@ details summary {
     flex-wrap: wrap;
   }
 
+  .ingredients-header {
+    gap: 12px;
+  }
+
+  .ingredients-header-top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .ingredients-actions {
+    width: 100%;
+    margin-left: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 8px;
+  }
+
+  .ingredients-actions > * {
+    width: 100%;
+  }
+
+  .ingredients-header-bottom {
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .ingredients-legend {
+    text-align: left;
+  }
+
+  .mobile-selection-heading {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .mobile-selection-options {
+    gap: 10px;
+  }
+
+  .mobile-selection-option {
+    font-size: 0.68rem;
+    letter-spacing: 0.05em;
+  }
+
   .ingredients-table td.ingredient-selection-cell {
     align-items: flex-start;
     gap: 10px;
   }
 
   .ingredients-table td.ingredient-selection-cell::before {
-    margin-bottom: 4px;
+    content: none;
   }
 
   .ingredient-selection {
     width: 100%;
-    justify-content: space-between;
+    gap: 12px;
   }
 
   .ingredient-selection-checkboxes {
