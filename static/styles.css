@@ -241,8 +241,9 @@ input[type="number"]:focus {
 
 .ingredients-header {
   flex-direction: row;
-  align-items: center;
+  align-items: flex-start;
   gap: 16px;
+  flex-wrap: wrap;
 }
 
 .ingredients-actions {
@@ -254,6 +255,11 @@ input[type="number"]:focus {
 
 .ingredients-actions > * {
   flex-shrink: 0;
+}
+
+.ingredients-header .ingredients-legend {
+  flex-basis: 100%;
+  margin-left: 0;
 }
 
 .ingredients-header .optional-toggle {
