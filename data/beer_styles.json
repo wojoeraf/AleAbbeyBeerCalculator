@@ -171,7 +171,7 @@
     }
   },
   "farmhouse_ale": {
-    "names": {"de": "Bauernbier TODO", "en": "Farmhouse Ale"},
+    "names": {"de": "Bauernbier", "en": "Farmhouse Ale"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -210,7 +210,7 @@
     }
   },
   "hefeweizen": {
-    "names": {"de": "Hefeweizen TODO", "en": "Hefeweizen"},
+    "names": {"de": "Hefeweizen", "en": "Hefeweizen"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -244,7 +244,7 @@
     }
   },
   "fruit_ale": {
-    "names": {"de": "Fruchtbier TODO", "en": "Fruit Ale"},
+    "names": {"de": "Fruchtbier", "en": "Fruit Ale"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -283,7 +283,7 @@
     }
   },
   "saison": {
-    "names": {"de": "Saison TODO", "en": "Saison"},
+    "names": {"de": "Saison", "en": "Saison"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -322,7 +322,7 @@
     }
   },
   "mughali_pale_ale": {
-    "names": {"de": "Mogulisches Pale Ale TODO", "en": "Mughali Pale Ale"},
+    "names": {"de": "Mughali Pale Ale", "en": "Mughali Pale Ale"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -361,7 +361,7 @@
     }
   },
   "abbey_ale": {
-    "names": {"de": "Abbey Ale TODO", "en": "Abbey Ale"},
+    "names": {"de": "Abbey Ale", "en": "Abbey Ale"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -399,7 +399,7 @@
     }
   },
   "dubbel": {
-    "names": {"de": "Dubbel TODO", "en": "Dubbel"},
+    "names": {"de": "Dubbel", "en": "Dubbel"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -439,7 +439,7 @@
     }
   },
   "witbier": {
-    "names": {"de": "Witbier TODO", "en": "Witbier"},
+    "names": {"de": "Witbier ", "en": "Witbier"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -478,7 +478,7 @@
     }
   },
   "bohemian_pilsner": {
-    "names": {"de": "Böhmisches Pils TODO", "en": "Bohemian Pilsner"},
+    "names": {"de": "Böhmisches Pilsner", "en": "Bohemian Pilsner"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -514,7 +514,7 @@
     }
   },
   "munchener_dunkel": {
-    "names": {"de": "Münchner Dunkel TODO", "en": "Münchener Dunkel"},
+    "names": {"de": "Münchner Dunkel", "en": "Münchener Dunkel"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -553,7 +553,7 @@
     }
   },
   "tripel": {
-    "names": {"de": "Tripel TODO", "en": "Tripel"},
+    "names": {"de": "Tripel", "en": "Tripel"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -591,7 +591,7 @@
     }
   },
   "bock_beer": {
-    "names": {"de": "Bockbier VERIFY i18n", "en": "Bock Beer"},
+    "names": {"de": "Bockbier", "en": "Bock Beer"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
@@ -665,7 +665,7 @@
     }
   },
   "gose": {
-    "names": {"de": "Gose VERIFY i18n", "en": "Gose"},
+    "names": {"de": "Gose", "en": "Gose"},
     "base": [0.0, 0.0, 0.0, 0.0],
     "min_counts": {
       "pale_malt": 1,
