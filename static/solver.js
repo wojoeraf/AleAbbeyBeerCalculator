@@ -478,7 +478,11 @@ const initSolver = () => {
     wrapper.style.setProperty('--cap-progress', ratio);
     wrapper.dataset.state = used >= safeLimit ? 'full' : used > 0 ? 'active' : 'idle';
     if (valueEl) {
-      valueEl.textContent = `${used} / ${safeLimit}`;
+      if (type === 'per') {
+        valueEl.textContent = `${used}`;
+      } else {
+        valueEl.textContent = `${used} / ${safeLimit}`;
+      }
     }
   };
 
@@ -498,24 +502,30 @@ const initSolver = () => {
       const optionalCheckbox = row.querySelector('input[type="checkbox"][name="optional_ingredients"]');
       const nameEl = row.querySelector('.ingredient-card__name');
       const ingredientId = row.dataset.ingredientId || '';
-      if (optionalCheckbox && optionalCheckbox.checked && !optionalCheckbox.disabled) {
+      const isOptional = optionalCheckbox ? optionalCheckbox.checked && !optionalCheckbox.disabled : false;
+      if (isOptional) {
         optionalSelected += 1;
       }
-      if (!includeCheckbox) {
+
+      const isIncluded = includeCheckbox ? includeCheckbox.checked : false;
+      const isRequired = includeCheckbox ? includeCheckbox.disabled : false;
+
+      if (!isIncluded && !isOptional) {
         return;
       }
-      if (includeCheckbox.checked) {
+
+      if (isIncluded) {
         totalSelected += 1;
-        const label = nameEl ? nameEl.textContent.trim() : displayIngredientName(ingredientId);
-        const isRequired = includeCheckbox.disabled;
-        const isOptional = optionalCheckbox ? optionalCheckbox.checked && !optionalCheckbox.disabled : false;
-        summaryItems.push({
-          id: ingredientId,
-          label,
-          required: isRequired,
-          optional: isOptional && !isRequired,
-        });
       }
+
+      const label = nameEl ? nameEl.textContent.trim() : displayIngredientName(ingredientId);
+
+      summaryItems.push({
+        id: ingredientId,
+        label,
+        required: isRequired && isIncluded,
+        optional: isOptional && !isRequired,
+      });
     });
 
     mixList.innerHTML = '';
@@ -1096,24 +1106,6 @@ const initSolver = () => {
 
   const getEnabledOptionalCheckboxes = () =>
     getOptionalCheckboxes().filter((checkbox) => !checkbox.disabled);
-
-  const ensureIncludedForOptional = (optionalCheckbox) => {
-    if (!optionalCheckbox || !optionalCheckbox.checked) {
-      return;
-    }
-    const row = optionalCheckbox.closest('[data-ingredient-row]');
-    if (!row) {
-      return;
-    }
-    const includeCheckbox = row.querySelector('input[type="checkbox"][name="selected_ingredients"]');
-    if (!includeCheckbox || includeCheckbox.disabled) {
-      return;
-    }
-    if (!includeCheckbox.checked) {
-      includeCheckbox.checked = true;
-    }
-    includeCheckbox.dataset.userSelected = 'true';
-  };
 
   const updateOptionalToggleState = () => {
     if (!optionalToggleBtn) {
@@ -2028,9 +2020,6 @@ const initSolver = () => {
       enabledCheckboxes.forEach((checkbox) => {
         checkbox.checked = shouldSelectAll;
         checkbox.dataset.userOptional = shouldSelectAll ? 'true' : 'false';
-        if (shouldSelectAll) {
-          ensureIncludedForOptional(checkbox);
-        }
       });
       updateOptionalToggleState();
       refreshMixSummary();
@@ -2072,9 +2061,6 @@ const initSolver = () => {
         target.dataset.userSelected = target.checked ? 'true' : 'false';
       } else if (target.matches('input[type="checkbox"][name="optional_ingredients"]')) {
         target.dataset.userOptional = target.checked ? 'true' : 'false';
-        if (target.checked) {
-          ensureIncludedForOptional(target);
-        }
         updateOptionalToggleState();
       }
       refreshMixSummary();
