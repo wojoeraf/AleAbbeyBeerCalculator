@@ -320,7 +320,6 @@ const initSolver = () => {
     targetSummaryRows,
     resultsSection,
     resultsTitle,
-    resultsSummary,
     resultsPlaceholder,
     resultsLoading,
     resultsList,
@@ -366,8 +365,11 @@ const initSolver = () => {
   let resultsState = {
     loading: false,
     solutions: null,
-    summary: [],
     info: [],
+    selection: {
+      includes: [],
+      optional: [],
+    },
   };
 
   const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
@@ -478,7 +480,11 @@ const initSolver = () => {
     wrapper.style.setProperty('--cap-progress', ratio);
     wrapper.dataset.state = used >= safeLimit ? 'full' : used > 0 ? 'active' : 'idle';
     if (valueEl) {
-      valueEl.textContent = `${used} / ${safeLimit}`;
+      if (type === 'per') {
+        valueEl.textContent = `${used}`;
+      } else {
+        valueEl.textContent = `${used} / ${safeLimit}`;
+      }
     }
   };
 
@@ -498,24 +504,30 @@ const initSolver = () => {
       const optionalCheckbox = row.querySelector('input[type="checkbox"][name="optional_ingredients"]');
       const nameEl = row.querySelector('.ingredient-card__name');
       const ingredientId = row.dataset.ingredientId || '';
-      if (optionalCheckbox && optionalCheckbox.checked && !optionalCheckbox.disabled) {
+      const isOptional = optionalCheckbox ? optionalCheckbox.checked && !optionalCheckbox.disabled : false;
+      if (isOptional) {
         optionalSelected += 1;
       }
-      if (!includeCheckbox) {
+
+      const isIncluded = includeCheckbox ? includeCheckbox.checked : false;
+      const isRequired = includeCheckbox ? includeCheckbox.disabled : false;
+
+      if (!isIncluded && !isOptional) {
         return;
       }
-      if (includeCheckbox.checked) {
+
+      if (isIncluded) {
         totalSelected += 1;
-        const label = nameEl ? nameEl.textContent.trim() : displayIngredientName(ingredientId);
-        const isRequired = includeCheckbox.disabled;
-        const isOptional = optionalCheckbox ? optionalCheckbox.checked && !optionalCheckbox.disabled : false;
-        summaryItems.push({
-          id: ingredientId,
-          label,
-          required: isRequired,
-          optional: isOptional && !isRequired,
-        });
       }
+
+      const label = nameEl ? nameEl.textContent.trim() : displayIngredientName(ingredientId);
+
+      summaryItems.push({
+        id: ingredientId,
+        label,
+        required: isRequired && isIncluded,
+        optional: isOptional && !isRequired,
+      });
     });
 
     mixList.innerHTML = '';
@@ -1096,6 +1108,27 @@ const initSolver = () => {
 
   const getEnabledOptionalCheckboxes = () =>
     getOptionalCheckboxes().filter((checkbox) => !checkbox.disabled);
+
+  const enforceMutualExclusion = (includeCheckbox, optionalCheckbox, priority = 'include') => {
+    let includeChanged = false;
+    let optionalChanged = false;
+    if (!includeCheckbox || !optionalCheckbox) {
+      return { includeChanged, optionalChanged };
+    }
+    if (includeCheckbox.checked && optionalCheckbox.checked) {
+      const preferOptional = priority === 'optional' && !optionalCheckbox.disabled;
+      if (preferOptional) {
+        includeCheckbox.checked = false;
+        includeCheckbox.dataset.userSelected = 'false';
+        includeChanged = true;
+      } else {
+        optionalCheckbox.checked = false;
+        optionalCheckbox.dataset.userOptional = 'false';
+        optionalChanged = true;
+      }
+    }
+    return { includeChanged, optionalChanged };
+  };
 
   const updateOptionalToggleState = () => {
     if (!optionalToggleBtn) {
@@ -2010,6 +2043,14 @@ const initSolver = () => {
       enabledCheckboxes.forEach((checkbox) => {
         checkbox.checked = shouldSelectAll;
         checkbox.dataset.userOptional = shouldSelectAll ? 'true' : 'false';
+        const row = checkbox.closest('[data-ingredient-row]');
+        const includeCheckbox = row
+          ? row.querySelector('input[type="checkbox"][name="selected_ingredients"]')
+          : null;
+        const { includeChanged } = enforceMutualExclusion(includeCheckbox, checkbox, shouldSelectAll ? 'optional' : 'include');
+        if (includeChanged && includeCheckbox) {
+          includeCheckbox.dataset.userSelected = 'false';
+        }
       });
       updateOptionalToggleState();
       refreshMixSummary();
@@ -2047,10 +2088,25 @@ const initSolver = () => {
       if (!target || target.type !== 'checkbox') {
         return;
       }
+      const row = target.closest('[data-ingredient-row]');
+      const includeCheckbox = row
+        ? row.querySelector('input[type="checkbox"][name="selected_ingredients"]')
+        : null;
+      const optionalCheckbox = row
+        ? row.querySelector('input[type="checkbox"][name="optional_ingredients"]')
+        : null;
       if (target.matches('input[type="checkbox"][name="selected_ingredients"]')) {
         target.dataset.userSelected = target.checked ? 'true' : 'false';
+        const { optionalChanged } = enforceMutualExclusion(target, optionalCheckbox, 'include');
+        if (optionalChanged) {
+          updateOptionalToggleState();
+        }
       } else if (target.matches('input[type="checkbox"][name="optional_ingredients"]')) {
         target.dataset.userOptional = target.checked ? 'true' : 'false';
+        const { includeChanged } = enforceMutualExclusion(includeCheckbox, target, target.checked ? 'optional' : 'include');
+        if (includeChanged && includeCheckbox) {
+          includeCheckbox.dataset.userSelected = 'false';
+        }
         updateOptionalToggleState();
       }
       refreshMixSummary();
@@ -2114,6 +2170,7 @@ const initSolver = () => {
           optionalCheckbox.disabled = false;
           const userOptional = optionalCheckbox.dataset.userOptional === 'true';
           optionalCheckbox.checked = userOptional;
+          enforceMutualExclusion(includeCheckbox, optionalCheckbox, userOptional ? 'optional' : 'include');
         }
         if (label) {
           label.removeAttribute('title');
@@ -2275,6 +2332,15 @@ const initSolver = () => {
         seasonOrder: SEASON_ORDER,
         seasonLabels,
         formatCost,
+        getCurrentStyleId: () => (styleSelect ? styleSelect.value : null),
+        getStyleRequirements: (styleId) => {
+          if (!styleId) {
+            return {};
+          }
+          const requirements = styleMinMap[styleId];
+          return requirements && typeof requirements === 'object' ? requirements : {};
+        },
+        styleMinMap,
       },
     );
 
@@ -2295,12 +2361,15 @@ const initSolver = () => {
 
   renderState();
 
-  const renderSolutions = (solutions, summaryLines, infoMessages) => {
+  const renderSolutions = (solutions, infoMessages, selectionMeta = {}) => {
     renderState({
       loading: false,
       solutions: Array.isArray(solutions) ? [...solutions] : [],
-      summary: Array.isArray(summaryLines) ? [...summaryLines] : [],
       info: Array.isArray(infoMessages) ? [...infoMessages] : [],
+      selection: {
+        includes: Array.isArray(selectionMeta.includes) ? [...selectionMeta.includes] : [],
+        optional: Array.isArray(selectionMeta.optional) ? [...selectionMeta.optional] : [],
+      },
     });
   };
 
@@ -2429,6 +2498,11 @@ const initSolver = () => {
             debugLines.push(translate('debug_optional', { list: optionalList.join(', ') }));
           }
 
+          const selectionMeta = {
+            includes: Array.from(selectedRequired),
+            optional: Array.from(optionalPool),
+          };
+
           const workerRequest = {
             styleName,
             numericIntervals,
@@ -2439,12 +2513,6 @@ const initSolver = () => {
             allowedIngredientIds: Array.from(allowedSet),
             topK: DEFAULT_TOP_K,
           };
-
-          const summaryLines = [];
-          if (styleName) {
-            summaryLines.push(translate('summary_style', { style: displayStyleName(styleName) }));
-          }
-          summaryLines.push(translate('summary_caps', { total: totalCap, per: perCap }));
 
           const solvePromise = workerController
             ? workerController.solve(workerRequest).catch((error) => {
@@ -2467,12 +2535,12 @@ const initSolver = () => {
 
           solvePromise
             .then(({ solutions, info }) => {
-              renderSolutions(solutions, summaryLines, info);
+              renderSolutions(solutions, info, selectionMeta);
               renderDebug(debugLines);
             })
             .catch((error) => {
               console.error('Recipe calculation failed', error);
-              renderSolutions([], [], [translate('solver_failed')]);
+              renderSolutions([], [translate('solver_failed')], selectionMeta);
               renderDebug(debugLines);
             })
             .finally(() => {
@@ -2481,7 +2549,7 @@ const initSolver = () => {
           return;
         } catch (error) {
           console.error('Recipe calculation failed', error);
-          renderSolutions([], [], [translate('solver_failed')]);
+          renderSolutions([], [translate('solver_failed')]);
           renderDebug(debugLines);
           setLoadingState(false);
           return;
