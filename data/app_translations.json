@@ -2,8 +2,8 @@
   "de": {
     "language_name": "Deutsch",
     "ui": {
-      "page_title": "Ale Abbey Rezeptrechner",
-      "header_title": "🍺 Ale Abbey Rezeptrechner",
+      "page_title": "Ale Abbey Rezeptlabor",
+      "header_title": "🍺 Ale Abbey Rezeptlabor",
       "header_description": "Diese Webseite ist ein Fanprojekt und nicht assoziiert mit dem Entwickler/Publisher hinter dem Spiel Ale Abbey.",
       "legacy_mode_label": "Legacy-Modus",
       "legacy_mode_hint": "Zur klassischen Tabellenansicht wechseln",
@@ -70,7 +70,7 @@
       "results_sort_desc": "Absteigend",
       "results_sort_asc": "Aufsteigend",
       "support_header": "Unterstütze diese App",
-      "support": "Hallo, ich bin der B(r)aumeister hinter Ale Abbey Rezeptrechner. Diese Seite bleibt bewusst frei von Werbung, damit du ohne Ablenkung deine perfekte Bierkreation planen kannst. Wenn dir das Projekt gefällt, freue ich mich über deine Unterstützung für Hosting und Domainkosten.",
+      "support": "Hallo, ich bin Rafael, der B(r)aumeister hinter dem Ale Abbey Rezeptlabor. Diese Seite bleibt bewusst frei von Werbung, damit du ohne Ablenkung deine perfekte Bierkreation planen kannst. Wenn dir das Projekt gefällt, freue ich mich über deine Unterstützung für Hosting und Domainkosten.",
       "support_note": "Jeder Beitrag hilft. Vielen Dank fürs Mitbrauen!",
       "footer_tagline": "Braue smarter.",
       "site_notice": "Impressum",
@@ -139,8 +139,8 @@
   "en": {
     "language_name": "English",
     "ui": {
-      "page_title": "Ale Abbey Recipe Solver",
-      "header_title": "🍺 Ale Abbey Recipe Solver",
+      "page_title": "Ale Abbey Recipe Lab",
+      "header_title": "🍺 Ale Abbey Recipe Lab",
       "header_description": "This website is a fan project and is not associated with the developer/publisher behind the game Ale Abbey.",
       "legacy_mode_label": "Legacy mode",
       "legacy_mode_hint": "Switch back to the original table layout",
@@ -207,7 +207,7 @@
       "results_sort_desc": "High to low",
       "results_sort_asc": "Low to high",
       "support_header": "Support this app",
-      "support": "Hello, I am the creator behind Ale Abbey Recipe Solver. This site is intentionally free of advertising so that you can plan your perfect beer creation without distractions. If you like the project, I would appreciate your support for hosting and domain costs.",
+      "support": "Hello, I'm Rafael the creator behind Ale Abbey Recipe Lab. This site is intentionally free of advertising so that you can plan your perfect beer creation without distractions. If you like the project, I would appreciate your support for hosting and domain costs.",
       "support_note": "Every contribution helps. Thank you for joining us!",
       "footer_tagline": "Brew smarter.",
       "site_notice": "Site Notice",
