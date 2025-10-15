@@ -17,7 +17,6 @@
   --warning: #facc15;
   --danger: #ef4444;
   --ghost-track: rgba(15, 23, 42, 0.08);
-  --ghost-range: rgba(15, 23, 42, 0.2);
   --metric-bar: linear-gradient(90deg, rgba(15, 23, 42, 0.08), rgba(15, 23, 42, 0.22));
   --metric-highlight: rgba(249, 115, 22, 0.25);
   font-family: "Inter", "SF Pro Display", "Segoe UI", system-ui, sans-serif;
@@ -227,29 +226,12 @@ button {
   border-radius: 999px;
   background: var(--ghost-track-fill, var(--ghost-track));
   overflow: hidden;
+  transition: background 0.2s ease, opacity 0.2s ease;
 }
 
-.style-ghost__range {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  border-radius: inherit;
-  background: var(--ghost-range);
-  left: var(--ghost-start, 0%);
-  right: calc(100% - var(--ghost-end, 0%));
-}
-
-.style-ghost__track[data-visible="false"] .style-ghost__range {
-  display: none;
-}
-
-.style-ghost__values {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 44px;
-  font-size: 0.75rem;
-  color: var(--text-secondary);
+.style-ghost[data-has-range="false"] .style-ghost__track {
+  background: var(--ghost-track);
+  opacity: 0.4;
 }
 
 .lab-form {

@@ -393,42 +393,19 @@ const initSolver = () => {
     if (!ghostEl) {
       return;
     }
-    const track = ghostEl.querySelector('[data-style-ghost-range]');
-    const minEl = ghostEl.querySelector('[data-style-ghost-min]');
-    const maxEl = ghostEl.querySelector('[data-style-ghost-max]');
-    styleGhostElements.set(attr, { root: ghostEl, track, minEl, maxEl });
+    const track = ghostEl.querySelector('[data-style-ghost-track]');
+    styleGhostElements.set(attr, { root: ghostEl, track });
   });
 
-  const clampPercent = (value) => {
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric)) {
-      return 0;
-    }
-    return Math.min(Math.max(numeric, 0), SLIDER_MAX_VALUE);
-  };
-
   const updateStyleGhosts = (bandsByAttr = {}) => {
-    styleGhostElements.forEach(({ root, track, minEl, maxEl }, attr) => {
+    styleGhostElements.forEach(({ root, track }, attr) => {
       if (!root || !track) {
         return;
       }
       const segments = (bandsByAttr && bandsByAttr[attr]) || [];
-      let lo = Number.POSITIVE_INFINITY;
-      let hi = Number.NEGATIVE_INFINITY;
-      if (Array.isArray(segments)) {
-        segments.forEach((segment) => {
-          const rawMin = segment && (segment.min ?? segment.start ?? segment.low ?? segment.begin ?? segment.from);
-          const rawMax = segment && (segment.max ?? segment.end ?? segment.high ?? segment.to);
-          const minVal = clampPercent(rawMin);
-          const maxVal = clampPercent(rawMax);
-          if (Number.isFinite(minVal) && Number.isFinite(maxVal)) {
-            lo = Math.min(lo, minVal);
-            hi = Math.max(hi, maxVal);
-          }
-        });
-      }
+      const hasSegments = Array.isArray(segments) && segments.length > 0;
       const gradient =
-        sliderTrackController && typeof sliderTrackController.getGradient === 'function'
+        hasSegments && sliderTrackController && typeof sliderTrackController.getGradient === 'function'
           ? sliderTrackController.getGradient(attr)
           : null;
       if (gradient) {
@@ -436,31 +413,7 @@ const initSolver = () => {
       } else {
         track.style.removeProperty('--ghost-track-fill');
       }
-      if (Number.isFinite(lo) && Number.isFinite(hi) && hi >= lo && hi > Number.NEGATIVE_INFINITY) {
-        const startPercent = (lo / SLIDER_MAX_VALUE) * 100;
-        const endPercent = (hi / SLIDER_MAX_VALUE) * 100;
-        track.style.setProperty('--ghost-start', `${startPercent}%`);
-        track.style.setProperty('--ghost-end', `${endPercent}%`);
-        track.dataset.visible = 'true';
-        root.dataset.hasRange = 'true';
-        if (minEl) {
-          minEl.textContent = lo.toFixed(1);
-        }
-        if (maxEl) {
-          maxEl.textContent = hi.toFixed(1);
-        }
-      } else {
-        track.style.removeProperty('--ghost-start');
-        track.style.removeProperty('--ghost-end');
-        track.dataset.visible = 'false';
-        root.dataset.hasRange = 'false';
-        if (minEl) {
-          minEl.textContent = '–';
-        }
-        if (maxEl) {
-          maxEl.textContent = '–';
-        }
-      }
+      root.dataset.hasRange = hasSegments ? 'true' : 'false';
     });
   };
 
