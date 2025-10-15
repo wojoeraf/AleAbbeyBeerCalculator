@@ -691,9 +691,8 @@ button {
 
 .ingredient-browser {
   display: grid;
-  grid-template-columns: 200px 1fr;
+  grid-template-columns: 180px 1fr;
   gap: 20px;
-  min-height: 520px;
 }
 
 .ingredient-browser[data-hide-attributes="true"] .ingredient-card__metrics {
