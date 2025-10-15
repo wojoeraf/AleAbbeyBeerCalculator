@@ -1097,6 +1097,24 @@ const initSolver = () => {
   const getEnabledOptionalCheckboxes = () =>
     getOptionalCheckboxes().filter((checkbox) => !checkbox.disabled);
 
+  const ensureIncludedForOptional = (optionalCheckbox) => {
+    if (!optionalCheckbox || !optionalCheckbox.checked) {
+      return;
+    }
+    const row = optionalCheckbox.closest('[data-ingredient-row]');
+    if (!row) {
+      return;
+    }
+    const includeCheckbox = row.querySelector('input[type="checkbox"][name="selected_ingredients"]');
+    if (!includeCheckbox || includeCheckbox.disabled) {
+      return;
+    }
+    if (!includeCheckbox.checked) {
+      includeCheckbox.checked = true;
+    }
+    includeCheckbox.dataset.userSelected = 'true';
+  };
+
   const updateOptionalToggleState = () => {
     if (!optionalToggleBtn) {
       return;
@@ -2010,6 +2028,9 @@ const initSolver = () => {
       enabledCheckboxes.forEach((checkbox) => {
         checkbox.checked = shouldSelectAll;
         checkbox.dataset.userOptional = shouldSelectAll ? 'true' : 'false';
+        if (shouldSelectAll) {
+          ensureIncludedForOptional(checkbox);
+        }
       });
       updateOptionalToggleState();
       refreshMixSummary();
@@ -2051,6 +2072,9 @@ const initSolver = () => {
         target.dataset.userSelected = target.checked ? 'true' : 'false';
       } else if (target.matches('input[type="checkbox"][name="optional_ingredients"]')) {
         target.dataset.userOptional = target.checked ? 'true' : 'false';
+        if (target.checked) {
+          ensureIncludedForOptional(target);
+        }
         updateOptionalToggleState();
       }
       refreshMixSummary();
