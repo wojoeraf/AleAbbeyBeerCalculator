@@ -585,7 +585,7 @@
         {"band": "yellow", "min": 10.0, "max": 1000.0}
       ],
       "foam": [
-        {"band": "yellow", "min": 0.0, "max": 5.99},
+        {"band": "yellow", "min": 0.0, "max": 6.99},
         {"band": "green", "min": 7.0, "max": 1000.0}
       ]
     }
