@@ -231,14 +231,46 @@ button {
   flex: 1;
   height: 6px;
   border-radius: 999px;
-  background: var(--ghost-track-fill, var(--ghost-track));
+  background: var(--ghost-track);
   overflow: hidden;
-  transition: background 0.2s ease, opacity 0.2s ease;
+}
+
+.style-ghost__segment {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  border-radius: inherit;
+  background: var(--segment-color, var(--slider-neutral));
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.05);
+  min-width: 2px;
+  opacity: 0.9;
+  transition: opacity 0.2s ease;
+}
+
+.style-ghost__segment[data-band='green'] {
+  --segment-color: var(--slider-green);
+}
+
+.style-ghost__segment[data-band='yellow'] {
+  --segment-color: var(--slider-yellow);
+}
+
+.style-ghost__segment[data-band='red'] {
+  --segment-color: var(--slider-red-muted);
+}
+
+.style-ghost__segment[data-band='neutral'] {
+  --segment-color: var(--slider-neutral);
 }
 
 .style-ghost[data-has-range="false"] .style-ghost__track {
-  background: var(--ghost-track);
-  opacity: 0.4;
+  opacity: 0.35;
+}
+
+.style-ghost[data-has-range="false"] .style-ghost__segment {
+  display: none;
 }
 
 .lab-form {
@@ -249,12 +281,25 @@ button {
 .lab-layout {
   display: grid;
   grid-template-columns: minmax(0, 2.6fr) minmax(0, 3fr) minmax(0, 2.4fr);
+  grid-template-areas: 'attributes ingredients mix';
   gap: clamp(24px, 3vw, 32px);
   align-items: start;
 }
 
 .lab-layout > * {
   min-width: 0;
+}
+
+.phase-card--attributes {
+  grid-area: attributes;
+}
+
+.phase-card--ingredients {
+  grid-area: ingredients;
+}
+
+.mix-panel {
+  grid-area: mix;
 }
 
 .phase-card {
@@ -1215,22 +1260,30 @@ button {
 
 @media (max-width: 1400px) {
   .lab-layout {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-template-areas:
-      "attributes mix"
-      "ingredients mix";
-  }
-
-  .phase-card--attributes {
-    grid-area: attributes;
-  }
-
-  .phase-card--ingredients {
-    grid-area: ingredients;
+      'attributes ingredients'
+      'mix mix';
   }
 
   .mix-panel {
-    grid-area: mix;
+    position: static;
+    align-self: stretch;
+  }
+}
+
+@media (max-width: 1200px) {
+  .lab-layout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'attributes'
+      'ingredients'
+      'mix';
+  }
+
+  .mix-panel {
+    position: static;
+    align-self: stretch;
   }
 }
 

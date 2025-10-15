@@ -397,23 +397,57 @@ const initSolver = () => {
     styleGhostElements.set(attr, { root: ghostEl, track });
   });
 
+  const normalizeGhostSegments = (segments = []) => {
+    if (!Array.isArray(segments) || segments.length === 0) {
+      return [];
+    }
+    return segments
+      .map((segment) => {
+        const hasMin = segment && Object.prototype.hasOwnProperty.call(segment, 'min');
+        const hasStart = segment && Object.prototype.hasOwnProperty.call(segment, 'start');
+        const hasMax = segment && Object.prototype.hasOwnProperty.call(segment, 'max');
+        const hasEnd = segment && Object.prototype.hasOwnProperty.call(segment, 'end');
+        const rawMin = hasMin ? segment.min : hasStart ? segment.start : undefined;
+        const rawMax = hasMax ? segment.max : hasEnd ? segment.end : undefined;
+        const min = clamp(Number(rawMin) || 0, 0, SLIDER_MAX_VALUE);
+        const max = clamp(Number(rawMax) || SLIDER_MAX_VALUE, 0, SLIDER_MAX_VALUE);
+        const band = normalizeTrackBand(segment && segment.band) || 'neutral';
+        return {
+          start: min,
+          end: Math.max(min, max),
+          band,
+        };
+      })
+      .filter((segment) => segment.end - segment.start > EPS)
+      .sort((a, b) => a.start - b.start || a.end - b.end);
+  };
+
   const updateStyleGhosts = (bandsByAttr = {}) => {
     styleGhostElements.forEach(({ root, track }, attr) => {
       if (!root || !track) {
         return;
       }
-      const segments = (bandsByAttr && bandsByAttr[attr]) || [];
-      const hasSegments = Array.isArray(segments) && segments.length > 0;
-      const gradient =
-        hasSegments && sliderTrackController && typeof sliderTrackController.getGradient === 'function'
-          ? sliderTrackController.getGradient(attr)
-          : null;
-      if (gradient) {
-        track.style.setProperty('--ghost-track-fill', gradient);
-      } else {
-        track.style.removeProperty('--ghost-track-fill');
+      const segments = normalizeGhostSegments(bandsByAttr && bandsByAttr[attr]);
+      while (track.firstChild) {
+        track.removeChild(track.firstChild);
       }
-      root.dataset.hasRange = hasSegments ? 'true' : 'false';
+      if (!segments.length) {
+        root.dataset.hasRange = 'false';
+        return;
+      }
+      const fragment = document.createDocumentFragment();
+      segments.forEach((segment) => {
+        const segmentEl = document.createElement('span');
+        segmentEl.className = 'style-ghost__segment';
+        segmentEl.dataset.band = segment.band || 'neutral';
+        const startPercent = (segment.start / SLIDER_MAX_VALUE) * 100;
+        const sizePercent = ((segment.end - segment.start) / SLIDER_MAX_VALUE) * 100;
+        segmentEl.style.left = `${startPercent}%`;
+        segmentEl.style.width = `${sizePercent}%`;
+        fragment.appendChild(segmentEl);
+      });
+      track.appendChild(fragment);
+      root.dataset.hasRange = 'true';
     });
   };
 
