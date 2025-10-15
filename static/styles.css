@@ -20,9 +20,9 @@
   --slider-green: #16a34a;
   --slider-yellow: #facc15;
   --slider-red: #ef4444;
-  --slider-green-muted: rgba(22, 163, 74, 0.28);
-  --slider-yellow-muted: rgba(250, 204, 21, 0.28);
-  --slider-red-muted: rgba(239, 68, 68, 0.28);
+  --slider-green-muted: rgba(22, 163, 74, 0.42);
+  --slider-yellow-muted: rgba(250, 204, 21, 0.42);
+  --slider-red-muted: rgba(250, 68, 68, 0.42);
   --slider-neutral: rgba(15, 23, 42, 0.18);
   --metric-bar: linear-gradient(90deg, rgba(15, 23, 42, 0.08), rgba(15, 23, 42, 0.22));
   --metric-highlight: rgba(249, 115, 22, 0.25);
@@ -58,7 +58,7 @@ body.legacy-mode {
 }
 
 .page {
-  max-width: min(70vw, 1440px);
+  max-width: max(70vw, 1440px);
   margin: 0 auto;
   padding: 48px clamp(16px, 4vw, 48px) 64px;
   display: flex;
@@ -91,7 +91,7 @@ body.legacy-mode {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  gap: 24px;
+  gap: 1em;
   align-items: center;
 }
 
@@ -170,13 +170,6 @@ button {
   accent-color: var(--accent);
 }
 
-.lab-header__band {
-  border-radius: 22px;
-  padding: clamp(16px, 3vw, 24px);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.65));
-  border: 1px solid rgba(15, 23, 42, 0.05);
-}
-
 .lab-header__band-inner {
   display: grid;
   grid-template-columns: minmax(220px, 320px) 1fr;
@@ -211,7 +204,7 @@ button {
   background: rgba(15, 23, 42, 0.04);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .style-ghost__label {
@@ -229,7 +222,7 @@ button {
 .style-ghost__track {
   position: relative;
   flex: 1;
-  height: 6px;
+  height: 12px;
   border-radius: 999px;
   background: var(--ghost-track);
   overflow: hidden;
@@ -241,9 +234,9 @@ button {
   bottom: 0;
   left: 0;
   width: 0;
-  border-radius: inherit;
+  /*border-radius: inherit;*/
   background: var(--segment-color, var(--slider-neutral));
-  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.05);
+  /*box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.05);*/
   min-width: 2px;
   opacity: 0.9;
   transition: opacity 0.2s ease;
@@ -316,7 +309,7 @@ button {
 }
 
 .phase-card__header-main {
-  flex: 1 1 320px;
+  flex: 1 1 150px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -346,7 +339,7 @@ button {
 }
 
 .phase-card__title {
-  margin: 6px 0 0;
+  margin: 0 0 0;
   font-size: clamp(1.35rem, 1.6vw, 1.75rem);
   font-weight: 700;
 }
@@ -358,7 +351,7 @@ button {
 }
 
 .target-summary {
-  flex: 0 1 260px;
+  flex: 0 1 220px;
   min-width: 220px;
   max-width: 100%;
   border-left: 1px solid rgba(15, 23, 42, 0.08);
@@ -366,6 +359,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  margin-top: auto;
 }
 
 .target-summary h3 {
@@ -563,10 +557,16 @@ button {
   font-weight: 600;
 }
 
+.slider-value-range {
+  display: flex;
+  gap: 16px;
+  justify-content: flex-end;
+}
+
 .slider-range-value {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
+  flex-direction: column;
 }
 
 .attr-card__fine-toggle {
@@ -588,8 +588,8 @@ button {
 }
 
 .attr-card__advanced {
-  border-top: 1px dashed rgba(15, 23, 42, 0.12);
-  padding-top: 14px;
+  /*border-top: 1px dashed rgba(15, 23, 42, 0.12);*/
+  /*padding-top: 14px;*/
   display: flex;
   justify-content: flex-start;
   align-items: center;
@@ -937,7 +937,7 @@ button {
 }
 
 .mix-summary__title {
-  margin: 0;
+  margin: 0 0 6px;
   font-size: 0.95rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -948,6 +948,7 @@ button {
   list-style: none;
   margin: 0;
   padding: 0;
+  padding-bottom: 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1258,7 +1259,7 @@ button {
   }
 }
 
-@media (max-width: 1400px) {
+@media (max-width: 1440px) {
   .lab-layout {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-template-areas:
@@ -1293,23 +1294,8 @@ button {
   }
 
   .target-summary {
-    border-left: none;
-    border-top: 1px solid rgba(15, 23, 42, 0.08);
-    padding-left: 0;
-    padding-top: 16px;
-  }
-
-  .ingredient-browser {
-    grid-template-columns: 1fr;
-  }
-
-  .ingredient-tabs {
-    flex-direction: row;
-    overflow-x: auto;
-  }
-
-  .ingredient-tab {
-    min-width: 160px;
+    border-left: 1px solid rgba(15, 23, 42, 0.08);
+    /*padding-top: 16px;*/
   }
 }
 
@@ -1323,15 +1309,23 @@ button {
   }
 }
 
+/*@media (max-width: 701px) {*/
+/*  .target-summary {*/
+/*    border-top: 1px solid rgba(15, 23, 42, 0.08);*/
+/*    border-left: none;*/
+/*    padding-top: 16px;*/
+/*  }*/
+/*}*/
+
 @media (max-width: 640px) {
   .lab-header__top {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .phase-card__header {
-    flex-direction: column;
-  }
+  /*.phase-card__header {*/
+  /*  flex-direction: column;*/
+  /*}*/
 
   .phase-card__actions {
     width: 100%;
@@ -1345,6 +1339,21 @@ button {
 
   .mix-caps {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .ingredient-browser {
+    grid-template-columns: 1fr;
+  }
+
+  .ingredient-tabs {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  .ingredient-tab {
+    min-width: 100px;
   }
 }
 

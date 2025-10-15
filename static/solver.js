@@ -1500,6 +1500,7 @@ const initSolver = () => {
         sliderSingleContainer.hidden = showRange;
       }
       if (showRange) {
+        sliderRangeContainer.classList.add('slider-value-range');
         if (sliderMinValueEl) {
           sliderMinValueEl.textContent = formatSliderValue(clampSliderValue(storedValues.ge));
         }
@@ -1507,6 +1508,7 @@ const initSolver = () => {
           sliderMaxValueEl.textContent = formatSliderValue(clampSliderValue(storedValues.le));
         }
       } else if (sliderSingleValueEl) {
+        sliderRangeContainer.classList.remove('slider-value-range');
         let displayValue;
         if (eq) {
           displayValue = storedValues.eq;
@@ -1518,6 +1520,8 @@ const initSolver = () => {
           displayValue = storedValues.eq;
         }
         sliderSingleValueEl.textContent = formatSliderValue(clampSliderValue(displayValue));
+      } else {
+        sliderRangeContainer.classList.remove('slider-value-range');
       }
       updateTargetSummaryValue();
     };

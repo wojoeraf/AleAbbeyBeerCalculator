@@ -10,16 +10,21 @@
 <body>
 <div class="page" data-page-shell>
     <header class="lab-header card">
+        <div class="lab-header__titles">
+            <h1>{{ ui.header_title }}</h1>
+        </div>
         <div class="lab-header__top">
-            <div class="lab-header__titles">
-                <h1>{{ ui.header_title }}</h1>
+            <div>
                 <p>{{ ui.header_description }}</p>
             </div>
+            <div class="support-buttons">
+                <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="honigbartstudios" data-color="#FFDD00" data-emoji="🍻" data-font="Cookie" data-text="Buy me an Ale" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff"></script>
+            </div>
             <div class="lab-header__controls">
-                <label class="legacy-mode-toggle" title="{{ ui.legacy_mode_hint }}">
-                    <input type="checkbox" data-legacy-toggle>
-                    <span>{{ ui.legacy_mode_label }}</span>
-                </label>
+{#                <label class="legacy-mode-toggle" title="{{ ui.legacy_mode_hint }}">#}
+{#                    <input type="checkbox" data-legacy-toggle>#}
+{#                    <span>{{ ui.legacy_mode_label }}</span>#}
+{#                </label>#}
                 <form class="language-switcher" method="get">
                     <div class="language-switcher-controls">
                         <select id="language-select" name="lang" onchange="this.form.submit()">
@@ -35,31 +40,31 @@
                 </form>
             </div>
         </div>
-        <div class="lab-header__band" data-style-band>
-            <div class="lab-header__band-inner">
-                <label class="band-style-picker">
-                    <span class="label">{{ ui.field_style }}</span>
-                    <select name="style" form="solver-form">
-                        {% for s in styles %}
-                            <option value="{{ s.id }}"{% if s.id == style %} selected{% endif %}>{{ s.name }}</option>
-                        {% endfor %}
-                    </select>
-                </label>
-                <div class="band-style-meta" data-style-meta>
-                    <div class="style-ghosts" data-style-ghosts>
-                        {% for a in attrs %}
-                            <div class="style-ghost" data-style-ghost="{{ a }}">
-                                <div class="style-ghost__label">{{ attr_labels[a] }}</div>
-                                <div class="style-ghost__bar">
-                                    <span class="style-ghost__track" data-style-ghost-track></span>
-                                </div>
+    </header>
+    <div class="lab-header__band card" data-style-band>
+        <div class="lab-header__band-inner">
+            <label class="band-style-picker">
+                <span class="label">{{ ui.field_style }}</span>
+                <select name="style" form="solver-form">
+                    {% for s in styles %}
+                        <option value="{{ s.id }}"{% if s.id == style %} selected{% endif %}>{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <div class="band-style-meta" data-style-meta>
+                <div class="style-ghosts" data-style-ghosts>
+                    {% for a in attrs %}
+                        <div class="style-ghost" data-style-ghost="{{ a }}">
+                            <div class="style-ghost__label">{{ attr_labels[a] }}</div>
+                            <div class="style-ghost__bar">
+                                <span class="style-ghost__track" data-style-ghost-track></span>
                             </div>
-                        {% endfor %}
-                    </div>
+                        </div>
+                    {% endfor %}
                 </div>
             </div>
         </div>
-    </header>
+    </div>
 
     <form class="lab-form" id="solver-form" data-solver-form>
         <input type="hidden" name="lang" value="{{ lang }}">
@@ -68,10 +73,10 @@
 
         <div class="lab-layout" data-lab-layout>
             <section class="phase-card card phase-card--attributes" data-phase="attributes">
+                            <p class="phase-card__step">{{ ui.phase_attributes_step }}</p>
                 <header class="phase-card__header">
                     <div class="phase-card__header-main">
                         <div class="phase-card__intro">
-                            <p class="phase-card__step">{{ ui.phase_attributes_step }}</p>
                             <h2 class="phase-card__title">{{ ui.phase_attributes_title }}</h2>
                             <p class="phase-card__hint">{{ ui.phase_attributes_hint }}</p>
                         </div>
@@ -117,13 +122,6 @@
                                     <button type="button" class="chip chip-clear" data-clear-color title="{{ ui.button_clear_color }}">
                                         <span>{{ ui.button_clear_color }}</span>
                                     </button>
-                                    <button type="button" class="attr-card__fine-toggle" data-attr-fine-toggle>{{ ui.phase_attributes_fine_tune }}</button>
-                                    <button type="button" class="icon-btn" data-copy-attr aria-label="{{ ui.button_copy_attr }}" title="{{ ui.button_copy_attr }}">
-                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                            <path d="M8 3h9a2 2 0 0 1 2 2v11h-2V5H8z"/>
-                                            <path d="M5 8h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2zm0 2v9h9v-9z"/>
-                                        </svg>
-                                    </button>
                                 </div>
                             </header>
                             <div class="attr-card__body" data-slider-area data-mode="{{ constraint.mode }}">
@@ -132,20 +130,20 @@
                                         <button type="button" class="range-slider-thumb" data-slider-thumb="min" data-initial-value="{{ constraint.min if constraint.min else '%.1f'|format(slider_value) }}" aria-label="{{ attr_labels[a] }}"></button>
                                         <button type="button" class="range-slider-thumb" data-slider-thumb="max" data-initial-value="{{ constraint.max if constraint.max else '%.1f'|format(slider_value) }}" aria-label="{{ attr_labels[a] }}"></button>
                                     </div>
-                                    <div class="attr-card__value" data-slider-display>
-                                        <div class="slider-value slider-value--single" data-slider-single>
-                                            <span class="slider-value__label">{{ ui.label_value_display }}</span>
-                                            <span class="slider-value__number" data-slider-single-value>{{ '%.1f'|format(slider_value) }}</span>
+                                </div>
+                                <div class="attr-card__value" data-slider-display>
+                                    <div class="slider-value slider-value--single" data-slider-single>
+                                        <span class="slider-value__label">{{ ui.label_value_display }}</span>
+                                        <span class="slider-value__number" data-slider-single-value>{{ '%.1f'|format(slider_value) }}</span>
+                                    </div>
+                                    <div class="slider-value slider-value--range" data-slider-range hidden>
+                                        <div class="slider-range-value">
+                                            <span class="slider-value__label">{{ ui.label_lower_limit }}</span>
+                                            <span class="slider-value__number" data-slider-min-value>{{ constraint.min if constraint.min else '%.1f'|format(slider_value) }}</span>
                                         </div>
-                                        <div class="slider-value slider-value--range" data-slider-range hidden>
-                                            <div class="slider-range-value">
-                                                <span class="slider-value__label">{{ ui.label_lower_limit }}</span>
-                                                <span class="slider-value__number" data-slider-min-value>{{ constraint.min if constraint.min else '%.1f'|format(slider_value) }}</span>
-                                            </div>
-                                            <div class="slider-range-value">
-                                                <span class="slider-value__label">{{ ui.label_upper_limit }}</span>
-                                                <span class="slider-value__number" data-slider-max-value>{{ constraint.max if constraint.max else '%.1f'|format(slider_value) }}</span>
-                                            </div>
+                                        <div class="slider-range-value">
+                                            <span class="slider-value__label">{{ ui.label_upper_limit }}</span>
+                                            <span class="slider-value__number" data-slider-max-value>{{ constraint.max if constraint.max else '%.1f'|format(slider_value) }}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -155,6 +153,13 @@
                                         <button type="button" class="mode-btn" data-mode-btn data-mode="ge" aria-label="{{ mode_labels.get('ge', '≥') }}" title="{{ mode_labels.get('ge', '≥') }}" aria-pressed="{{ 'true' if constraints[a].mode in ['ge', 'between'] else 'false' }}">≥</button>
                                         <button type="button" class="mode-btn" data-mode-btn data-mode="le" aria-label="{{ mode_labels.get('le', '≤') }}" title="{{ mode_labels.get('le', '≤') }}" aria-pressed="{{ 'true' if constraints[a].mode in ['le', 'between'] else 'false' }}">≤</button>
                                     </div>
+                                    <button type="button" class="icon-btn" data-copy-attr aria-label="{{ ui.button_copy_attr }}" title="{{ ui.button_copy_attr }}">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                            <path d="M8 3h9a2 2 0 0 1 2 2v11h-2V5H8z"/>
+                                            <path d="M5 8h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2zm0 2v9h9v-9z"/>
+                                        </svg>
+                                    </button>
+                                    <button type="button" class="attr-card__fine-toggle" data-attr-fine-toggle>{{ ui.phase_attributes_fine_tune }}</button>
                                 </div>
                             </div>
                             <input type="hidden" name="mode_{{ a }}" value="{{ constraint.mode }}" data-mode-input>
@@ -166,9 +171,9 @@
             </section>
 
             <section class="phase-card card phase-card--ingredients" data-phase="ingredients">
+                <p class="phase-card__step">{{ ui.phase_ingredients_step }}</p>
                 <header class="phase-card__header">
                     <div>
-                        <p class="phase-card__step">{{ ui.phase_ingredients_step }}</p>
                         <h2 class="phase-card__title">{{ ui.phase_ingredients_title }}</h2>
                         <p class="phase-card__hint">{{ ui.phase_ingredients_hint }}</p>
                     </div>
