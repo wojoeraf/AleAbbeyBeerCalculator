@@ -1061,6 +1061,19 @@ const initSolver = () => {
   const attrControllers = new Map();
   const colorCardEventHandlersByType = new Map();
   const colorEventContainers = new Map();
+  const radioPointerState = new WeakMap();
+  const pointerDownEvent =
+    typeof window !== 'undefined' && window.PointerEvent ? 'pointerdown' : 'mousedown';
+  const schedulePostClick = (callback) => {
+    if (typeof callback !== 'function') {
+      return;
+    }
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(callback);
+    } else {
+      setTimeout(callback, 0);
+    }
+  };
   let allGreenWatcher = null;
 
   const getColorHandlerMap = (type) => {
@@ -1269,6 +1282,11 @@ const initSolver = () => {
         return;
       }
 
+      if (event.type === pointerDownEvent) {
+        radioPointerState.set(radio, radio.checked);
+        return;
+      }
+
       if (event.type === 'keydown') {
         if (!isToggleKey(event)) {
           return;
@@ -1280,16 +1298,24 @@ const initSolver = () => {
       }
 
       if (event.type === 'click') {
-        event.preventDefault();
-        event.stopPropagation();
-        const nextValue = radio.checked ? null : radio.value;
-        applyColorSelection(nextValue);
+        const wasChecked = radioPointerState.has(radio)
+          ? radioPointerState.get(radio)
+          : radio.checked;
+        radioPointerState.delete(radio);
+        if (wasChecked && radio.checked) {
+          schedulePostClick(() => {
+            applyColorSelection(null, { focus: false });
+          });
+          return;
+        }
+        applyColorSelection(radio.value, { focus: false });
         return;
       }
 
       if (event.type === 'change') {
         const value = radio.checked ? radio.value : null;
         applyColorSelection(value, { focus: false });
+        radioPointerState.delete(radio);
       }
     };
 
@@ -1906,7 +1932,7 @@ const initSolver = () => {
     if (!handlerMaps.length) {
       return;
     }
-    ['click', 'keydown', 'change'].forEach((eventType) => {
+    [pointerDownEvent, 'click', 'keydown', 'change'].forEach((eventType) => {
       container.addEventListener(eventType, (event) => {
         const group = event.target.closest('[data-color-group]');
         if (!group) {
