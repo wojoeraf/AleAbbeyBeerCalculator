@@ -17,6 +17,13 @@
   --warning: #facc15;
   --danger: #ef4444;
   --ghost-track: rgba(15, 23, 42, 0.08);
+  --slider-green: #16a34a;
+  --slider-yellow: #facc15;
+  --slider-red: #ef4444;
+  --slider-green-muted: rgba(22, 163, 74, 0.28);
+  --slider-yellow-muted: rgba(250, 204, 21, 0.28);
+  --slider-red-muted: rgba(239, 68, 68, 0.28);
+  --slider-neutral: rgba(15, 23, 42, 0.18);
   --metric-bar: linear-gradient(90deg, rgba(15, 23, 42, 0.08), rgba(15, 23, 42, 0.22));
   --metric-highlight: rgba(249, 115, 22, 0.25);
   font-family: "Inter", "SF Pro Display", "Segoe UI", system-ui, sans-serif;
