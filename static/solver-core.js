@@ -31,6 +31,8 @@
  * @property {Record<string, number>} [extraMinCounts]
  * @property {Set<string> | string[] | null} [allowedIngredientIds]
  * @property {number} [topK]
+ * @property {number} [maxStateVisits]
+ * @property {boolean} [allowOptionalTrim]
  * @property {string[]} attrs
  * @property {Record<string, StyleData>} styles
  * @property {Ingredient[]} ingredients
@@ -56,7 +58,10 @@ export const DEFAULT_TOP_K = 3;
 export const LOW_SEASON_COST_MULTIPLIER = 1.25;
 export const HIGH_SEASON_COST_MULTIPLIER = 0.75;
 export const SEASON_ORDER = ['spring', 'summer', 'autumn', 'winter'];
-const MAX_STATE_VISITS = 1000000;
+const DEFAULT_MAX_STATE_VISITS = 1000000;
+const OPTIONAL_TRIM_THRESHOLD = 18;
+const OPTIONAL_TRIM_MIN = 8;
+const OPTIONAL_TRIM_MAX = 18;
 
 const SEASONAL_MULTIPLIERS = {
   spring: { malt: LOW_SEASON_COST_MULTIPLIER, fruit: HIGH_SEASON_COST_MULTIPLIER },
@@ -228,12 +233,18 @@ export const solveRecipe = (params) => {
     extraMinCounts = {},
     allowedIngredientIds = null,
     topK = DEFAULT_TOP_K,
+    maxStateVisits: maxStateVisitsInput = DEFAULT_MAX_STATE_VISITS,
+    allowOptionalTrim = true,
     attrs,
     styles,
     ingredients,
     translate,
     displayStyleName,
   } = params;
+
+  const maxStateVisits = Number.isFinite(maxStateVisitsInput) && maxStateVisitsInput > 0
+    ? Math.floor(maxStateVisitsInput)
+    : DEFAULT_MAX_STATE_VISITS;
 
   const style = styles[styleName];
   if (!style) {
@@ -302,6 +313,13 @@ export const solveRecipe = (params) => {
     const optionalAllowed = allowedSet === null || allowedSet.has(id);
     const isAllowed = required || optionalAllowed;
     perIngredientCeilValues[idx] = isAllowed ? Math.min(perCap, adjustedTotalCap) : minCounts[idx];
+  }
+
+  const requiredIngredientIds = [];
+  for (let idx = 0; idx < n; idx += 1) {
+    if (minCounts[idx] > 0) {
+      requiredIngredientIds.push(getIngredientId(ingredients[idx], idx));
+    }
   }
 
   const baseTotals = attrs.map((_, idx) => Number(base[idx]) || 0);
@@ -512,14 +530,23 @@ export const solveRecipe = (params) => {
     return a.rank - b.rank;
   });
 
-  const orderedIndices = requiredIndices.concat(optionalEntries.map((entry) => entry.idx));
+  const allowedOptionalEntries = optionalEntries.filter(
+    (entry) => perIngredientCeilValues[entry.idx] > minCounts[entry.idx],
+  );
+  const allowedOptionalIds = allowedOptionalEntries.map((entry) =>
+    getIngredientId(ingredients[entry.idx], entry.idx),
+  );
+
+  const orderedOptionalIndices = allowedOptionalEntries.map((entry) => entry.idx);
+  const orderedIndices = requiredIndices.concat(orderedOptionalIndices);
+  const orderLength = orderedIndices.length;
   const orderedVectors = orderedIndices.map((idx) => vectors[idx]);
   const orderedMinCounts = orderedIndices.map((idx) => minCounts[idx]);
   const orderedMaxCounts = orderedIndices.map((idx) => perIngredientCeilValues[idx]);
   const orderedCosts = orderedIndices.map((idx) => baseCosts[idx]);
 
-  const suffixMinBaseCost = new Array(n + 1).fill(0);
-  for (let idx = n - 1; idx >= 0; idx -= 1) {
+  const suffixMinBaseCost = new Array(orderLength + 1).fill(0);
+  for (let idx = orderLength - 1; idx >= 0; idx -= 1) {
     const minCnt = orderedMinCounts[idx];
     const unitCost = orderedCosts[idx];
     suffixMinBaseCost[idx] = unitCost * minCnt + suffixMinBaseCost[idx + 1];
@@ -535,7 +562,7 @@ export const solveRecipe = (params) => {
     return { solutions: [], info: [translate('cap_too_small')] };
   }
 
-  const counts = new Array(n).fill(0);
+  const counts = new Array(orderLength).fill(0);
   const seenCombos = new Set();
   const solutions = [];
   let bestCostBound = Infinity;
@@ -622,7 +649,7 @@ export const solveRecipe = (params) => {
           return;
         }
         visitedStates += 1;
-        if (visitedStates > MAX_STATE_VISITS) {
+        if (visitedStates > maxStateVisits) {
           aborted = true;
           globalAborted = true;
           return;
@@ -637,7 +664,7 @@ export const solveRecipe = (params) => {
         }
         stateCostMemo.set(memoKey, costSoFar);
 
-        if (idx >= n) {
+        if (idx >= orderLength) {
           for (let k = 0; k < attrs.length; k += 1) {
             if (totals[k] < lowerBounds[k] - EPS || totals[k] > upperBounds[k] + EPS) {
               return;
@@ -853,7 +880,58 @@ export const solveRecipe = (params) => {
     new Array(attrs.length).fill(Number.POSITIVE_INFINITY),
   );
 
+  const wasGlobalAborted = globalAborted;
   solutions.sort(compareSolutions);
+
+  if (
+    allowOptionalTrim
+    && wasGlobalAborted
+    && solutions.length === 0
+    && allowedOptionalIds.length > OPTIONAL_TRIM_THRESHOLD
+  ) {
+    const targetCount = Math.max(
+      OPTIONAL_TRIM_MIN,
+      Math.min(OPTIONAL_TRIM_MAX, remainingCap + requiredIndices.length),
+    );
+    const trimmedCount = Math.min(targetCount, allowedOptionalIds.length);
+    if (trimmedCount < allowedOptionalIds.length) {
+      const trimmedAllowedSet = new Set(requiredIngredientIds);
+      for (let i = 0; i < trimmedCount; i += 1) {
+        trimmedAllowedSet.add(allowedOptionalIds[i]);
+      }
+      if (trimmedAllowedSet.size > 0) {
+        const fallbackParams = {
+          ...params,
+          allowedIngredientIds: Array.from(trimmedAllowedSet),
+          maxStateVisits,
+          allowOptionalTrim: false,
+        };
+        const fallbackResult = solveRecipe(fallbackParams);
+        const trimMessage = translate('solver_trimmed_optional', {
+          kept: trimmedCount,
+          total: allowedOptionalIds.length,
+        });
+        const combinedInfo = [];
+        if (typeof trimMessage === 'string' && trimMessage.length) {
+          combinedInfo.push(trimMessage);
+        }
+        const fallbackInfo = Array.isArray(fallbackResult.info)
+          ? fallbackResult.info
+          : [];
+        fallbackInfo.forEach((msg) => {
+          if (typeof msg === 'string' && msg.length && !combinedInfo.includes(msg)) {
+            combinedInfo.push(msg);
+          }
+        });
+        return {
+          solutions: Array.isArray(fallbackResult.solutions)
+            ? fallbackResult.solutions
+            : [],
+          info: combinedInfo,
+        };
+      }
+    }
+  }
 
   return { solutions, info: infoMessages };
 };

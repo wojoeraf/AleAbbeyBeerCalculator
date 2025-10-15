@@ -124,7 +124,7 @@ test('computeSuffixBounds returns aggregated ranges for ordered vectors', () => 
 });
 
 test('DEFAULT_TOP_K exposes solver default value', () => {
-  assert.strictEqual(DEFAULT_TOP_K, 10);
+  assert.strictEqual(DEFAULT_TOP_K, 3);
 });
 
 test('solveRecipe finds a light ale all-green combination', () => {
@@ -188,4 +188,64 @@ test('solveRecipe excludes unchecked optional ingredients', () => {
       assert.ok(!(ingredient.id in best.countsById), `expected ${ingredient.id} to be absent from countsById`);
     }
   });
+});
+
+test('solveRecipe trims large optional sets when hitting search limit', () => {
+  const optionalCount = 25;
+  const attrs = SAMPLE_ATTRS;
+  const ingredients = [
+    { id: 'base_malt', vec: [0.2, 0.1, 0.1, 0.1], cost: 1 },
+    ...Array.from({ length: optionalCount }, (_, idx) => ({
+      id: `optional_${idx}`,
+      vec: [0.05, 0.02, 0.01, 0.03],
+      cost: 1 + (idx % 3),
+    })),
+  ];
+  const style = {
+    overloaded: {
+      base: [0, 0, 0, 0],
+      min_counts: { base_malt: 1 },
+      bands: {},
+    },
+  };
+  const numericIntervals = Object.fromEntries(
+    attrs.map((attr) => [attr, [Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY]]),
+  );
+  const bandPreferences = Object.fromEntries(attrs.map((attr) => [attr, null]));
+  const translate = (key, replacements = {}) => {
+    if (key === 'solver_trimmed_optional') {
+      return `trimmed ${replacements.kept}/${replacements.total}`;
+    }
+    if (key === 'solver_search_timeout') {
+      return 'timeout';
+    }
+    if (key === 'solver_search_partial') {
+      return 'partial';
+    }
+    if (key === 'unknown_style') {
+      return 'unknown';
+    }
+    return key;
+  };
+  const result = solveRecipe({
+    styleName: 'overloaded',
+    numericIntervals,
+    bandPreferences,
+    totalCap: 5,
+    perCap: 5,
+    extraMinCounts: {},
+    allowedIngredientIds: ingredients.map((ing) => ing.id),
+    topK: 5,
+    maxStateVisits: 15,
+    attrs,
+    styles: style,
+    ingredients,
+    translate,
+    displayStyleName: (id) => id,
+  });
+  assert.ok(result.solutions.length > 0, 'expected fallback run to produce solutions');
+  assert.ok(
+    result.info.includes('trimmed 8/25'),
+    `expected trim message, got ${result.info.join(', ')}`,
+  );
 });
