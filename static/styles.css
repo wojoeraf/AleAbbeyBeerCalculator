@@ -178,11 +178,27 @@ button {
 }
 
 .band-style-picker .label {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
   text-transform: uppercase;
   font-size: 0.75rem;
   letter-spacing: 0.12em;
   margin-bottom: 6px;
+  color: var(--text-secondary);
+}
+
+.band-style-picker .label-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.4em;
+  padding: 0 0.4em;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.12);
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.4;
   color: var(--text-secondary);
 }
 
@@ -1160,42 +1176,159 @@ button {
   margin: 0;
 }
 
+.result-cost-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 8px 12px 4px;
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.08);
+}
+
+.result-cost-chart-column {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.result-cost-chart-value {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(248, 250, 252, 0.75);
+}
+
+.result-cost-chart-bar-wrapper {
+  width: clamp(28px, 5vw, 42px);
+  height: 160px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.16);
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.result-cost-chart-bar {
+  width: 100%;
+  background: linear-gradient(180deg, rgba(249, 115, 22, 0.3), rgba(249, 115, 22, 0.8));
+  border-radius: inherit;
+  transition: height 0.2s ease;
+}
+
+.result-cost-chart-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(248, 250, 252, 0.7);
+}
+
 .result-band-pills {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
-.result-attr-bar {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 8px;
+.pill {
+  display: inline-flex;
   align-items: center;
-}
-
-.result-attr-track {
-  height: 36px;
-  width: 6px;
+  justify-content: center;
   border-radius: 999px;
-  background: rgba(248, 250, 252, 0.2);
-  overflow: hidden;
-}
-
-.result-attr-fill {
-  width: 100%;
-  background: linear-gradient(180deg, rgba(249, 115, 22, 0.2), rgba(249, 115, 22, 0.6));
-  border-radius: inherit;
-}
-
-.result-attr-name {
-  font-size: 0.75rem;
+  padding: 4px 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: rgba(248, 250, 252, 0.6);
+  background: rgba(248, 250, 252, 0.12);
+  border: 1px solid rgba(248, 250, 252, 0.18);
+  color: #f8fafc;
+}
+
+.pill.green {
+  background: rgba(34, 197, 94, 0.22);
+  border-color: rgba(34, 197, 94, 0.5);
+  color: #bbf7d0;
+}
+
+.pill.yellow {
+  background: rgba(250, 204, 21, 0.2);
+  border-color: rgba(250, 204, 21, 0.6);
+  color: #fef08a;
+}
+
+.pill.red {
+  background: rgba(248, 113, 113, 0.22);
+  border-color: rgba(248, 113, 113, 0.55);
+  color: #fecaca;
+}
+
+.pill.neutral,
+.pill.n-a {
+  background: rgba(148, 163, 184, 0.2);
+  border-color: rgba(148, 163, 184, 0.4);
+  color: rgba(248, 250, 252, 0.85);
+}
+
+.result-attr-chart {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+  gap: 16px;
+  justify-items: center;
+}
+
+.result-attr-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
 }
 
 .result-attr-value {
   font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.result-attr-track {
+  width: 18px;
+  height: 140px;
+  border-radius: 999px;
+  background: rgba(248, 250, 252, 0.18);
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+}
+
+.result-attr-fill {
+  width: 100%;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.1), rgba(248, 250, 252, 0.35));
+  border-radius: inherit;
+  transition: height 0.2s ease;
+}
+
+.result-attr-fill[data-band='green'] {
+  background: linear-gradient(180deg, rgba(34, 197, 94, 0.35), rgba(34, 197, 94, 0.85));
+}
+
+.result-attr-fill[data-band='yellow'] {
+  background: linear-gradient(180deg, rgba(250, 204, 21, 0.35), rgba(250, 204, 21, 0.85));
+}
+
+.result-attr-fill[data-band='red'] {
+  background: linear-gradient(180deg, rgba(248, 113, 113, 0.35), rgba(248, 113, 113, 0.85));
+}
+
+.result-attr-fill[data-band='neutral'],
+.result-attr-fill[data-band='n-a'] {
+  background: linear-gradient(180deg, rgba(148, 163, 184, 0.35), rgba(148, 163, 184, 0.7));
+}
+
+.result-attr-name {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(248, 250, 252, 0.6);
+  text-align: center;
 }
 
 .support-section {

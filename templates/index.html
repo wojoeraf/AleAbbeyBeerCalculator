@@ -44,7 +44,10 @@
     <div class="lab-header__band card" data-style-band>
         <div class="lab-header__band-inner">
             <label class="band-style-picker">
-                <span class="label">{{ ui.field_style }}</span>
+                <span class="label">
+                    {{ ui.field_style }}
+                    <span class="label-count">{{ styles | length }}</span>
+                </span>
                 <select name="style" form="solver-form">
                     {% for s in styles %}
                         <option value="{{ s.id }}"{% if s.id == style %} selected{% endif %}>{{ s.name }}</option>
