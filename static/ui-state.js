@@ -28,6 +28,7 @@ export const initUIState = () => {
     form: document.querySelector('[data-solver-form]'),
     ingredientsWrapper: document.querySelector('[data-ingredients-wrapper]'),
     optionalToggle: document.querySelector('[data-toggle-optional]'),
+    detailsToggle: document.querySelector('[data-toggle-details]'),
     categoryPanels: collectCategoryMap('[data-ingredient-category]', 'categoryId'),
     categoryTabs: collectCategoryMap('[data-category-toggle]', 'categoryId'),
     targetSummaryRows: collectCategoryMap('[data-target-summary-row]', 'targetSummaryRow'),

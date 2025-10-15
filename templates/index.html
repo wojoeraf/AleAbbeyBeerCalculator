@@ -75,10 +75,17 @@
         <div class="lab-layout" data-lab-layout>
             <section class="phase-card card phase-card--attributes" data-phase="attributes">
                 <header class="phase-card__header">
-                    <div>
-                        <p class="phase-card__step">{{ ui.phase_attributes_step }}</p>
-                        <h2 class="phase-card__title">{{ ui.phase_attributes_title }}</h2>
-                        <p class="phase-card__hint">{{ ui.phase_attributes_hint }}</p>
+                    <div class="phase-card__header-main">
+                        <div class="phase-card__intro">
+                            <p class="phase-card__step">{{ ui.phase_attributes_step }}</p>
+                            <h2 class="phase-card__title">{{ ui.phase_attributes_title }}</h2>
+                            <p class="phase-card__hint">{{ ui.phase_attributes_hint }}</p>
+                        </div>
+                        <div class="phase-card__actions">
+                            <button type="button" class="btn-secondary" data-set-all-green data-label-green="{{ ui.button_all_green }}" data-label-any="{{ ui.button_all_any }}">
+                                <span data-set-all-green-label>{{ ui.button_all_green }}</span>
+                            </button>
+                        </div>
                     </div>
                     <div class="target-summary" data-target-summary>
                         <h3>{{ ui.phase_attributes_summary }}</h3>
@@ -112,9 +119,18 @@
                                         {% endfor %}
                                     </div>
                                 </div>
-                                <button type="button" class="chip chip-clear" data-clear-color title="{{ ui.button_clear_color }}">
-                                    <span>{{ ui.button_clear_color }}</span>
-                                </button>
+                                <div class="attr-card__actions">
+                                    <button type="button" class="chip chip-clear" data-clear-color title="{{ ui.button_clear_color }}">
+                                        <span>{{ ui.button_clear_color }}</span>
+                                    </button>
+                                    <button type="button" class="attr-card__fine-toggle" data-attr-fine-toggle>{{ ui.phase_attributes_fine_tune }}</button>
+                                    <button type="button" class="icon-btn" data-copy-attr aria-label="{{ ui.button_copy_attr }}" title="{{ ui.button_copy_attr }}">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                            <path d="M8 3h9a2 2 0 0 1 2 2v11h-2V5H8z"/>
+                                            <path d="M5 8h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2zm0 2v9h9v-9z"/>
+                                        </svg>
+                                    </button>
+                                </div>
                             </header>
                             <div class="attr-card__body" data-slider-area data-mode="{{ constraint.mode }}">
                                 <div class="attr-card__slider">
@@ -139,18 +155,11 @@
                                         </div>
                                     </div>
                                 </div>
-                                <button type="button" class="attr-card__fine-toggle" data-attr-fine-toggle>{{ ui.phase_attributes_fine_tune }}</button>
                                 <div class="attr-card__advanced" data-attr-advanced hidden>
                                     <div class="mode-toggle" role="group" aria-label="{{ ui.label_mode }}">
                                         <button type="button" class="mode-btn" data-mode-btn data-mode="eq" aria-label="{{ mode_labels.get('eq', '=') }}" title="{{ mode_labels.get('eq', '=') }}" aria-pressed="{{ 'true' if constraints[a].mode == 'eq' else 'false' }}">=</button>
                                         <button type="button" class="mode-btn" data-mode-btn data-mode="ge" aria-label="{{ mode_labels.get('ge', '≥') }}" title="{{ mode_labels.get('ge', '≥') }}" aria-pressed="{{ 'true' if constraints[a].mode in ['ge', 'between'] else 'false' }}">≥</button>
                                         <button type="button" class="mode-btn" data-mode-btn data-mode="le" aria-label="{{ mode_labels.get('le', '≤') }}" title="{{ mode_labels.get('le', '≤') }}" aria-pressed="{{ 'true' if constraints[a].mode in ['le', 'between'] else 'false' }}">≤</button>
-                                        <button type="button" class="icon-btn" data-copy-attr aria-label="{{ ui.button_copy_attr }}" title="{{ ui.button_copy_attr }}">
-                                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                                <path d="M8 3h9a2 2 0 0 1 2 2v11h-2V5H8z"/>
-                                                <path d="M5 8h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2zm0 2v9h9v-9z"/>
-                                            </svg>
-                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -170,12 +179,15 @@
                         <p class="phase-card__hint">{{ ui.phase_ingredients_hint }}</p>
                     </div>
                     <div class="ingredients-actions">
+                        <button type="button" class="btn-secondary" data-toggle-details data-label-show="{{ ui.button_details_show }}" data-label-hide="{{ ui.button_details_hide }}">
+                            <span data-toggle-details-label>{{ ui.button_details_show }}</span>
+                        </button>
                         <button type="button" class="btn-secondary optional-toggle" data-toggle-optional data-label-select="{{ ui.button_optional_all }}" data-label-clear="{{ ui.button_optional_none }}">
                             <span data-toggle-optional-label>{{ ui.button_optional_all }}</span>
                         </button>
                     </div>
                 </header>
-                <div class="ingredient-browser" data-ingredients-wrapper data-hide-attributes="false">
+                <div class="ingredient-browser" data-ingredients-wrapper data-hide-attributes="true">
                     <nav class="ingredient-tabs" aria-label="{{ ui.section_ingredients }}">
                         {% for category in ingredient_categories %}
                             <button type="button" class="ingredient-tab" data-category-toggle data-category-id="{{ category.id }}"{% if loop.first %} data-initial="true"{% endif %}>

@@ -314,6 +314,7 @@ const initSolver = () => {
     form,
     ingredientsWrapper,
     optionalToggle: optionalToggleBtn,
+    detailsToggle: detailsToggleBtn,
     categoryPanels,
     categoryTabs,
     targetSummaryRows,
@@ -425,6 +426,15 @@ const initSolver = () => {
             hi = Math.max(hi, maxVal);
           }
         });
+      }
+      const gradient =
+        sliderTrackController && typeof sliderTrackController.getGradient === 'function'
+          ? sliderTrackController.getGradient(attr)
+          : null;
+      if (gradient) {
+        track.style.setProperty('--ghost-track-fill', gradient);
+      } else {
+        track.style.removeProperty('--ghost-track-fill');
       }
       if (Number.isFinite(lo) && Number.isFinite(hi) && hi >= lo && hi > Number.NEGATIVE_INFINITY) {
         const startPercent = (lo / SLIDER_MAX_VALUE) * 100;
@@ -1064,6 +1074,7 @@ const initSolver = () => {
   const attrControllers = new Map();
   const colorCardEventHandlersByType = new Map();
   const colorEventContainers = new Map();
+  let allGreenWatcher = null;
 
   const getColorHandlerMap = (type) => {
     if (!colorCardEventHandlersByType.has(type)) {
@@ -1249,6 +1260,9 @@ const initSolver = () => {
     const applyColorSelection = (value, { focus = true } = {}) => {
       const selected = setColorSelectionValue(value);
       updateColorState();
+      if (typeof allGreenWatcher === 'function') {
+        allGreenWatcher();
+      }
       if (focus && selected && typeof selected.focus === 'function') {
         selected.focus();
       }
@@ -1830,6 +1844,9 @@ const initSolver = () => {
         syncColorChipVisuals();
         syncClearButtonState();
       },
+      setColor: (value) => {
+        applyColorSelection(value, { focus: false });
+      },
     };
 
     if (attrName) {
@@ -1927,33 +1944,42 @@ const initSolver = () => {
 
     const setButtonMode = (mode) => {
       setAllGreenBtn.dataset.mode = mode;
+      setAllGreenBtn.setAttribute('aria-pressed', mode === 'any' ? 'true' : 'false');
       if (!labelSpan) return;
       labelSpan.textContent = mode === 'green' ? greenLabel : anyLabel;
     };
 
     setButtonMode('green');
 
-    setAllGreenBtn.addEventListener('click', () => {
-      const mode = setAllGreenBtn.dataset.mode === 'any' ? 'any' : 'green';
+    const syncSetAllGreenState = () => {
+      const allGreen = attrCards.every((card) => {
+        const selected = card.querySelector('input[type="radio"][data-color-radio]:checked');
+        return selected && selected.value === 'green';
+      });
+      setButtonMode(allGreen ? 'any' : 'green');
+    };
 
-      attrCards.forEach((card) => {
-        if (mode === 'green') {
-          const targetRadio = card.querySelector('input[type="radio"][data-color-radio][value="green"]');
-          if (targetRadio) {
-            targetRadio.checked = true;
-          }
-        } else {
-          const radios = card.querySelectorAll('input[type="radio"][data-color-radio]');
-          radios.forEach((radio) => {
-            radio.checked = false;
-          });
+    allGreenWatcher = syncSetAllGreenState;
+    syncSetAllGreenState();
+
+    setAllGreenBtn.addEventListener('click', () => {
+      const currentMode = setAllGreenBtn.dataset.mode === 'any' ? 'any' : 'green';
+      const targetColor = currentMode === 'green' ? 'green' : null;
+
+      attrControllers.forEach((controller) => {
+        if (!controller || typeof controller.setColor !== 'function') {
+          return;
         }
+        controller.setColor(targetColor);
       });
 
       colorStateUpdaters.forEach((fn) => fn());
+      if (typeof allGreenWatcher === 'function') {
+        allGreenWatcher();
+      }
       updateSubmitState();
 
-      setButtonMode(mode === 'green' ? 'any' : 'green');
+      setButtonMode(currentMode === 'green' ? 'any' : 'green');
     });
   }
 
@@ -1970,6 +1996,31 @@ const initSolver = () => {
       });
       updateOptionalToggleState();
       refreshMixSummary();
+    });
+  }
+
+  if (detailsToggleBtn && ingredientsWrapper) {
+    const labelSpan = detailsToggleBtn.querySelector('[data-toggle-details-label]');
+    const initialLabel = labelSpan ? labelSpan.textContent : '';
+    const showLabel = detailsToggleBtn.dataset.labelShow || initialLabel;
+    const hideLabel = detailsToggleBtn.dataset.labelHide || initialLabel;
+
+    const applyDetailsState = (hidden) => {
+      const nextState = hidden ? 'true' : 'false';
+      ingredientsWrapper.dataset.hideAttributes = nextState;
+      if (labelSpan) {
+        labelSpan.textContent = hidden ? showLabel : hideLabel;
+      }
+      detailsToggleBtn.dataset.state = hidden ? 'hidden' : 'shown';
+      detailsToggleBtn.setAttribute('aria-pressed', hidden ? 'false' : 'true');
+    };
+
+    const initialHidden = ingredientsWrapper.dataset.hideAttributes !== 'false';
+    applyDetailsState(initialHidden);
+
+    detailsToggleBtn.addEventListener('click', () => {
+      const isHidden = ingredientsWrapper.dataset.hideAttributes !== 'false';
+      applyDetailsState(!isHidden);
     });
   }
 
