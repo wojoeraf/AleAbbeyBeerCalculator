@@ -314,13 +314,9 @@ const initSolver = () => {
     form,
     ingredientsWrapper,
     optionalToggle: optionalToggleBtn,
-    categoryToggleAll: categoryToggleAllBtn,
-    categoryBodies,
-    categoryHeaders,
-    categoryToggles,
-    mobileAttrToggle,
-    mobileAttrToggleInput,
-    stackedLayoutQuery,
+    categoryPanels,
+    categoryTabs,
+    targetSummaryRows,
     resultsSection,
     resultsTitle,
     resultsSummary,
@@ -331,7 +327,40 @@ const initSolver = () => {
     statusMessage,
     debugToggle,
     debugContent,
+    legacyToggle,
+    mixPanel,
+    mixList,
+    mixSummary,
+    mixCaps,
+    styleGhosts,
   } = selectors;
+
+  const totalCapInput = form ? form.querySelector('input[name="total_cap"]') : null;
+  const perCapInput = form ? form.querySelector('input[name="per_cap"]') : null;
+
+  const mixCapElements = new Map();
+  mixCaps.forEach((valueEl) => {
+    if (!valueEl) {
+      return;
+    }
+    const wrapper = valueEl.closest('[data-cap]');
+    if (!wrapper) {
+      return;
+    }
+    const type = wrapper.dataset.cap || 'total';
+    mixCapElements.set(type, { wrapper, valueEl });
+  });
+
+  const targetSummaryMap = new Map();
+  targetSummaryRows.forEach((row, attr) => {
+    if (!row) {
+      return;
+    }
+    const valueEl = row.querySelector('[data-target-summary-value]');
+    if (valueEl) {
+      targetSummaryMap.set(attr, valueEl);
+    }
+  });
 
   let resultsState = {
     loading: false,
@@ -358,108 +387,267 @@ const initSolver = () => {
     sliderTrackController.setTrack(slider, attr, highlightBand);
   };
 
-  const syncAttributeToggleVisibility = () => {
-    if (!ingredientsWrapper) return;
-    const isStacked = stackedLayoutQuery ? stackedLayoutQuery.matches : false;
-
-    if (mobileAttrToggle) {
-      mobileAttrToggle.hidden = !isStacked;
-    }
-
-    if (!isStacked) {
-      ingredientsWrapper.dataset.hideAttributes = 'false';
-      if (mobileAttrToggleInput) {
-        mobileAttrToggleInput.checked = false;
-      }
+  const styleGhostElements = new Map();
+  styleGhosts.forEach((ghostEl, attr) => {
+    if (!ghostEl) {
       return;
     }
-
-    const showAttributes = mobileAttrToggleInput ? mobileAttrToggleInput.checked : false;
-    ingredientsWrapper.dataset.hideAttributes = showAttributes ? 'false' : 'true';
-  };
-
-  if (mobileAttrToggleInput) {
-    mobileAttrToggleInput.addEventListener('change', syncAttributeToggleVisibility);
-  }
-
-  if (stackedLayoutQuery) {
-    if (typeof stackedLayoutQuery.addEventListener === 'function') {
-      stackedLayoutQuery.addEventListener('change', syncAttributeToggleVisibility);
-    } else if (typeof stackedLayoutQuery.addListener === 'function') {
-      stackedLayoutQuery.addListener(syncAttributeToggleVisibility);
-    }
-  }
-
-  syncAttributeToggleVisibility();
-
-  const getCategoryExpansionStats = () => {
-    let total = 0;
-    let expandedCount = 0;
-    categoryBodies.forEach((body) => {
-      if (!body) {
-        return;
-      }
-      total += 1;
-      if (!body.hidden) {
-        expandedCount += 1;
-      }
-    });
-    return { total, expandedCount };
-  };
-
-  const updateCategoryToggleAllState = () => {
-    if (!categoryToggleAllBtn) {
-      return;
-    }
-    const { total, expandedCount } = getCategoryExpansionStats();
-    const shouldShowCollapse = expandedCount > 0;
-    const labelEl = categoryToggleAllBtn.querySelector('[data-toggle-categories-label]');
-    const collapseLabel = categoryToggleAllBtn.dataset.labelCollapse || categoryToggleAllBtn.textContent || '';
-    const expandLabel = categoryToggleAllBtn.dataset.labelExpand || categoryToggleAllBtn.textContent || '';
-    const nextLabel = shouldShowCollapse ? collapseLabel : expandLabel;
-    if (labelEl) {
-      labelEl.textContent = nextLabel;
-    } else {
-      categoryToggleAllBtn.textContent = nextLabel;
-    }
-    categoryToggleAllBtn.dataset.state =
-      expandedCount === 0 ? 'collapsed' : expandedCount === total ? 'expanded' : 'mixed';
-    categoryToggleAllBtn.disabled = total === 0;
-  };
-
-  const setCategoryExpanded = (categoryId, expanded) => {
-    const value = expanded ? 'true' : 'false';
-    const toggle = categoryToggles.get(categoryId);
-    const header = categoryHeaders.get(categoryId);
-    const body = categoryBodies.get(categoryId);
-    if (toggle) {
-      toggle.setAttribute('aria-expanded', value);
-      toggle.dataset.expanded = value;
-    }
-    if (header) {
-      header.dataset.expanded = value;
-    }
-    if (body) {
-      body.hidden = !expanded;
-    }
-    updateCategoryToggleAllState();
-  };
-
-  categoryToggles.forEach((toggle, categoryId) => {
-    const initialAttr = toggle.dataset.expanded ?? toggle.getAttribute('aria-expanded');
-    const initialExpanded = initialAttr !== 'false';
-    setCategoryExpanded(categoryId, initialExpanded);
+    const track = ghostEl.querySelector('[data-style-ghost-range]');
+    const minEl = ghostEl.querySelector('[data-style-ghost-min]');
+    const maxEl = ghostEl.querySelector('[data-style-ghost-max]');
+    styleGhostElements.set(attr, { root: ghostEl, track, minEl, maxEl });
   });
 
-  updateCategoryToggleAllState();
+  const clampPercent = (value) => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return 0;
+    }
+    return Math.min(Math.max(numeric, 0), SLIDER_MAX_VALUE);
+  };
 
-  if (categoryToggleAllBtn) {
-    categoryToggleAllBtn.addEventListener('click', () => {
-      const { expandedCount } = getCategoryExpansionStats();
-      const shouldExpand = expandedCount === 0;
-      categoryToggles.forEach((_, categoryId) => {
-        setCategoryExpanded(categoryId, shouldExpand);
+  const updateStyleGhosts = (bandsByAttr = {}) => {
+    styleGhostElements.forEach(({ root, track, minEl, maxEl }, attr) => {
+      if (!root || !track) {
+        return;
+      }
+      const segments = (bandsByAttr && bandsByAttr[attr]) || [];
+      let lo = Number.POSITIVE_INFINITY;
+      let hi = Number.NEGATIVE_INFINITY;
+      if (Array.isArray(segments)) {
+        segments.forEach((segment) => {
+          const rawMin = segment && (segment.min ?? segment.start ?? segment.low ?? segment.begin ?? segment.from);
+          const rawMax = segment && (segment.max ?? segment.end ?? segment.high ?? segment.to);
+          const minVal = clampPercent(rawMin);
+          const maxVal = clampPercent(rawMax);
+          if (Number.isFinite(minVal) && Number.isFinite(maxVal)) {
+            lo = Math.min(lo, minVal);
+            hi = Math.max(hi, maxVal);
+          }
+        });
+      }
+      if (Number.isFinite(lo) && Number.isFinite(hi) && hi >= lo && hi > Number.NEGATIVE_INFINITY) {
+        const startPercent = (lo / SLIDER_MAX_VALUE) * 100;
+        const endPercent = (hi / SLIDER_MAX_VALUE) * 100;
+        track.style.setProperty('--ghost-start', `${startPercent}%`);
+        track.style.setProperty('--ghost-end', `${endPercent}%`);
+        track.dataset.visible = 'true';
+        root.dataset.hasRange = 'true';
+        if (minEl) {
+          minEl.textContent = lo.toFixed(1);
+        }
+        if (maxEl) {
+          maxEl.textContent = hi.toFixed(1);
+        }
+      } else {
+        track.style.removeProperty('--ghost-start');
+        track.style.removeProperty('--ghost-end');
+        track.dataset.visible = 'false';
+        root.dataset.hasRange = 'false';
+        if (minEl) {
+          minEl.textContent = '–';
+        }
+        if (maxEl) {
+          maxEl.textContent = '–';
+        }
+      }
+    });
+  };
+
+  const readCapValue = (input, fallback) => {
+    if (!input) {
+      return fallback;
+    }
+    const parsed = Number(input.value);
+    if (!Number.isFinite(parsed)) {
+      return fallback;
+    }
+    return clamp(parsed, 1, 99);
+  };
+
+  const getCapLimits = () => ({
+    total: readCapValue(totalCapInput, 25),
+    per: readCapValue(perCapInput, 25),
+  });
+
+  const setCapProgress = (type, used, limit) => {
+    const entry = mixCapElements.get(type);
+    if (!entry) {
+      return;
+    }
+    const { wrapper, valueEl } = entry;
+    const safeLimit = Number.isFinite(limit) && limit > 0 ? limit : Math.max(used, 1);
+    const ratio = safeLimit > 0 ? Math.min(Math.max(used / safeLimit, 0), 1) : 0;
+    wrapper.style.setProperty('--cap-progress', ratio);
+    wrapper.dataset.state = used >= safeLimit ? 'full' : used > 0 ? 'active' : 'idle';
+    if (valueEl) {
+      valueEl.textContent = `${used} / ${safeLimit}`;
+    }
+  };
+
+  const refreshMixSummary = () => {
+    if (!mixList) {
+      return;
+    }
+    const summaryItems = [];
+    let totalSelected = 0;
+    let optionalSelected = 0;
+
+    ingredientRows.forEach((row) => {
+      if (!row) {
+        return;
+      }
+      const includeCheckbox = row.querySelector('input[type="checkbox"][name="selected_ingredients"]');
+      const optionalCheckbox = row.querySelector('input[type="checkbox"][name="optional_ingredients"]');
+      const nameEl = row.querySelector('.ingredient-card__name');
+      const ingredientId = row.dataset.ingredientId || '';
+      if (optionalCheckbox && optionalCheckbox.checked && !optionalCheckbox.disabled) {
+        optionalSelected += 1;
+      }
+      if (!includeCheckbox) {
+        return;
+      }
+      if (includeCheckbox.checked) {
+        totalSelected += 1;
+        const label = nameEl ? nameEl.textContent.trim() : displayIngredientName(ingredientId);
+        const isRequired = includeCheckbox.disabled;
+        const isOptional = optionalCheckbox ? optionalCheckbox.checked && !optionalCheckbox.disabled : false;
+        summaryItems.push({
+          id: ingredientId,
+          label,
+          required: isRequired,
+          optional: isOptional && !isRequired,
+        });
+      }
+    });
+
+    mixList.innerHTML = '';
+    if (!summaryItems.length) {
+      const empty = document.createElement('li');
+      empty.className = 'mix-summary__item mix-summary__item--empty';
+      empty.textContent = uiStrings.mix_empty || translate('mix_empty');
+      mixList.appendChild(empty);
+      if (mixPanel) {
+        mixPanel.dataset.empty = 'true';
+      }
+    } else {
+      summaryItems.forEach((item) => {
+        const li = document.createElement('li');
+        li.className = 'mix-summary__item';
+        li.dataset.status = item.required ? 'required' : item.optional ? 'optional' : 'selected';
+
+        const name = document.createElement('span');
+        name.className = 'mix-summary__name';
+        name.textContent = item.label || displayIngredientName(item.id);
+        li.appendChild(name);
+
+        const badge = document.createElement('span');
+        badge.className = 'mix-summary__badge';
+        if (item.required) {
+          badge.textContent = uiStrings.badge_required_single || 'Required';
+        } else if (item.optional) {
+          badge.textContent = uiStrings.label_optional || 'Optional';
+        } else {
+          badge.textContent = uiStrings.label_include || 'Included';
+        }
+        li.appendChild(badge);
+
+        mixList.appendChild(li);
       });
+      if (mixPanel) {
+        mixPanel.dataset.empty = 'false';
+      }
+    }
+
+    const caps = getCapLimits();
+    setCapProgress('total', totalSelected, caps.total);
+    setCapProgress('per', optionalSelected, caps.per);
+  };
+
+  const categoryPanelEntries = Array.from(categoryPanels.entries());
+  const categoryTabEntries = Array.from(categoryTabs.entries());
+
+  const activateCategory = (categoryId) => {
+    const targetId = categoryId || (categoryPanelEntries.length ? categoryPanelEntries[0][0] : null);
+    categoryPanelEntries.forEach(([id, panel]) => {
+      const isActive = id === targetId;
+      if (panel) {
+        panel.hidden = !isActive;
+        panel.dataset.active = isActive ? 'true' : 'false';
+      }
+    });
+    categoryTabEntries.forEach(([id, tab]) => {
+      const isActive = id === targetId;
+      if (tab) {
+        tab.classList.toggle('ingredient-tab--active', isActive);
+        tab.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        tab.dataset.active = isActive ? 'true' : 'false';
+      }
+    });
+    if (ingredientsWrapper) {
+      ingredientsWrapper.dataset.activeCategory = targetId || '';
+    }
+  };
+
+  categoryTabEntries.forEach(([id, tab], index) => {
+    if (!tab) {
+      return;
+    }
+    if (index === 0 && !tab.dataset.active) {
+      tab.dataset.active = 'false';
+    }
+    tab.addEventListener('click', (event) => {
+      event.preventDefault();
+      activateCategory(id);
+    });
+  });
+
+  if (categoryTabEntries.length) {
+    const preferredTab = categoryTabEntries.find(([, tab]) => tab && tab.dataset.initial === 'true');
+    if (preferredTab) {
+      activateCategory(preferredTab[0]);
+    } else {
+      activateCategory(categoryTabEntries[0][0]);
+    }
+  } else {
+    categoryPanelEntries.forEach(([, panel]) => {
+      if (panel) {
+        panel.hidden = false;
+      }
+    });
+  }
+
+  const LEGACY_MODE_STORAGE_KEY = 'ale-abbey-legacy-mode';
+
+  const applyLegacyMode = (enabled) => {
+    if (legacyToggle) {
+      legacyToggle.checked = !!enabled;
+    }
+    if (document.body) {
+      if (enabled) {
+        document.body.classList.add('legacy-mode');
+      } else {
+        document.body.classList.remove('legacy-mode');
+      }
+    }
+    try {
+      window.localStorage.setItem(LEGACY_MODE_STORAGE_KEY, enabled ? '1' : '0');
+    } catch (error) {
+      console.warn('Failed to persist legacy mode preference', error);
+    }
+  };
+
+  let initialLegacyMode = false;
+  try {
+    initialLegacyMode = window.localStorage.getItem(LEGACY_MODE_STORAGE_KEY) === '1';
+  } catch (error) {
+    initialLegacyMode = false;
+  }
+  applyLegacyMode(initialLegacyMode);
+
+  if (legacyToggle) {
+    legacyToggle.addEventListener('change', () => {
+      applyLegacyMode(!!legacyToggle.checked);
     });
   }
 
@@ -952,8 +1140,44 @@ const initSolver = () => {
     const colorRadios = Array.from(card.querySelectorAll('input[type="radio"][data-color-radio]'));
     const colorChips = colorRadios.map((radio) => radio.closest('[data-color]'));
     const clearBtn = card.querySelector('[data-clear-color]');
+    const attrName = card.dataset.attr || null;
+    const fineToggle = card.querySelector('[data-attr-fine-toggle]');
+    const advancedContainer = card.querySelector('[data-attr-advanced]');
     const hasAdvancedControls = !!(modeInput && minInput && maxInput);
     const cardType = hasAdvancedControls ? 'range' : 'simple';
+
+    let advancedExpanded = false;
+    const setAdvancedVisibility = (visible) => {
+      if (!advancedContainer) {
+        return;
+      }
+      advancedExpanded = !!visible;
+      if (advancedExpanded) {
+        advancedContainer.hidden = false;
+        advancedContainer.dataset.expanded = 'true';
+      } else {
+        advancedContainer.hidden = true;
+        advancedContainer.dataset.expanded = 'false';
+      }
+      if (fineToggle) {
+        fineToggle.dataset.expanded = advancedExpanded ? 'true' : 'false';
+        fineToggle.setAttribute('aria-expanded', advancedExpanded ? 'true' : 'false');
+      }
+    };
+
+    if (advancedContainer) {
+      if (!advancedContainer.hasAttribute('hidden')) {
+        setAdvancedVisibility(true);
+      } else {
+        setAdvancedVisibility(false);
+      }
+    }
+
+    if (fineToggle && advancedContainer) {
+      fineToggle.addEventListener('click', () => {
+        setAdvancedVisibility(!advancedExpanded);
+      });
+    }
 
     const syncCardSliderHighlight = (band) => {
       const sanitizedBand = normalizeTrackBand(band);
@@ -1087,12 +1311,18 @@ const initSolver = () => {
         });
       }
 
+      if (attrName) {
+        const summaryEl = targetSummaryMap.get(attrName);
+        if (summaryEl && sliderSingleValueEl) {
+          const text = sliderSingleValueEl.textContent?.trim();
+          summaryEl.textContent = text || sliderSingleValueEl.textContent || '–';
+        }
+      }
+
       updateColorState();
       colorStateUpdaters.push(updateColorState);
       return;
     }
-
-    const attrName = card.dataset.attr || null;
 
     const readInitialSliderValue = () => {
       const source = sliderMinHandle || sliderMaxHandle;
@@ -1229,6 +1459,36 @@ const initSolver = () => {
       });
     };
 
+    const updateTargetSummaryValue = () => {
+      if (!attrName) {
+        return;
+      }
+      const summaryEl = targetSummaryMap.get(attrName);
+      if (!summaryEl) {
+        return;
+      }
+      const { eq, ge, le } = getModeFlags();
+      let summaryText = '';
+      if (eq) {
+        const value = sliderSingleValueEl ? sliderSingleValueEl.textContent.trim() : formatSliderValue(storedValues.eq);
+        summaryText = value || formatSliderValue(storedValues.eq);
+      } else if (!eq && ge && le) {
+        const minValue = sliderMinValueEl ? sliderMinValueEl.textContent.trim() : formatSliderValue(storedValues.ge);
+        const maxValue = sliderMaxValueEl ? sliderMaxValueEl.textContent.trim() : formatSliderValue(storedValues.le);
+        summaryText = `${minValue} – ${maxValue}`;
+      } else if (ge) {
+        const minValue = sliderMinValueEl ? sliderMinValueEl.textContent.trim() : formatSliderValue(storedValues.ge);
+        summaryText = `≥ ${minValue}`;
+      } else if (le) {
+        const maxValue = sliderMaxValueEl ? sliderMaxValueEl.textContent.trim() : formatSliderValue(storedValues.le);
+        summaryText = `≤ ${maxValue}`;
+      } else {
+        const value = sliderSingleValueEl ? sliderSingleValueEl.textContent.trim() : formatSliderValue(storedValues.eq);
+        summaryText = value || formatSliderValue(storedValues.eq);
+      }
+      summaryEl.textContent = summaryText || '–';
+    };
+
     const updateSliderDisplay = () => {
       const { eq, ge, le } = getModeFlags();
       const showRange = !eq && ge && le;
@@ -1258,6 +1518,7 @@ const initSolver = () => {
         }
         sliderSingleValueEl.textContent = formatSliderValue(clampSliderValue(displayValue));
       }
+      updateTargetSummaryValue();
     };
 
     const syncHiddenValues = () => {
@@ -1377,6 +1638,7 @@ const initSolver = () => {
       setModeButtonsState();
       syncSliderHandles();
       syncHiddenValues();
+      updateSliderDisplay();
       updateSubmitState();
       syncClearButtonState();
     };
@@ -1477,6 +1739,7 @@ const initSolver = () => {
       storedValues.le = fallbackValue;
       syncSliderHandles();
       syncHiddenValues();
+      updateSliderDisplay();
       applyColorSelection(null, { focus: false });
       updateSubmitState();
       syncClearButtonState();
@@ -1600,6 +1863,7 @@ const initSolver = () => {
         minInput.value = '';
         maxInput.value = '';
         syncSliderHandles();
+        updateSliderDisplay();
       } else {
         setSliderDisabled(false);
         const restoreMode = savedNumericMode || 'any';
@@ -1705,6 +1969,7 @@ const initSolver = () => {
         checkbox.dataset.userOptional = shouldSelectAll ? 'true' : 'false';
       });
       updateOptionalToggleState();
+      refreshMixSummary();
     });
   }
 
@@ -1720,22 +1985,9 @@ const initSolver = () => {
         target.dataset.userOptional = target.checked ? 'true' : 'false';
         updateOptionalToggleState();
       }
+      refreshMixSummary();
     });
 
-    ingredientsWrapper.addEventListener('click', (event) => {
-      const toggle = event.target.closest('[data-category-toggle]');
-      if (!toggle) {
-        return;
-      }
-      const categoryId = toggle.dataset.categoryId;
-      if (!categoryId) {
-        return;
-      }
-      event.preventDefault();
-      const expandedAttr = toggle.dataset.expanded ?? toggle.getAttribute('aria-expanded');
-      const currentExpanded = expandedAttr !== 'false';
-      setCategoryExpanded(categoryId, !currentExpanded);
-    });
   }
 
   const requiredTooltip = uiStrings.tooltip_required || '';
@@ -1750,14 +2002,20 @@ const initSolver = () => {
 
   const applyStyleRequirements = (styleName) => {
     updateSliderTracksForStyle(styleName);
-    if (!styleName) return;
+    const styleEntry = styleName ? stylesData[styleName] : null;
+    const styleBands = styleEntry && styleEntry.bands ? styleEntry.bands : {};
+    updateStyleGhosts(styleBands);
+    if (!styleName) {
+      updateOptionalToggleState();
+      return;
+    }
     const activeMins = styleMinMap[styleName] || {};
 
     ingredientRows.forEach((row) => {
       const ingredientId = row.dataset.ingredientId;
       const includeCheckbox = row.querySelector('input[type="checkbox"][name="selected_ingredients"]');
       const optionalCheckbox = row.querySelector('input[type="checkbox"][name="optional_ingredients"]');
-      const label = row.querySelector('.ingredient-option');
+      const label = row.querySelector('.ingredient-toggle--include');
       const badge = row.querySelector('[data-required-badge]');
       if (!includeCheckbox || !ingredientId) {
         return;
@@ -1799,6 +2057,7 @@ const initSolver = () => {
       }
     });
     updateOptionalToggleState();
+    refreshMixSummary();
   };
 
   if (styleSelect) {
@@ -1810,6 +2069,9 @@ const initSolver = () => {
 
   updateSubmitState();
   updateOptionalToggleState();
+  if (!styleSelect) {
+    refreshMixSummary();
+  }
 
   const parseFloatOrNull = (value) => {
     if (value === null || value === undefined) return null;

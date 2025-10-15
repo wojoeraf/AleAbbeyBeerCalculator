@@ -28,15 +28,9 @@ export const initUIState = () => {
     form: document.querySelector('[data-solver-form]'),
     ingredientsWrapper: document.querySelector('[data-ingredients-wrapper]'),
     optionalToggle: document.querySelector('[data-toggle-optional]'),
-    categoryToggleAll: document.querySelector('[data-toggle-categories]'),
-    categoryBodies: collectCategoryMap('[data-ingredient-category]', 'categoryId'),
-    categoryHeaders: collectCategoryMap('[data-category-header]', 'categoryId'),
-    categoryToggles: collectCategoryMap('[data-category-toggle]', 'categoryId'),
-    mobileAttrToggle: document.querySelector('[data-attribute-toggle]'),
-    mobileAttrToggleInput: document.querySelector('[data-attribute-toggle-input]'),
-    stackedLayoutQuery: typeof window !== 'undefined' && window.matchMedia
-      ? window.matchMedia('(max-width: 640px)')
-      : null,
+    categoryPanels: collectCategoryMap('[data-ingredient-category]', 'categoryId'),
+    categoryTabs: collectCategoryMap('[data-category-toggle]', 'categoryId'),
+    targetSummaryRows: collectCategoryMap('[data-target-summary-row]', 'targetSummaryRow'),
     resultsSection: document.querySelector('[data-results]'),
     resultsTitle: document.querySelector('[data-results-title]'),
     resultsSummary: document.querySelector('[data-results-summary]'),
@@ -50,6 +44,12 @@ export const initUIState = () => {
     debugOutput: document.querySelector('[data-debug-output]'),
     debugToggle: document.getElementById('debug-toggle'),
     debugContent: document.querySelector('[data-debug-content]'),
+    legacyToggle: document.querySelector('[data-legacy-toggle]'),
+    mixPanel: document.querySelector('[data-mix-panel]'),
+    mixList: document.querySelector('[data-mix-selected]'),
+    mixSummary: document.querySelector('[data-mix-summary]'),
+    mixCaps: Array.from(document.querySelectorAll('[data-cap-value]')),
+    styleGhosts: collectCategoryMap('[data-style-ghost]', 'styleGhost'),
   };
 
   const attrs = attrCards.map((card) => card.dataset.attr).filter(Boolean);
