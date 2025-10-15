@@ -2330,6 +2330,15 @@ const initSolver = () => {
         seasonOrder: SEASON_ORDER,
         seasonLabels,
         formatCost,
+        getCurrentStyleId: () => (styleSelect ? styleSelect.value : null),
+        getStyleRequirements: (styleId) => {
+          if (!styleId) {
+            return {};
+          }
+          const requirements = styleMinMap[styleId];
+          return requirements && typeof requirements === 'object' ? requirements : {};
+        },
+        styleMinMap,
       },
     );
 

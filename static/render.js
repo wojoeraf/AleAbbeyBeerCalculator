@@ -74,9 +74,48 @@ export const renderResultCard = (solution, dictionaries = {}) => {
     formatCost = (value) => String(value),
     seasonOrder = [],
     seasonLabels = {},
+    getCurrentStyleId = () => null,
+    getStyleRequirements = () => ({}),
+    styleMinMap = {},
   } = dictionaries;
 
   const index = typeof dictionaries.index === 'number' ? dictionaries.index : 0;
+
+  const resolveStyleId = () => {
+    if (typeof dictionaries.currentStyleId === 'string' && dictionaries.currentStyleId) {
+      return dictionaries.currentStyleId;
+    }
+    if (typeof getCurrentStyleId === 'function') {
+      try {
+        return getCurrentStyleId() || null;
+      } catch (error) {
+        return null;
+      }
+    }
+    return null;
+  };
+
+  const activeStyleId = resolveStyleId();
+
+  const resolveRequirements = (styleId) => {
+    if (!styleId) {
+      return {};
+    }
+    if (typeof getStyleRequirements === 'function') {
+      try {
+        const requirements = getStyleRequirements(styleId);
+        if (requirements && typeof requirements === 'object') {
+          return requirements;
+        }
+      } catch (error) {
+        // fall through to styleMinMap fallback
+      }
+    }
+    if (styleMinMap && typeof styleMinMap === 'object' && styleMinMap[styleId]) {
+      return styleMinMap[styleId];
+    }
+    return {};
+  };
 
   const card = document.createElement('article');
   card.className = 'card result-card';
@@ -108,7 +147,16 @@ export const renderResultCard = (solution, dictionaries = {}) => {
 
   const bandContainer = document.createElement('div');
   bandContainer.className = 'result-band-pills result-band-pills--inline';
-  titleRow.appendChild(bandContainer);
+
+  const metaRow = document.createElement('div');
+  metaRow.className = 'result-card-meta';
+
+  const badgeGroup = document.createElement('div');
+  badgeGroup.className = 'result-card-badges';
+  metaRow.appendChild(badgeGroup);
+  metaRow.appendChild(bandContainer);
+
+  titleRow.appendChild(metaRow);
 
   header.appendChild(titleRow);
 
@@ -128,13 +176,13 @@ export const renderResultCard = (solution, dictionaries = {}) => {
   mixSection.appendChild(mixTitle);
 
   const chipsContainer = document.createElement('div');
-  chipsContainer.className = 'chips';
+  chipsContainer.className = 'chips result-ingredients__chips';
   const countsById = solution && typeof solution.countsById === 'object'
     ? solution.countsById
     : {};
   Object.entries(countsById).forEach(([id, cnt]) => {
     const chip = document.createElement('span');
-    chip.className = 'chip';
+    chip.className = 'chip result-ingredients__chip';
     const label = `${displayIngredientName(id)} × ${cnt}`;
     chip.title = label;
     const span = document.createElement('span');
@@ -144,6 +192,36 @@ export const renderResultCard = (solution, dictionaries = {}) => {
   });
   mixSection.appendChild(chipsContainer);
   card.appendChild(mixSection);
+
+  const requirements = resolveRequirements(activeStyleId);
+  const requiredIds = Object.entries(requirements || {})
+    .filter(([, value]) => Number(value) > 0)
+    .map(([ingredientId]) => ingredientId);
+  const requiredSet = new Set(requiredIds);
+  const usedIngredientIds = Object.keys(countsById);
+  const singleVariety = requiredSet.size > 0 && usedIngredientIds.length > 0
+    && usedIngredientIds.every((ingredientId) => requiredSet.has(ingredientId));
+
+  if (singleVariety) {
+    const badge = document.createElement('span');
+    badge.className = 'result-card-badge result-card-badge--single';
+    const badgeLabel = translate('badge_single_variety');
+    badge.textContent = typeof badgeLabel === 'string' ? badgeLabel : 'Single-variety';
+    if (typeof badgeGroup.replaceChildren === 'function') {
+      badgeGroup.replaceChildren(badge);
+    } else {
+      badgeGroup.innerHTML = '';
+      badgeGroup.appendChild(badge);
+    }
+    badgeGroup.hidden = false;
+  } else {
+    if (typeof badgeGroup.replaceChildren === 'function') {
+      badgeGroup.replaceChildren();
+    } else {
+      badgeGroup.innerHTML = '';
+    }
+    badgeGroup.hidden = true;
+  }
 
   const baseCost = Number.isFinite(solution && solution.baseCost) ? solution.baseCost : null;
   const averageCost = Number.isFinite(solution && solution.averageCost)

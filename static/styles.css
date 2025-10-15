@@ -1124,6 +1124,45 @@ button {
   gap: 4px;
 }
 
+.result-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.result-card-badges {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.result-card-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #fff7ed;
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.25), rgba(249, 115, 22, 0.5));
+  border: 1px solid rgba(254, 215, 170, 0.6);
+  box-shadow: 0 14px 32px -20px rgba(249, 115, 22, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(12px);
+  text-shadow: 0 1px 3px rgba(15, 23, 42, 0.6);
+}
+
+.result-card-badge--single::before {
+  content: '✨';
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
 .result-card h3 {
   margin: 0;
   font-size: 1rem;
@@ -1157,6 +1196,31 @@ button {
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: rgba(248, 250, 252, 0.6);
+}
+
+.result-ingredients__chips {
+  gap: 10px;
+}
+
+.result-ingredients__chip {
+  padding: 0;
+  cursor: default;
+  background: linear-gradient(140deg, rgba(248, 250, 252, 0.18), rgba(248, 250, 252, 0.08));
+  border: 1px solid rgba(248, 250, 252, 0.28);
+  color: #f8fafc;
+  box-shadow: 0 18px 36px -24px rgba(15, 23, 42, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.result-ingredients__chip span {
+  padding: 8px 16px;
+}
+
+.result-ingredients__chip:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 22px 44px -26px rgba(15, 23, 42, 0.95);
+  background: linear-gradient(140deg, rgba(248, 250, 252, 0.26), rgba(248, 250, 252, 0.12));
 }
 
 .result-cost-summary {
