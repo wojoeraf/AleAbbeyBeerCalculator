@@ -8,313 +8,310 @@
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
 </head>
 <body>
-<div class="page">
-    <header class="card">
-        <div class="header-row">
-            <h1>{{ ui.header_title }}</h1>
-            <form class="language-switcher" method="get">
-                {#                <label for="language-select">{{ ui.language_label }}</label>#}
-                <div class="language-switcher-controls">
-                    <select id="language-select" name="lang" onchange="this.form.submit()">
-                        {% for entry in languages %}
-                            <option value="{{ entry.code }}"
-                                    {% if entry.code == lang %}selected{% endif %}>{{ entry.label }}</option>
-                        {% endfor %}
-                    </select>
-                    <noscript>
-                        <button type="submit" class="btn-secondary">{{ ui.language_submit }}</button>
-                    </noscript>
-                </div>
-                <input type="hidden" name="style" value="{{ style }}">
-            </form>
+<div class="page" data-page-shell>
+    <header class="lab-header card">
+        <div class="lab-header__top">
+            <div class="lab-header__titles">
+                <h1>{{ ui.header_title }}</h1>
+                <p>{{ ui.header_description }}</p>
+            </div>
+            <div class="lab-header__controls">
+                <label class="legacy-mode-toggle" title="{{ ui.legacy_mode_hint }}">
+                    <input type="checkbox" data-legacy-toggle>
+                    <span>{{ ui.legacy_mode_label }}</span>
+                </label>
+                <form class="language-switcher" method="get">
+                    <div class="language-switcher-controls">
+                        <select id="language-select" name="lang" onchange="this.form.submit()">
+                            {% for entry in languages %}
+                                <option value="{{ entry.code }}"{% if entry.code == lang %} selected{% endif %}>{{ entry.label }}</option>
+                            {% endfor %}
+                        </select>
+                        <noscript>
+                            <button type="submit" class="btn-secondary">{{ ui.language_submit }}</button>
+                        </noscript>
+                    </div>
+                    <input type="hidden" name="style" value="{{ style }}">
+                </form>
+            </div>
         </div>
-        <p>{{ ui.header_description }}</p>
-    </header>
-
-    <form class="card form-card" data-solver-form>
-        <input type="hidden" name="lang" value="{{ lang }}">
-        <section>
-            <h3 class="section-title">{{ ui.section_base }}</h3>
-            <div class="grid-two">
-                <label>
+        <div class="lab-header__band" data-style-band>
+            <div class="lab-header__band-inner">
+                <label class="band-style-picker">
                     <span class="label">{{ ui.field_style }}</span>
-                    <select name="style">
+                    <select name="style" form="solver-form">
                         {% for s in styles %}
-                            <option value="{{ s.id }}" {% if s.id == style %}selected{% endif %}>{{ s.name }}</option>
+                            <option value="{{ s.id }}"{% if s.id == style %} selected{% endif %}>{{ s.name }}</option>
                         {% endfor %}
                     </select>
                 </label>
-                <p>{{ ui.instructions }}</p>
-            </div>
-            <input type="hidden" name="total_cap" value="{{ total_cap }}">
-            <input type="hidden" name="per_cap" value="{{ per_cap }}">
-        </section>
-
-        <section class="attributes-section">
-            <div class="attributes-layout">
-                <div class="attributes-column">
-                    <div class="column-header">
-                        <h3 class="section-title">{{ ui.section_attributes }}</h3>
-                        <button type="button" class="btn-make-green" data-set-all-green
-                                data-label-green="{{ ui.button_all_green }}"
-                                data-label-any="{{ ui.button_all_any }}">
-                            <span data-set-all-green-label>{{ ui.button_all_green }}</span>
-                        </button>
-                    </div>
-                    <div class="attr-list">
+                <div class="band-style-meta" data-style-meta>
+                    <div class="style-ghosts" data-style-ghosts>
                         {% for a in attrs %}
-                            {% set constraint = constraints[a] %}
-                            {% set slider_value_str = constraint.value if constraint.value else '5.5' %}
-                            {% set slider_value = slider_value_str|float %}
-                            {% set slider_step = '%.0f'|format(slider_value * 10) %}
-                            <div class="attr-card" data-attr-card data-attr="{{ a }}">
-                                <div class="attr-card-header">
-                                    <h4>{{ attr_labels[a] }}</h4>
-                                    <button type="button" class="chip chip-clear" data-clear-color
-                                            title="{{ ui.button_clear_color }}">
-                                        <span>{{ ui.button_clear_color }}</span>
-                                    </button>
+                            <div class="style-ghost" data-style-ghost="{{ a }}">
+                                <div class="style-ghost__label">{{ attr_labels[a] }}</div>
+                                <div class="style-ghost__bar">
+                                    <span class="style-ghost__track" data-style-ghost-track></span>
                                 </div>
-                                <div class="attr-card-body">
-                                    <div class="chips chips-colors" data-color-group>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <form class="lab-form" id="solver-form" data-solver-form>
+        <input type="hidden" name="lang" value="{{ lang }}">
+        <input type="hidden" name="total_cap" value="{{ total_cap }}">
+        <input type="hidden" name="per_cap" value="{{ per_cap }}">
+
+        <div class="lab-layout" data-lab-layout>
+            <section class="phase-card card phase-card--attributes" data-phase="attributes">
+                <header class="phase-card__header">
+                    <div class="phase-card__header-main">
+                        <div class="phase-card__intro">
+                            <p class="phase-card__step">{{ ui.phase_attributes_step }}</p>
+                            <h2 class="phase-card__title">{{ ui.phase_attributes_title }}</h2>
+                            <p class="phase-card__hint">{{ ui.phase_attributes_hint }}</p>
+                        </div>
+                        <div class="phase-card__actions">
+                            <button type="button" class="btn-secondary" data-set-all-green data-label-green="{{ ui.button_all_green }}" data-label-any="{{ ui.button_all_any }}">
+                                <span data-set-all-green-label>{{ ui.button_all_green }}</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="target-summary" data-target-summary>
+                        <h3>{{ ui.phase_attributes_summary }}</h3>
+                        <dl>
+                            {% for a in attrs %}
+                                <div class="target-summary__row" data-target-summary-row="{{ a }}">
+                                    <dt>{{ attr_labels[a] }}</dt>
+                                    <dd data-target-summary-value>–</dd>
+                                </div>
+                            {% endfor %}
+                        </dl>
+                    </div>
+                </header>
+                <div class="attr-grid">
+                    {% for a in attrs %}
+                        {% set constraint = constraints[a] %}
+                        {% set slider_value_str = constraint.value if constraint.value else '5.5' %}
+                        {% set slider_value = slider_value_str|float %}
+                        {% set slider_step = '%.0f'|format(slider_value * 10) %}
+                        <article class="attr-card" data-attr-card data-attr="{{ a }}">
+                            <header class="attr-card__header">
+                                <div class="attr-card__title">
+                                    <h3>{{ attr_labels[a] }}</h3>
+                                    <div class="attr-card__band-chips" data-color-group>
                                         {% for band in ['green', 'yellow', 'red'] %}
                                             {% set label = band_labels.get(band, band) %}
                                             <label class="chip" data-color="{{ band }}">
-                                                <input type="radio" name="band_{{ a }}" value="{{ band }}"
-                                                       data-color-radio
-                                                       {% if constraints[a].band == band %}checked{% endif %}>
+                                                <input type="radio" name="band_{{ a }}" value="{{ band }}" data-color-radio{% if constraints[a].band == band %} checked{% endif %}>
                                                 <span>{{ label }}</span>
                                             </label>
                                         {% endfor %}
                                     </div>
-                                    <div class="attr-controls" data-slider-area data-mode="{{ constraint.mode }}">
-                                        <div class="slider-row">
-                                            <div class="slider-range" data-slider-wrapper>
-                                                <div class="range-slider" data-attr-range data-slider
-                                                     aria-label="{{ attr_labels[a] }}">
-                                                    <button type="button" class="range-slider-thumb"
-                                                            data-slider-thumb="min"
-                                                            data-initial-value="{{ constraint.min if constraint.min else '%.1f'|format(slider_value) }}"
-                                                            aria-label="{{ attr_labels[a] }}"></button>
-                                                    <button type="button" class="range-slider-thumb"
-                                                            data-slider-thumb="max"
-                                                            data-initial-value="{{ constraint.max if constraint.max else '%.1f'|format(slider_value) }}"
-                                                            aria-label="{{ attr_labels[a] }}"></button>
-                                                </div>
-                                            </div>
-                                            <button type="button" class="icon-btn" data-copy-attr
-                                                    aria-label="{{ ui.button_copy_attr }}"
-                                                    title="{{ ui.button_copy_attr }}">
-                                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                                    <path d="M8 3h9a2 2 0 0 1 2 2v11h-2V5H8z"/>
-                                                    <path d="M5 8h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2zm0 2v9h9v-9z"/>
-                                                </svg>
-                                            </button>
+                                </div>
+                                <div class="attr-card__actions">
+                                    <button type="button" class="chip chip-clear" data-clear-color title="{{ ui.button_clear_color }}">
+                                        <span>{{ ui.button_clear_color }}</span>
+                                    </button>
+                                    <button type="button" class="attr-card__fine-toggle" data-attr-fine-toggle>{{ ui.phase_attributes_fine_tune }}</button>
+                                    <button type="button" class="icon-btn" data-copy-attr aria-label="{{ ui.button_copy_attr }}" title="{{ ui.button_copy_attr }}">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                            <path d="M8 3h9a2 2 0 0 1 2 2v11h-2V5H8z"/>
+                                            <path d="M5 8h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2zm0 2v9h9v-9z"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </header>
+                            <div class="attr-card__body" data-slider-area data-mode="{{ constraint.mode }}">
+                                <div class="attr-card__slider">
+                                    <div class="range-slider" data-attr-range data-slider aria-label="{{ attr_labels[a] }}">
+                                        <button type="button" class="range-slider-thumb" data-slider-thumb="min" data-initial-value="{{ constraint.min if constraint.min else '%.1f'|format(slider_value) }}" aria-label="{{ attr_labels[a] }}"></button>
+                                        <button type="button" class="range-slider-thumb" data-slider-thumb="max" data-initial-value="{{ constraint.max if constraint.max else '%.1f'|format(slider_value) }}" aria-label="{{ attr_labels[a] }}"></button>
+                                    </div>
+                                    <div class="attr-card__value" data-slider-display>
+                                        <div class="slider-value slider-value--single" data-slider-single>
+                                            <span class="slider-value__label">{{ ui.label_value_display }}</span>
+                                            <span class="slider-value__number" data-slider-single-value>{{ '%.1f'|format(slider_value) }}</span>
                                         </div>
-                                        <div class="slider-meta">
-                                            <div class="mode-toggle" role="group" aria-label="{{ ui.label_mode }}">
-                                                <button type="button" class="mode-btn" data-mode-btn data-mode="eq"
-                                                        aria-label="{{ mode_labels.get('eq', '=') }}"
-                                                        title="{{ mode_labels.get('eq', '=') }}"
-                                                        aria-pressed="{{ 'true' if constraints[a].mode == 'eq' else 'false' }}">
-                                                    =
-                                                </button>
-                                                <button type="button" class="mode-btn" data-mode-btn data-mode="ge"
-                                                        aria-label="{{ mode_labels.get('ge', '≥') }}"
-                                                        title="{{ mode_labels.get('ge', '≥') }}"
-                                                        aria-pressed="{{ 'true' if constraints[a].mode in ['ge', 'between'] else 'false' }}">
-                                                    ≥
-                                                </button>
-                                                <button type="button" class="mode-btn" data-mode-btn data-mode="le"
-                                                        aria-label="{{ mode_labels.get('le', '≤') }}"
-                                                        title="{{ mode_labels.get('le', '≤') }}"
-                                                        aria-pressed="{{ 'true' if constraints[a].mode in ['le', 'between'] else 'false' }}">
-                                                    ≤
-                                                </button>
-                                                <div class="slider-value" data-slider-display>
-                                                    <div class="slider-value-single" data-slider-single>
-                                                        <span class="slider-value-label">{{ ui.label_value_display }}</span>
-                                                        <span class="slider-value-number"
-                                                              data-slider-single-value>{{ '%.1f'|format(slider_value) }}</span>
-                                                    </div>
-                                                    <div class="slider-value-range" data-slider-range hidden>
-                                                        <div class="slider-range-value">
-                                                            <span class="slider-value-label">{{ ui.label_lower_limit }}</span>
-                                                            <span class="slider-value-number"
-                                                                  data-slider-min-value>{{ constraint.min if constraint.min else '%.1f'|format(slider_value) }}</span>
-                                                        </div>
-                                                        <div class="slider-range-value">
-                                                            <span class="slider-value-label">{{ ui.label_upper_limit }}</span>
-                                                            <span class="slider-value-number"
-                                                                  data-slider-max-value>{{ constraint.max if constraint.max else '%.1f'|format(slider_value) }}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                        <div class="slider-value slider-value--range" data-slider-range hidden>
+                                            <div class="slider-range-value">
+                                                <span class="slider-value__label">{{ ui.label_lower_limit }}</span>
+                                                <span class="slider-value__number" data-slider-min-value>{{ constraint.min if constraint.min else '%.1f'|format(slider_value) }}</span>
+                                            </div>
+                                            <div class="slider-range-value">
+                                                <span class="slider-value__label">{{ ui.label_upper_limit }}</span>
+                                                <span class="slider-value__number" data-slider-max-value>{{ constraint.max if constraint.max else '%.1f'|format(slider_value) }}</span>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                <input type="hidden" name="mode_{{ a }}" value="{{ constraint.mode }}" data-mode-input>
-                                <input type="hidden" name="min_{{ a }}" value="{{ constraint.min }}" data-min-input>
-                                <input type="hidden" name="max_{{ a }}" value="{{ constraint.max }}" data-max-input>
+                                <div class="attr-card__advanced" data-attr-advanced hidden>
+                                    <div class="mode-toggle" role="group" aria-label="{{ ui.label_mode }}">
+                                        <button type="button" class="mode-btn" data-mode-btn data-mode="eq" aria-label="{{ mode_labels.get('eq', '=') }}" title="{{ mode_labels.get('eq', '=') }}" aria-pressed="{{ 'true' if constraints[a].mode == 'eq' else 'false' }}">=</button>
+                                        <button type="button" class="mode-btn" data-mode-btn data-mode="ge" aria-label="{{ mode_labels.get('ge', '≥') }}" title="{{ mode_labels.get('ge', '≥') }}" aria-pressed="{{ 'true' if constraints[a].mode in ['ge', 'between'] else 'false' }}">≥</button>
+                                        <button type="button" class="mode-btn" data-mode-btn data-mode="le" aria-label="{{ mode_labels.get('le', '≤') }}" title="{{ mode_labels.get('le', '≤') }}" aria-pressed="{{ 'true' if constraints[a].mode in ['le', 'between'] else 'false' }}">≤</button>
+                                    </div>
+                                </div>
                             </div>
+                            <input type="hidden" name="mode_{{ a }}" value="{{ constraint.mode }}" data-mode-input>
+                            <input type="hidden" name="min_{{ a }}" value="{{ constraint.min }}" data-min-input>
+                            <input type="hidden" name="max_{{ a }}" value="{{ constraint.max }}" data-max-input>
+                        </article>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="phase-card card phase-card--ingredients" data-phase="ingredients">
+                <header class="phase-card__header">
+                    <div>
+                        <p class="phase-card__step">{{ ui.phase_ingredients_step }}</p>
+                        <h2 class="phase-card__title">{{ ui.phase_ingredients_title }}</h2>
+                        <p class="phase-card__hint">{{ ui.phase_ingredients_hint }}</p>
+                    </div>
+                    <div class="ingredients-actions">
+                        <button type="button" class="btn-secondary" data-toggle-details data-label-show="{{ ui.button_details_show }}" data-label-hide="{{ ui.button_details_hide }}">
+                            <span data-toggle-details-label>{{ ui.button_details_show }}</span>
+                        </button>
+                        <button type="button" class="btn-secondary optional-toggle" data-toggle-optional data-label-select="{{ ui.button_optional_all }}" data-label-clear="{{ ui.button_optional_none }}">
+                            <span data-toggle-optional-label>{{ ui.button_optional_all }}</span>
+                        </button>
+                    </div>
+                </header>
+                <div class="ingredient-browser" data-ingredients-wrapper data-hide-attributes="true">
+                    <nav class="ingredient-tabs" aria-label="{{ ui.section_ingredients }}">
+                        {% for category in ingredient_categories %}
+                            <button type="button" class="ingredient-tab" data-category-toggle data-category-id="{{ category.id }}"{% if loop.first %} data-initial="true"{% endif %}>
+                                <span class="ingredient-tab__label">{{ category.name }}</span>
+                                <span class="ingredient-tab__count">{{ category.ingredients | length }}</span>
+                            </button>
+                        {% endfor %}
+                    </nav>
+                    <div class="ingredient-list" data-ingredient-list>
+                        {% for category in ingredient_categories %}
+                            <section class="ingredient-category" data-ingredient-category data-category-id="{{ category.id }}">
+                                <h3 class="ingredient-category__title">{{ category.name }}</h3>
+                                <div class="ingredient-category__grid">
+                                    {% for ing in category.ingredients %}
+                                        {% set required_count = style_mins.get(ing.id, 0) %}
+                                        {% set is_required = required_count > 0 %}
+                                        {% set is_locked = is_required %}
+                                        {% set is_checked = is_locked or ing.id in selected_required %}
+                                        {% set is_optional = ing.id in selected_optional %}
+                                        <article class="ingredient-card{% if is_locked %} ingredient-card--locked{% endif %}" data-ingredient-row data-ingredient-id="{{ ing.id }}">
+                                            <header class="ingredient-card__header">
+                                                <label class="ingredient-toggle ingredient-toggle--include"{% if is_locked %} title="{{ ui.tooltip_required }}"{% endif %}>
+                                                    <input type="checkbox" name="selected_ingredients" value="{{ ing.id }}" aria-label="{{ ui.label_include }}"{% if is_checked %} checked{% endif %}{% if is_locked %} disabled{% endif %} data-user-selected="{{ 'true' if ing.id in selected_required else 'false' }}">
+                                                    <span class="ingredient-toggle__icon" aria-hidden="true"></span>
+                                                    <span class="sr-only">{{ ui.label_include }}</span>
+                                                </label>
+                                                <div class="ingredient-card__title">
+                                                    <span class="ingredient-card__name">{{ ing.name }}</span>
+                                                    <span class="ingredient-card__badge" data-required-badge{% if not is_required %} hidden{% endif %}>
+                                                        {% if is_required %}
+                                                            {% if required_count > 1 %}
+                                                                {{ ui.badge_required_multiple | replace('{count}', '%d' % required_count) }}
+                                                            {% else %}
+                                                                {{ ui.badge_required_single }}
+                                                            {% endif %}
+                                                        {% else %}
+                                                            {{ ui.badge_required_single }}
+                                                        {% endif %}
+                                                    </span>
+                                                </div>
+                                                <label class="ingredient-toggle ingredient-toggle--optional">
+                                                    <input type="checkbox" name="optional_ingredients" value="{{ ing.id }}" aria-label="{{ ui.label_optional }}"{% if is_optional %} checked{% endif %}{% if is_locked %} disabled{% endif %} data-user-optional="{{ 'true' if is_optional else 'false' }}">
+                                                    <span class="ingredient-toggle__icon" aria-hidden="true"></span>
+                                                    <span class="sr-only">{{ ui.label_optional }}</span>
+                                                </label>
+                                            </header>
+                                            <dl class="ingredient-card__metrics">
+                                                <div class="ingredient-metric" data-metric="taste">
+                                                    <dt>{{ ui.table_taste }}</dt>
+                                                    <dd>
+                                                        <span class="metric-bar" style="--metric-value: {{ '%.1f'|format(ing.vec[0]) }}"></span>
+                                                        <span class="metric-value">{{ '%.1f'|format(ing.vec[0]) }}</span>
+                                                    </dd>
+                                                </div>
+                                                <div class="ingredient-metric" data-metric="color">
+                                                    <dt>{{ ui.table_color }}</dt>
+                                                    <dd>
+                                                        <span class="metric-bar" style="--metric-value: {{ '%.1f'|format(ing.vec[1]) }}"></span>
+                                                        <span class="metric-value">{{ '%.1f'|format(ing.vec[1]) }}</span>
+                                                    </dd>
+                                                </div>
+                                                <div class="ingredient-metric" data-metric="strength">
+                                                    <dt>{{ ui.table_strength }}</dt>
+                                                    <dd>
+                                                        <span class="metric-bar" style="--metric-value: {{ '%.1f'|format(ing.vec[2]) }}"></span>
+                                                        <span class="metric-value">{{ '%.1f'|format(ing.vec[2]) }}</span>
+                                                    </dd>
+                                                </div>
+                                                <div class="ingredient-metric" data-metric="foam">
+                                                    <dt>{{ ui.table_foam }}</dt>
+                                                    <dd>
+                                                        <span class="metric-bar" style="--metric-value: {{ '%.1f'|format(ing.vec[3]) }}"></span>
+                                                        <span class="metric-value">{{ '%.1f'|format(ing.vec[3]) }}</span>
+                                                    </dd>
+                                                </div>
+                                            </dl>
+                                            <div class="ingredient-card__footer">
+                                                <span class="ingredient-card__cost">{{ ui.table_cost }}: {{ '%.2f'|format(ing.cost) }}</span>
+                                            </div>
+                                        </article>
+                                    {% endfor %}
+                                </div>
+                            </section>
                         {% endfor %}
                     </div>
                 </div>
-                <aside class="ingredients-column">
-                    <div class="column-header ingredients-header">
-                        <div class="ingredients-header-top">
-                            <h3 class="section-title">{{ ui.section_ingredients }}</h3>
-                            <div class="ingredients-actions">
-                                <button type="button" class="btn-secondary categories-toggle"
-                                        data-toggle-categories
-                                        data-label-collapse="{{ ui.button_collapse_categories }}"
-                                        data-label-expand="{{ ui.button_expand_categories }}">
-                                    <span data-toggle-categories-label>{{ ui.button_collapse_categories }}</span>
-                                </button>
-                                <button type="button" class="btn-secondary optional-toggle"
-                                        data-toggle-optional
-                                        data-label-select="{{ ui.button_optional_all }}"
-                                        data-label-clear="{{ ui.button_optional_none }}">
-                                    <span data-toggle-optional-label>{{ ui.button_optional_all }}</span>
-                                </button>
+            </section>
+
+            <aside class="mix-panel card" data-mix-panel>
+                <header class="mix-panel__header">
+                    <p class="phase-card__step">{{ ui.phase_mix_step }}</p>
+                    <h2 class="phase-card__title">{{ ui.phase_mix_title }}</h2>
+                </header>
+                <div class="mix-panel__body">
+                    <div class="mix-summary" data-mix-summary>
+                        <p class="mix-summary__title">{{ ui.phase_mix_summary }}</p>
+                        <ul class="mix-summary__list" data-mix-selected></ul>
+                        <div class="mix-caps">
+                            <div class="mix-cap" data-cap="total">
+                                <span class="mix-cap__label">{{ ui.phase_mix_cap_total }}</span>
+                                <span class="mix-cap__value" data-cap-value>0</span>
                             </div>
-                        </div>
-                        <div class="ingredients-header-bottom">
-                            <p class="ingredients-legend">{{ ui.checkbox_legend }}</p>
-                            <div class="mobile-selection-heading" aria-hidden="true">
-                                <span class="mobile-selection-title">{{ ui.table_selection }}</span>
-                                <div class="mobile-selection-options">
-                                    <span class="mobile-selection-option mobile-selection-option--include">{{ ui.table_include }}</span>
-                                    <span class="mobile-selection-option mobile-selection-option--optional">{{ ui.table_optional }}</span>
-                                </div>
+                            <div class="mix-cap" data-cap="per">
+                                <span class="mix-cap__label">{{ ui.phase_mix_cap_per }}</span>
+                                <span class="mix-cap__value" data-cap-value>0</span>
                             </div>
                         </div>
                     </div>
-                    <div class="mobile-attr-toggle" data-attribute-toggle hidden>
-                        <label>
-                            <input type="checkbox" data-attribute-toggle-input>
-                            <span>{{ ui.toggle_show_attributes }}</span>
-                        </label>
-                    </div>
-                    <div class="table-wrapper" data-ingredients-wrapper data-hide-attributes="false">
-                        <table class="ingredients-table ingredients-table--compact">
-                            <thead>
-                            <tr>
-                                <th class="col-selection">{{ ui.table_selection }}</th>
-                                <th data-attr-header>{{ ui.table_taste }}</th>
-                                <th data-attr-header>{{ ui.table_color }}</th>
-                                <th data-attr-header>{{ ui.table_strength }}</th>
-                                <th data-attr-header>{{ ui.table_foam }}</th>
-                                <th data-attr-header>{{ ui.table_cost }}</th>
-                            </tr>
-                            </thead>
-                            {% for category in ingredient_categories %}
-                                <tbody data-category-header data-category-id="{{ category.id }}">
-                                <tr class="ingredient-category-header">
-                                    <td colspan="8">
-                                        <button type="button" class="category-toggle" data-category-toggle
-                                                data-category-id="{{ category.id }}" aria-expanded="true">
-                                            <span class="category-toggle-icon" aria-hidden="true"></span>
-                                            <span class="category-toggle-label">{{ category.name }}</span>
-                                            <span class="category-toggle-count">({{ category.ingredients | length }})</span>
-                                        </button>
-                                    </td>
-                                </tr>
-                                </tbody>
-                                <tbody class="ingredient-category-body" data-ingredient-category
-                                       data-category-id="{{ category.id }}">
-                                {% for ing in category.ingredients %}
-                                    {% set required_count = style_mins.get(ing.id, 0) %}
-                                    {% set is_required = required_count > 0 %}
-                                    {% set is_locked = is_required %}
-                                    {% set is_checked = is_locked or ing.id in selected_required %}
-                                    {% set is_optional = ing.id in selected_optional %}
-                                    <tr class="{% if is_locked %}ingredient-locked{% endif %}" data-ingredient-row
-                                        data-ingredient-id="{{ ing.id }}">
-                                        <td class="ingredient-selection-cell" data-label="{{ ui.table_selection }}">
-                                            <div class="ingredient-selection">
-                                                <div class="ingredient-selection-checkboxes">
-                                                    <label class="ingredient-option"
-                                                           {% if is_locked %}title="{{ ui.tooltip_required }}"{% endif %}>
-                                                        <input type="checkbox" name="selected_ingredients" value="{{ ing.id }}"
-                                                               aria-label="{{ ui.label_include }}"
-                                                               {% if is_checked %}checked{% endif %}
-                                                               {% if is_locked %}disabled{% endif %}
-                                                               data-user-selected="{{ 'true' if ing.id in selected_required else 'false' }}">
-                                                        <span class="checkbox-visual"></span>
-                                                        <span class="sr-only">{{ ui.label_include }}</span>
-                                                    </label>
-                                                    <label class="ingredient-optional">
-                                                        <input type="checkbox" name="optional_ingredients" value="{{ ing.id }}"
-                                                               aria-label="{{ ui.label_optional }}"
-                                                               {% if is_optional %}checked{% endif %}
-                                                               {% if is_locked %}disabled{% endif %}
-                                                               data-user-optional="{{ 'true' if is_optional else 'false' }}">
-                                                        <span class="checkbox-visual"></span>
-                                                        <span class="sr-only">{{ ui.label_optional }}</span>
-                                                    </label>
-                                                </div>
-                                                <div class="ingredient-name">
-                                                    <span>{{ ing.name }}</span>
-                                                    <span class="ingredient-badge badge-required" data-required-badge
-                                                          {% if not is_required %}hidden{% endif %}>
-                          {% if is_required %}
-                              {% if required_count > 1 %}
-                                  {{ ui.badge_required_multiple | replace('{count}', '%d' % required_count) }}
-                              {% else %}
-                                  {{ ui.badge_required_single }}
-                              {% endif %}
-                          {% else %}
-                              {{ ui.badge_required_single }}
-                          {% endif %}
-                        </span>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td data-label="{{ ui.table_taste }}"
-                                            data-attr-cell>{{ '%.1f'|format(ing.vec[0]) }}</td>
-                                        <td data-label="{{ ui.table_color }}"
-                                            data-attr-cell>{{ '%.1f'|format(ing.vec[1]) }}</td>
-                                        <td data-label="{{ ui.table_strength }}"
-                                            data-attr-cell>{{ '%.1f'|format(ing.vec[2]) }}</td>
-                                        <td data-label="{{ ui.table_foam }}"
-                                            data-attr-cell>{{ '%.1f'|format(ing.vec[3]) }}</td>
-                                        <td data-label="{{ ui.table_cost }}"
-                                            data-attr-cell data-cost-cell>{{ '%.2f'|format(ing.cost) }}</td>
-                                    </tr>
-                                {% endfor %}
-                                </tbody>
-                            {% endfor %}
-                        </table>
-                    </div>
-                </aside>
-            </div>
-        </section>
-
-        <button class="btn-primary" type="submit" data-submit-button
-                {% if not has_active_constraints %}disabled{% endif %}>{{ ui.button_submit }}</button>
-    </form>
-
-    <section class="results-section" data-results style="margin-top: 32px;">
-        <div class="card results-header-card" data-results-header>
-            <div class="results-header-top">
-                <div class="results-heading">
-                    <h2 class="section-title results-title" data-results-title>{{ ui.section_results }}</h2>
-                    <p class="hint results-placeholder" data-results-placeholder>{{ ui.results_placeholder }}</p>
+                    <button class="btn-primary mix-panel__submit" type="submit" data-submit-button{% if not has_active_constraints %} disabled{% endif %}>{{ ui.button_submit }}</button>
+                    <section class="results-section" data-results>
+                        <div class="results-header" data-results-header>
+                            <div class="results-heading">
+                                <h3 class="section-title results-title" data-results-title>{{ ui.section_results }}</h3>
+                                <p class="hint results-placeholder" data-results-placeholder>{{ ui.results_placeholder }}</p>
+                            </div>
+                            <div class="results-loading" data-results-loading hidden role="status" aria-live="polite">
+                                <div class="loading-spinner" aria-hidden="true"></div>
+                                <p class="hint">{{ ui.results_loading }}</p>
+                            </div>
+                        </div>
+                        <div class="results-summary-list" data-results-summary hidden></div>
+                        <p class="hint results-status" data-status-message hidden></p>
+                        <p class="hint results-status-empty" data-results-empty hidden>
+                            <strong>{{ ui.section_results }}</strong> {{ ui.results_empty }}</p>
+                        <div class="results-list" data-results-list></div>
+                    </section>
                 </div>
-                <div class="results-loading" data-results-loading hidden role="status" aria-live="polite">
-                    <div class="loading-spinner" aria-hidden="true"></div>
-                    <p class="hint">{{ ui.results_loading }}</p>
-                </div>
-            </div>
-            <div class="results-summary-list" data-results-summary hidden></div>
-            <p class="hint results-status" data-status-message hidden></p>
-            <p class="hint results-status-empty" data-results-empty hidden>
-                <strong>{{ ui.section_results }}</strong> {{ ui.results_empty }}</p>
+            </aside>
         </div>
-        <div class="results-list" data-results-list></div>
-    </section>
+    </form>
 
     <section class="card support-section" id="support">
         <h2>{{ ui.support_header }}</h2>
@@ -322,10 +319,7 @@
         <div class="support-actions">
             <p class="support-note">{{ ui.support_note }}</p>
             <div class="support-buttons">
-                <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js"
-                        data-name="bmc-button" data-slug="honigbartstudios" data-color="#FFDD00" data-emoji="🍻"
-                        data-font="Cookie" data-text="Buy me an Ale" data-outline-color="#000000"
-                        data-font-color="#000000" data-coffee-color="#ffffff"></script>
+                <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="honigbartstudios" data-color="#FFDD00" data-emoji="🍻" data-font="Cookie" data-text="Buy me an Ale" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff"></script>
             </div>
         </div>
         <h3>Disclaimer</h3>
