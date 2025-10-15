@@ -855,6 +855,43 @@
       ]
     }
   },
+  "bavarian_helles": {
+    "names": {"en": "Bavarian Helles"},
+    "base": [0.0, 0.0, 0.0, 0.0],
+    "min_counts": {
+      "pale_malt": 1,
+      "amber_malt": 1,
+      "lager_yeast": 1,
+      "classic_hops": 1
+    },
+    "bands": {
+      "taste": [
+        {"band": "red", "min": 0.0, "max": 1.99},
+        {"band": "yellow", "min": 2.0, "max": 3.99},
+        {"band": "green", "min": 4.0, "max": 5.99},
+        {"band": "yellow", "min": 6.0, "max": 6.99},
+        {"band": "red", "min": 7.0, "max": 1000.0}
+      ],
+      "color": [
+        {"band": "red", "min": 0.0, "max": 0.99},
+        {"band": "green", "min": 1.0, "max": 2.99},
+        {"band": "yellow", "min": 3.0, "max": 4.99},
+        {"band": "red", "min": 5.0, "max": 1000.0}
+      ],
+      "strength": [
+        {"band": "red", "min": 0.0, "max": 1.99},
+        {"band": "yellow", "min": 2.0, "max": 2.99},
+        {"band": "green", "min": 3.0, "max": 6.99},
+        {"band": "yellow", "min": 7.0, "max": 7.99},
+        {"band": "red", "min": 8.0, "max": 1000.0}
+      ],
+      "foam": [
+        {"band": "yellow", "min": 0.0, "max": 3.99},
+        {"band": "green", "min": 4.0, "max": 6.99},
+        {"band": "yellow", "min": 7.0, "max": 1000.0}
+      ]
+    }
+  },
   "barley_wine": {
     "names": {"en": "Barley Wine"},
     "base": [0.0, 0.0, 0.0, 0.0],
