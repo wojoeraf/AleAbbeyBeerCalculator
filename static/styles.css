@@ -1160,6 +1160,54 @@ button {
   margin: 0;
 }
 
+.result-cost-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 8px 12px 4px;
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.08);
+}
+
+.result-cost-chart-column {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.result-cost-chart-value {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(248, 250, 252, 0.75);
+}
+
+.result-cost-chart-bar-wrapper {
+  width: clamp(28px, 5vw, 42px);
+  height: 160px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.16);
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.result-cost-chart-bar {
+  width: 100%;
+  background: linear-gradient(180deg, rgba(249, 115, 22, 0.3), rgba(249, 115, 22, 0.8));
+  border-radius: inherit;
+  transition: height 0.2s ease;
+}
+
+.result-cost-chart-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(248, 250, 252, 0.7);
+}
+
 .result-band-pills {
   display: flex;
   flex-wrap: wrap;
