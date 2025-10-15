@@ -1107,6 +1107,27 @@ const initSolver = () => {
   const getEnabledOptionalCheckboxes = () =>
     getOptionalCheckboxes().filter((checkbox) => !checkbox.disabled);
 
+  const enforceMutualExclusion = (includeCheckbox, optionalCheckbox, priority = 'include') => {
+    let includeChanged = false;
+    let optionalChanged = false;
+    if (!includeCheckbox || !optionalCheckbox) {
+      return { includeChanged, optionalChanged };
+    }
+    if (includeCheckbox.checked && optionalCheckbox.checked) {
+      const preferOptional = priority === 'optional' && !optionalCheckbox.disabled;
+      if (preferOptional) {
+        includeCheckbox.checked = false;
+        includeCheckbox.dataset.userSelected = 'false';
+        includeChanged = true;
+      } else {
+        optionalCheckbox.checked = false;
+        optionalCheckbox.dataset.userOptional = 'false';
+        optionalChanged = true;
+      }
+    }
+    return { includeChanged, optionalChanged };
+  };
+
   const updateOptionalToggleState = () => {
     if (!optionalToggleBtn) {
       return;
@@ -2020,6 +2041,14 @@ const initSolver = () => {
       enabledCheckboxes.forEach((checkbox) => {
         checkbox.checked = shouldSelectAll;
         checkbox.dataset.userOptional = shouldSelectAll ? 'true' : 'false';
+        const row = checkbox.closest('[data-ingredient-row]');
+        const includeCheckbox = row
+          ? row.querySelector('input[type="checkbox"][name="selected_ingredients"]')
+          : null;
+        const { includeChanged } = enforceMutualExclusion(includeCheckbox, checkbox, shouldSelectAll ? 'optional' : 'include');
+        if (includeChanged && includeCheckbox) {
+          includeCheckbox.dataset.userSelected = 'false';
+        }
       });
       updateOptionalToggleState();
       refreshMixSummary();
@@ -2057,10 +2086,25 @@ const initSolver = () => {
       if (!target || target.type !== 'checkbox') {
         return;
       }
+      const row = target.closest('[data-ingredient-row]');
+      const includeCheckbox = row
+        ? row.querySelector('input[type="checkbox"][name="selected_ingredients"]')
+        : null;
+      const optionalCheckbox = row
+        ? row.querySelector('input[type="checkbox"][name="optional_ingredients"]')
+        : null;
       if (target.matches('input[type="checkbox"][name="selected_ingredients"]')) {
         target.dataset.userSelected = target.checked ? 'true' : 'false';
+        const { optionalChanged } = enforceMutualExclusion(target, optionalCheckbox, 'include');
+        if (optionalChanged) {
+          updateOptionalToggleState();
+        }
       } else if (target.matches('input[type="checkbox"][name="optional_ingredients"]')) {
         target.dataset.userOptional = target.checked ? 'true' : 'false';
+        const { includeChanged } = enforceMutualExclusion(includeCheckbox, target, target.checked ? 'optional' : 'include');
+        if (includeChanged && includeCheckbox) {
+          includeCheckbox.dataset.userSelected = 'false';
+        }
         updateOptionalToggleState();
       }
       refreshMixSummary();
@@ -2124,6 +2168,7 @@ const initSolver = () => {
           optionalCheckbox.disabled = false;
           const userOptional = optionalCheckbox.dataset.userOptional === 'true';
           optionalCheckbox.checked = userOptional;
+          enforceMutualExclusion(includeCheckbox, optionalCheckbox, userOptional ? 'optional' : 'include');
         }
         if (label) {
           label.removeAttribute('title');
