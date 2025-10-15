@@ -77,6 +77,7 @@ export const renderResultCard = (solution, dictionaries = {}) => {
     getCurrentStyleId = () => null,
     getStyleRequirements = () => ({}),
     styleMinMap = {},
+    selectionMeta = {},
   } = dictionaries;
 
   const index = typeof dictionaries.index === 'number' ? dictionaries.index : 0;
@@ -177,14 +178,66 @@ export const renderResultCard = (solution, dictionaries = {}) => {
 
   const chipsContainer = document.createElement('div');
   chipsContainer.className = 'chips result-ingredients__chips';
+
+  const requirements = resolveRequirements(activeStyleId);
+  const requiredIds = Object.entries(requirements || {})
+    .filter(([, value]) => Number(value) > 0)
+    .map(([ingredientId]) => ingredientId);
+  const requiredSet = new Set(requiredIds);
+  const normalizeToSet = (value) => {
+    if (value instanceof Set) {
+      return value;
+    }
+    if (Array.isArray(value)) {
+      return new Set(value);
+    }
+    if (value && typeof value === 'object') {
+      return new Set(Object.keys(value));
+    }
+    return new Set();
+  };
+
+  const includeSet = normalizeToSet(selectionMeta.includes);
+  const optionalSet = normalizeToSet(selectionMeta.optional);
+
+  const requiredLabelRaw = translate('badge_required_single');
+  const includeLabelRaw = translate('label_include');
+  const optionalLabelRaw = translate('label_optional');
+
+  const statusLabelMap = {
+    required: typeof requiredLabelRaw === 'string' ? requiredLabelRaw : 'Required',
+    include: typeof includeLabelRaw === 'string' ? includeLabelRaw : 'Included',
+    optional: typeof optionalLabelRaw === 'string' ? optionalLabelRaw : 'Optional',
+  };
+
   const countsById = solution && typeof solution.countsById === 'object'
     ? solution.countsById
     : {};
   Object.entries(countsById).forEach(([id, cnt]) => {
     const chip = document.createElement('span');
     chip.className = 'chip result-ingredients__chip';
-    const label = `${displayIngredientName(id)} × ${cnt}`;
+    const ingredientName = displayIngredientName(id);
+    const label = `${ingredientName} × ${cnt}`;
     chip.title = label;
+
+    let status = 'include';
+    if (requiredSet.has(id)) {
+      status = 'required';
+    } else if (optionalSet.has(id)) {
+      status = 'optional';
+    } else if (includeSet.size > 0 && includeSet.has(id)) {
+      status = 'include';
+    }
+
+    chip.dataset.status = status;
+    const statusText = statusLabelMap[status];
+    if (typeof statusText === 'string' && statusText.length) {
+      chip.setAttribute('data-status-label', statusText);
+      chip.setAttribute('aria-label', `${label} (${statusText})`);
+    } else {
+      chip.setAttribute('aria-label', label);
+    }
+
     const span = document.createElement('span');
     span.textContent = label;
     chip.appendChild(span);
@@ -193,11 +246,6 @@ export const renderResultCard = (solution, dictionaries = {}) => {
   mixSection.appendChild(chipsContainer);
   card.appendChild(mixSection);
 
-  const requirements = resolveRequirements(activeStyleId);
-  const requiredIds = Object.entries(requirements || {})
-    .filter(([, value]) => Number(value) > 0)
-    .map(([ingredientId]) => ingredientId);
-  const requiredSet = new Set(requiredIds);
   const usedIngredientIds = Object.keys(countsById);
   const singleVariety = requiredSet.size > 0 && usedIngredientIds.length > 0
     && usedIngredientIds.every((ingredientId) => requiredSet.has(ingredientId));
@@ -393,14 +441,13 @@ export const renderResults = (state, dictionaries) => {
   const {
     loading = false,
     solutions = null,
-    summary = [],
     info = [],
+    selection = {},
   } = state || {};
 
   const {
     resultsSection,
     resultsTitle,
-    resultsSummary,
     resultsPlaceholder,
     resultsLoading,
     resultsEmpty,
@@ -410,64 +457,6 @@ export const renderResults = (state, dictionaries) => {
 
   if (!resultsSection) {
     return { cards: [] };
-  }
-
-  const clearSummary = () => {
-    if (!resultsSummary) {
-      return;
-    }
-    resultsSummary.hidden = true;
-    if (resultsSummary.dataset) {
-      resultsSummary.dataset.visible = 'false';
-    }
-    if (typeof resultsSummary.replaceChildren === 'function') {
-      resultsSummary.replaceChildren();
-    } else {
-      resultsSummary.innerHTML = '';
-    }
-  };
-
-  const renderSummaryHighlights = (lines) => {
-    if (!resultsSummary) {
-      return;
-    }
-    const entries = Array.isArray(lines) ? lines.slice(0, 3) : [];
-    if (!entries.length) {
-      clearSummary();
-      return;
-    }
-
-    const items = entries.map((line, index) => {
-      const item = document.createElement('span');
-      item.className = 'results-summary-item';
-      item.textContent = line;
-      item.style.setProperty('--item-index', index);
-      return item;
-    });
-
-    resultsSummary.hidden = false;
-    if (resultsSummary.dataset) {
-      resultsSummary.dataset.visible = 'true';
-    }
-    if (typeof resultsSummary.replaceChildren === 'function') {
-      resultsSummary.replaceChildren(...items);
-    } else {
-      resultsSummary.innerHTML = '';
-      items.forEach((item) => resultsSummary.appendChild(item));
-    }
-  };
-
-  const summaryLines = Array.isArray(summary) ? [...summary] : [];
-  if (Array.isArray(solutions) && solutions.length > 0) {
-    const topSolution = solutions[0] || {};
-    const averageCost = Number.isFinite(topSolution && topSolution.averageCost)
-      ? topSolution.averageCost
-      : Number.isFinite(topSolution && topSolution.totalCost)
-        ? topSolution.totalCost
-        : null;
-    if (Number.isFinite(averageCost)) {
-      summaryLines.push(translate('summary_average_cost', { value: formatCost(averageCost) }));
-    }
   }
 
   resultsSection.hidden = false;
@@ -490,7 +479,6 @@ export const renderResults = (state, dictionaries) => {
 
   if (loading) {
     if (resultsPlaceholder) resultsPlaceholder.hidden = true;
-    clearSummary();
     if (statusMessage) statusMessage.hidden = true;
     if (resultsEmpty) resultsEmpty.hidden = true;
     return { cards: [] };
@@ -500,7 +488,6 @@ export const renderResults = (state, dictionaries) => {
 
   if (!hasSolutions) {
     if (resultsPlaceholder) resultsPlaceholder.hidden = false;
-    clearSummary();
     if (statusMessage) {
       statusMessage.hidden = true;
       statusMessage.textContent = '';
@@ -527,8 +514,6 @@ export const renderResults = (state, dictionaries) => {
     }
   }
 
-  renderSummaryHighlights(summaryLines);
-
   if (statusMessage) {
     if (Array.isArray(info) && info.length > 0) {
       statusMessage.hidden = false;
@@ -550,9 +535,22 @@ export const renderResults = (state, dictionaries) => {
     return { cards: [] };
   }
 
+  const includesList = Array.isArray(selection.includes)
+    ? selection.includes
+    : [];
+  const optionalList = Array.isArray(selection.optional)
+    ? selection.optional
+    : [];
+
+  const selectionMeta = {
+    includes: new Set(includesList),
+    optional: new Set(optionalList),
+  };
+
   const cards = list.map((solution, index) => renderResultCard(solution, {
     ...cachedContext,
     index,
+    selectionMeta,
   }));
 
   return { cards };

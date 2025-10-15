@@ -320,7 +320,6 @@ const initSolver = () => {
     targetSummaryRows,
     resultsSection,
     resultsTitle,
-    resultsSummary,
     resultsPlaceholder,
     resultsLoading,
     resultsList,
@@ -366,8 +365,11 @@ const initSolver = () => {
   let resultsState = {
     loading: false,
     solutions: null,
-    summary: [],
     info: [],
+    selection: {
+      includes: [],
+      optional: [],
+    },
   };
 
   const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
@@ -2359,12 +2361,15 @@ const initSolver = () => {
 
   renderState();
 
-  const renderSolutions = (solutions, summaryLines, infoMessages) => {
+  const renderSolutions = (solutions, infoMessages, selectionMeta = {}) => {
     renderState({
       loading: false,
       solutions: Array.isArray(solutions) ? [...solutions] : [],
-      summary: Array.isArray(summaryLines) ? [...summaryLines] : [],
       info: Array.isArray(infoMessages) ? [...infoMessages] : [],
+      selection: {
+        includes: Array.isArray(selectionMeta.includes) ? [...selectionMeta.includes] : [],
+        optional: Array.isArray(selectionMeta.optional) ? [...selectionMeta.optional] : [],
+      },
     });
   };
 
@@ -2493,6 +2498,11 @@ const initSolver = () => {
             debugLines.push(translate('debug_optional', { list: optionalList.join(', ') }));
           }
 
+          const selectionMeta = {
+            includes: Array.from(selectedRequired),
+            optional: Array.from(optionalPool),
+          };
+
           const workerRequest = {
             styleName,
             numericIntervals,
@@ -2503,12 +2513,6 @@ const initSolver = () => {
             allowedIngredientIds: Array.from(allowedSet),
             topK: DEFAULT_TOP_K,
           };
-
-          const summaryLines = [];
-          if (styleName) {
-            summaryLines.push(translate('summary_style', { style: displayStyleName(styleName) }));
-          }
-          summaryLines.push(translate('summary_caps', { total: totalCap, per: perCap }));
 
           const solvePromise = workerController
             ? workerController.solve(workerRequest).catch((error) => {
@@ -2531,12 +2535,12 @@ const initSolver = () => {
 
           solvePromise
             .then(({ solutions, info }) => {
-              renderSolutions(solutions, summaryLines, info);
+              renderSolutions(solutions, info, selectionMeta);
               renderDebug(debugLines);
             })
             .catch((error) => {
               console.error('Recipe calculation failed', error);
-              renderSolutions([], [], [translate('solver_failed')]);
+              renderSolutions([], [translate('solver_failed')], selectionMeta);
               renderDebug(debugLines);
             })
             .finally(() => {
@@ -2545,7 +2549,7 @@ const initSolver = () => {
           return;
         } catch (error) {
           console.error('Recipe calculation failed', error);
-          renderSolutions([], [], [translate('solver_failed')]);
+          renderSolutions([], [translate('solver_failed')]);
           renderDebug(debugLines);
           setLoadingState(false);
           return;

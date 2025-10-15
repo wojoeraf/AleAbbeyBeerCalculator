@@ -34,7 +34,6 @@ export const initUIState = () => {
     targetSummaryRows: collectCategoryMap('[data-target-summary-row]', 'targetSummaryRow'),
     resultsSection: document.querySelector('[data-results]'),
     resultsTitle: document.querySelector('[data-results-title]'),
-    resultsSummary: document.querySelector('[data-results-summary]'),
     resultsPlaceholder: document.querySelector('[data-results-placeholder]'),
     resultsLoading: document.querySelector('[data-results-loading]'),
     resultsList: document.querySelector('[data-results-list]'),
