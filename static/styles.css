@@ -638,9 +638,12 @@ button {
   color: var(--accent-strong);
 }
 
+.attr-card__fine-toggle:hover {
+  background: rgba(15, 23, 42, 0.14);
+  color: var(--text-primary);
+}
+
 .attr-card__advanced {
-  /*border-top: 1px dashed rgba(15, 23, 42, 0.12);*/
-  /*padding-top: 14px;*/
   display: flex;
   justify-content: flex-start;
   align-items: center;
