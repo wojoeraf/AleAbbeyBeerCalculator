@@ -314,6 +314,7 @@ const initSolver = () => {
     form,
     ingredientsWrapper,
     optionalToggle: optionalToggleBtn,
+    categoryOptionalToggle: categoryOptionalToggleBtn,
     detailsToggle: detailsToggleBtn,
     categoryPanels,
     categoryTabs,
@@ -337,6 +338,10 @@ const initSolver = () => {
 
   const totalCapInput = form ? form.querySelector('input[name="total_cap"]') : null;
   const perCapInput = form ? form.querySelector('input[name="per_cap"]') : null;
+
+  if (categoryOptionalToggleBtn) {
+    categoryOptionalToggleBtn.disabled = true;
+  }
 
   const mixCapElements = new Map();
   mixCaps.forEach((valueEl) => {
@@ -576,6 +581,27 @@ const initSolver = () => {
   const categoryPanelEntries = Array.from(categoryPanels.entries());
   const categoryTabEntries = Array.from(categoryTabs.entries());
 
+  const getActiveCategoryId = () => {
+    if (!ingredientsWrapper) {
+      return null;
+    }
+    const activeId = ingredientsWrapper.dataset.activeCategory || '';
+    return activeId.length ? activeId : null;
+  };
+
+  const updateCategoryOptionalButtonState = () => {
+    if (!categoryOptionalToggleBtn) {
+      return;
+    }
+    const activeCategoryId = getActiveCategoryId();
+    if (!activeCategoryId) {
+      categoryOptionalToggleBtn.disabled = true;
+      return;
+    }
+    const enabled = getEnabledOptionalCheckboxes(activeCategoryId);
+    categoryOptionalToggleBtn.disabled = enabled.length === 0;
+  };
+
   const activateCategory = (categoryId) => {
     const targetId = categoryId || (categoryPanelEntries.length ? categoryPanelEntries[0][0] : null);
     categoryPanelEntries.forEach(([id, panel]) => {
@@ -596,6 +622,7 @@ const initSolver = () => {
     if (ingredientsWrapper) {
       ingredientsWrapper.dataset.activeCategory = targetId || '';
     }
+    updateCategoryOptionalButtonState();
   };
 
   categoryTabEntries.forEach(([id, tab], index) => {
@@ -1101,13 +1128,23 @@ const initSolver = () => {
     }
   };
 
-  const getOptionalCheckboxes = () =>
+  const getOptionalCheckboxes = (categoryId = null) =>
     ingredientRows
+      .filter((row) => {
+        if (!row) {
+          return false;
+        }
+        if (!categoryId) {
+          return true;
+        }
+        const categoryEl = row.closest('[data-ingredient-category]');
+        return categoryEl && categoryEl.dataset.categoryId === categoryId;
+      })
       .map((row) => row.querySelector('input[type="checkbox"][name="optional_ingredients"]'))
       .filter((checkbox) => checkbox && typeof checkbox.checked === 'boolean');
 
-  const getEnabledOptionalCheckboxes = () =>
-    getOptionalCheckboxes().filter((checkbox) => !checkbox.disabled);
+  const getEnabledOptionalCheckboxes = (categoryId = null) =>
+    getOptionalCheckboxes(categoryId).filter((checkbox) => !checkbox.disabled);
 
   const enforceMutualExclusion = (includeCheckbox, optionalCheckbox, priority = 'include') => {
     let includeChanged = false;
@@ -2054,6 +2091,35 @@ const initSolver = () => {
       });
       updateOptionalToggleState();
       refreshMixSummary();
+      updateCategoryOptionalButtonState();
+    });
+  }
+
+  if (categoryOptionalToggleBtn && ingredientsWrapper) {
+    categoryOptionalToggleBtn.addEventListener('click', () => {
+      const activeCategoryId = getActiveCategoryId();
+      if (!activeCategoryId) {
+        return;
+      }
+      const enabledCheckboxes = getEnabledOptionalCheckboxes(activeCategoryId);
+      if (!enabledCheckboxes.length) {
+        return;
+      }
+      enabledCheckboxes.forEach((checkbox) => {
+        checkbox.checked = true;
+        checkbox.dataset.userOptional = 'true';
+        const row = checkbox.closest('[data-ingredient-row]');
+        const includeCheckbox = row
+          ? row.querySelector('input[type="checkbox"][name="selected_ingredients"]')
+          : null;
+        const { includeChanged } = enforceMutualExclusion(includeCheckbox, checkbox, 'optional');
+        if (includeChanged && includeCheckbox) {
+          includeCheckbox.dataset.userSelected = 'false';
+        }
+      });
+      updateOptionalToggleState();
+      refreshMixSummary();
+      updateCategoryOptionalButtonState();
     });
   }
 
@@ -2110,6 +2176,7 @@ const initSolver = () => {
         updateOptionalToggleState();
       }
       refreshMixSummary();
+      updateCategoryOptionalButtonState();
     });
 
   }
@@ -2131,6 +2198,7 @@ const initSolver = () => {
     updateStyleGhosts(styleBands);
     if (!styleName) {
       updateOptionalToggleState();
+      updateCategoryOptionalButtonState();
       return;
     }
     const activeMins = styleMinMap[styleName] || {};
@@ -2183,6 +2251,7 @@ const initSolver = () => {
     });
     updateOptionalToggleState();
     refreshMixSummary();
+    updateCategoryOptionalButtonState();
   };
 
   if (styleSelect) {
@@ -2197,6 +2266,7 @@ const initSolver = () => {
   if (!styleSelect) {
     refreshMixSummary();
   }
+  updateCategoryOptionalButtonState();
 
   const parseFloatOrNull = (value) => {
     if (value === null || value === undefined) return null;
