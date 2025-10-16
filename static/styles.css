@@ -707,6 +707,37 @@ body[data-theme='dark'] .theme-toggle[aria-pressed='true'] .theme-toggle__text {
   margin: 0;
   font-weight: 500;
   color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.target-summary__colors {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.target-summary__color {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 0 0 1px var(--surface);
+}
+
+.target-summary__color--green {
+  background: var(--slider-green);
+}
+
+.target-summary__color--yellow {
+  background: var(--slider-yellow);
+}
+
+.target-summary__color--red {
+  background: var(--slider-red);
 }
 
 .attr-grid {

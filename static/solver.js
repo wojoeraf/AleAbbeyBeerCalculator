@@ -404,10 +404,122 @@ const initSolver = () => {
       return;
     }
     const valueEl = row.querySelector('[data-target-summary-value]');
-    if (valueEl) {
-      targetSummaryMap.set(attr, valueEl);
+    if (!valueEl) {
+      return;
     }
+    const textEl = valueEl.querySelector('[data-target-summary-text]') || valueEl;
+    const colorsEl = valueEl.querySelector('[data-target-summary-colors]') || null;
+    if (colorsEl) {
+      colorsEl.innerHTML = '';
+      colorsEl.hidden = true;
+    }
+    targetSummaryMap.set(attr, {
+      container: valueEl,
+      textEl,
+      colorsEl,
+    });
   });
+
+  const targetSummaryState = new Map();
+  const SUMMARY_BAND_ORDER = ['green', 'yellow', 'red'];
+
+  const getTargetSummaryEntry = (attr) => targetSummaryMap.get(attr);
+
+  const clearTargetSummaryBands = (attr) => {
+    const entry = getTargetSummaryEntry(attr);
+    if (!entry || !entry.colorsEl) {
+      return;
+    }
+    entry.colorsEl.innerHTML = '';
+    entry.colorsEl.hidden = true;
+    targetSummaryState.delete(attr);
+  };
+
+  const getBandsForRange = (attr, minValue, maxValue) => {
+    if (!sliderTrackController || typeof sliderTrackController.getSegments !== 'function') {
+      return [];
+    }
+    const segments = sliderTrackController.getSegments(attr) || [];
+    if (!segments.length) {
+      return [];
+    }
+    const safeMin = Math.min(minValue, maxValue);
+    const safeMax = Math.max(minValue, maxValue);
+    const covered = new Set();
+    if (safeMax <= safeMin + EPS) {
+      const point = safeMin;
+      segments.forEach((segment) => {
+        if (!segment || !segment.band) {
+          return;
+        }
+        if (point >= segment.start - EPS && point <= segment.end + EPS) {
+          covered.add(segment.band);
+        }
+      });
+    } else {
+      segments.forEach((segment) => {
+        if (!segment || !segment.band) {
+          return;
+        }
+        if (segment.end < safeMin - EPS || segment.start > safeMax + EPS) {
+          return;
+        }
+        const overlapStart = Math.max(segment.start, safeMin);
+        const overlapEnd = Math.min(segment.end, safeMax);
+        if (overlapEnd >= overlapStart - EPS) {
+          covered.add(segment.band);
+        }
+      });
+    }
+    return SUMMARY_BAND_ORDER.filter((band) => covered.has(band));
+  };
+
+  const renderTargetSummaryBands = (attr, minValue, maxValue) => {
+    const entry = getTargetSummaryEntry(attr);
+    if (!entry || !entry.colorsEl) {
+      return;
+    }
+    const container = entry.colorsEl;
+    container.innerHTML = '';
+    const bands = getBandsForRange(attr, minValue, maxValue);
+    if (!bands.length) {
+      container.hidden = true;
+      return;
+    }
+    bands.forEach((band) => {
+      const dot = document.createElement('span');
+      dot.className = `target-summary__color target-summary__color--${band}`;
+      container.appendChild(dot);
+    });
+    container.hidden = false;
+  };
+
+  const updateTargetSummaryEntry = (attr, text, range = null) => {
+    const entry = getTargetSummaryEntry(attr);
+    if (!entry) {
+      return;
+    }
+    const displayText = text && String(text).trim().length ? text : '–';
+    if (entry.textEl) {
+      entry.textEl.textContent = displayText;
+    } else {
+      entry.container.textContent = displayText;
+    }
+    if (!range || !Number.isFinite(range.min) || !Number.isFinite(range.max)) {
+      clearTargetSummaryBands(attr);
+      return;
+    }
+    const clampedMin = clamp(range.min, 0, SLIDER_MAX_VALUE);
+    const clampedMax = clamp(range.max, 0, SLIDER_MAX_VALUE);
+    targetSummaryState.set(attr, { min: clampedMin, max: clampedMax });
+    renderTargetSummaryBands(attr, clampedMin, clampedMax);
+  };
+
+  const refreshTargetSummaryColors = () => {
+    targetSummaryState.forEach((range, attr) => {
+      renderTargetSummaryBands(attr, range.min, range.max);
+    });
+  };
 
   let resultsState = {
     loading: false,
@@ -1300,6 +1412,8 @@ const initSolver = () => {
       }
       sliderTrackController.setTrack(slider, attr, highlightBand);
     });
+
+    refreshTargetSummaryColors();
   };
 
   const colorStateUpdaters = selectionState.colorUpdaters;
@@ -1588,11 +1702,43 @@ const initSolver = () => {
         });
       }
 
-      if (attrName) {
-        const summaryEl = targetSummaryMap.get(attrName);
-        if (summaryEl && sliderSingleValueEl) {
-          const text = sliderSingleValueEl.textContent?.trim();
-          summaryEl.textContent = text || sliderSingleValueEl.textContent || '–';
+      if (attrName && sliderSingleValueEl) {
+        const readSimpleSummaryRange = () => {
+          if (!sliderController) {
+            return { min: null, max: null };
+          }
+          const handle = sliderMinHandle || sliderMaxHandle;
+          const key = handle ? sliderController.getHandleKey(handle) : null;
+          if (!key) {
+            return { min: null, max: null };
+          }
+          const value = sliderController.getValue(key);
+          if (!Number.isFinite(value)) {
+            return { min: null, max: null };
+          }
+          return { min: value, max: value };
+        };
+
+        const updateSimpleSummary = () => {
+          const text = sliderSingleValueEl.textContent?.trim() || sliderSingleValueEl.textContent || '–';
+          const range = readSimpleSummaryRange();
+          const hasRange = Number.isFinite(range.min) && Number.isFinite(range.max);
+          updateTargetSummaryEntry(attrName, text, hasRange ? range : null);
+        };
+
+        updateSimpleSummary();
+
+        const attachSimpleSummaryListener = (handle) => {
+          if (!handle) {
+            return;
+          }
+          handle.addEventListener('input', updateSimpleSummary);
+          handle.addEventListener('change', updateSimpleSummary);
+        };
+
+        attachSimpleSummaryListener(sliderMinHandle);
+        if (sliderMaxHandle && sliderMaxHandle !== sliderMinHandle) {
+          attachSimpleSummaryListener(sliderMaxHandle);
         }
       }
 
@@ -1817,30 +1963,45 @@ const initSolver = () => {
       if (!attrName) {
         return;
       }
-      const summaryEl = targetSummaryMap.get(attrName);
-      if (!summaryEl) {
-        return;
-      }
+      const mode = currentMode;
       const { eq, ge, le } = getModeFlags();
       let summaryText = '';
-      if (eq) {
+      let range = null;
+      if (mode === 'eq') {
         const value = sliderSingleValueEl ? sliderSingleValueEl.textContent.trim() : formatDisplayValue(storedValues.eq);
         summaryText = value || formatDisplayValue(storedValues.eq);
+        range = { min: storedValues.eq, max: storedValues.eq };
+      } else if (mode === 'between') {
+        const minValue = sliderMinValueEl ? sliderMinValueEl.textContent.trim() : formatDisplayValue(storedValues.ge);
+        const maxValue = sliderMaxValueEl ? sliderMaxValueEl.textContent.trim() : formatDisplayValue(storedValues.le);
+        summaryText = `${minValue} – ${maxValue}`;
+        range = { min: Math.min(storedValues.ge, storedValues.le), max: Math.max(storedValues.ge, storedValues.le) };
+      } else if (mode === 'ge') {
+        const minValue = sliderMinValueEl ? sliderMinValueEl.textContent.trim() : formatDisplayValue(storedValues.ge);
+        summaryText = `≥ ${minValue}`;
+        range = { min: storedValues.ge, max: SLIDER_MAX_VALUE };
+      } else if (mode === 'le') {
+        const maxValue = sliderMaxValueEl ? sliderMaxValueEl.textContent.trim() : formatDisplayValue(storedValues.le);
+        summaryText = `≤ ${maxValue}`;
+        range = { min: 0, max: storedValues.le };
       } else if (!eq && ge && le) {
         const minValue = sliderMinValueEl ? sliderMinValueEl.textContent.trim() : formatDisplayValue(storedValues.ge);
         const maxValue = sliderMaxValueEl ? sliderMaxValueEl.textContent.trim() : formatDisplayValue(storedValues.le);
         summaryText = `${minValue} – ${maxValue}`;
+        range = { min: Math.min(storedValues.ge, storedValues.le), max: Math.max(storedValues.ge, storedValues.le) };
       } else if (ge) {
         const minValue = sliderMinValueEl ? sliderMinValueEl.textContent.trim() : formatDisplayValue(storedValues.ge);
         summaryText = `≥ ${minValue}`;
+        range = { min: storedValues.ge, max: SLIDER_MAX_VALUE };
       } else if (le) {
         const maxValue = sliderMaxValueEl ? sliderMaxValueEl.textContent.trim() : formatDisplayValue(storedValues.le);
         summaryText = `≤ ${maxValue}`;
+        range = { min: 0, max: storedValues.le };
       } else {
         const value = sliderSingleValueEl ? sliderSingleValueEl.textContent.trim() : formatDisplayValue(storedValues.eq);
         summaryText = value || formatDisplayValue(storedValues.eq);
       }
-      summaryEl.textContent = summaryText || '–';
+      updateTargetSummaryEntry(attrName, summaryText || '–', range);
     };
 
     const updateSliderDisplay = () => {
@@ -2270,6 +2431,9 @@ const initSolver = () => {
       },
       setFine: (next) => {
         setFineTuneState(next);
+      },
+      refreshSummary: () => {
+        updateTargetSummaryValue();
       },
     };
 

@@ -166,6 +166,14 @@ export const initSlider = ({
       }
     };
 
+    const getSegments = (attr) => {
+      const entry = trackCache.get(attr);
+      if (!entry || !Array.isArray(entry.segments)) {
+        return [];
+      }
+      return entry.segments.slice();
+    };
+
     const getGradient = (attr, band) => {
       const entry = trackCache.get(attr);
       if (!entry) {
@@ -177,6 +185,7 @@ export const initSlider = ({
 
     return {
       setTrack,
+      getSegments,
       getGradient,
     };
   };
