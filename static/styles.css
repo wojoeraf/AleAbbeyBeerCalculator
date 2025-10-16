@@ -4,6 +4,7 @@
   --surface: rgba(255, 255, 255, 0.92);
   --surface-muted: rgba(255, 255, 255, 0.7);
   --text-primary: #0f172a;
+  --text-primary-mix-card: #cccccc;
   --text-secondary: #5f6b7d;
   --border-soft: rgba(255, 255, 255, 0.45);
   --shadow-soft: 0 24px 60px -35px rgba(15, 23, 42, 0.6);
@@ -1334,7 +1335,7 @@ body[data-theme='dark'] .chip:focus-visible {
 
 .chip:not([data-selected="true"]):hover {
   background: var(--chip-surface-hover);
-  color: var(--text-primary);
+  color: var(--text-primary-mix-card);
 }
 
 .chip[data-color="green"]:not([data-selected="true"]):hover {

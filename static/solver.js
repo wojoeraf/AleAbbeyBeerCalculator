@@ -929,9 +929,9 @@ const initSolver = () => {
   }
 
   const THEME_STORAGE_KEY = 'ale-abbey-theme';
-  const DEFAULT_THEME = 'bright';
+  const DEFAULT_THEME = 'dark';
 
-  const normalizeTheme = (value) => (value === 'dark' ? 'dark' : 'bright');
+  const normalizeTheme = (value) => (value === 'bright' ? 'bright' : 'dark');
 
   const themeBrightLabel = themeToggle ? themeToggle.dataset.brightLabel : null;
   const themeDarkLabel = themeToggle ? themeToggle.dataset.darkLabel : null;
@@ -990,7 +990,12 @@ const initSolver = () => {
 
   const prefersDarkQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 
-  const resolveSystemTheme = () => (prefersDarkQuery && prefersDarkQuery.matches ? 'dark' : DEFAULT_THEME);
+  const resolveSystemTheme = () => {
+    if (prefersDarkQuery) {
+      return prefersDarkQuery.matches ? 'dark' : 'bright';
+    }
+    return DEFAULT_THEME;
+  };
 
   if (!userSelectedTheme) {
     activeTheme = applyTheme(resolveSystemTheme(), { persist: false });

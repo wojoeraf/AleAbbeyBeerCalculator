@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
 </head>
-<body data-theme="bright">
+<body data-theme="dark">
 <div class="page" data-page-shell>
     <header class="lab-header card">
         <div class="lab-header__liquid" aria-hidden="true">
@@ -112,7 +112,8 @@
                                 data-bright-label="{{ ui.theme_option_bright }}"
                                 data-dark-label="{{ ui.theme_option_dark }}"
                                 aria-labelledby="theme-toggle-label theme-toggle-state"
-                                aria-pressed="false"
+                                aria-pressed="true"
+                                data-theme-state="dark"
                                 data-title-prefix="{{ ui.theme_switcher_label }} · "
                                 title="{{ ui.theme_switcher_label }}">
                             <span class="theme-toggle__track" aria-hidden="true">
@@ -134,7 +135,7 @@
                                 </svg>
                                 <span class="theme-toggle__thumb" aria-hidden="true"></span>
                             </span>
-                            <span class="theme-toggle__text" id="theme-toggle-state" data-theme-toggle-text>{{ ui.theme_option_bright }}</span>
+                            <span class="theme-toggle__text" id="theme-toggle-state" data-theme-toggle-text>{{ ui.theme_option_dark }}</span>
                         </button>
                     </div>
                     <div class="lab-header__support">
