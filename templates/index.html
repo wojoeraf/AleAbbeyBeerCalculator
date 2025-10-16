@@ -106,7 +106,6 @@
                         <input type="hidden" name="style" value="{{ style }}">
                     </form>
                     <div class="theme-switcher">
-                        <span class="theme-switcher__label" id="theme-toggle-label">{{ ui.theme_switcher_label }}</span>
                         <button type="button"
                                 class="theme-toggle"
                                 data-theme-toggle
@@ -142,17 +141,9 @@
             </div>
             <div class="lab-header__grid">
                 <div class="lab-header__story">
-                    <p class="lab-header__description">{{ ui.header_description }}</p>
                     <p class="lab-header__disclaimer">
                         {{ ui.header_disclaimer if ui.header_disclaimer is defined else 'Fan-made project crafted for fellow brewers —no affiliation with any official brewery.' }}
                     </p>
-                </div>
-                <div class="lab-header__cta-panel">
-                    <div class="lab-header__cta">
-                        <div class="support-buttons">
-                            <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="honigbartstudios" data-color="#FFDD00" data-emoji="🍻" data-font="Cookie" data-text="Buy me an Ale" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff"></script>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
