@@ -329,7 +329,8 @@ const initSolver = () => {
     debugToggle,
     debugContent,
     legacyToggle,
-    themeSelect,
+    themeToggle,
+    themeToggleText,
     mixPanel,
     mixList,
     mixToggle,
@@ -764,14 +765,25 @@ const initSolver = () => {
 
   const normalizeTheme = (value) => (value === 'dark' ? 'dark' : 'bright');
 
-  const syncThemeSelect = (theme) => {
-    if (!themeSelect) {
+  const themeBrightLabel = themeToggle ? themeToggle.dataset.brightLabel : null;
+  const themeDarkLabel = themeToggle ? themeToggle.dataset.darkLabel : null;
+  const themeTitlePrefix = themeToggle ? themeToggle.dataset.titlePrefix || '' : '';
+
+  const syncThemeToggle = (theme) => {
+    if (!themeToggle) {
       return;
     }
     const normalized = normalizeTheme(theme);
-    if (themeSelect.value !== normalized) {
-      themeSelect.value = normalized;
+    const isDark = normalized === 'dark';
+    themeToggle.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+    themeToggle.dataset.themeState = normalized;
+    const label = isDark ? themeDarkLabel : themeBrightLabel;
+    const fallbackLabel = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+    const displayLabel = label || fallbackLabel;
+    if (themeToggleText) {
+      themeToggleText.textContent = displayLabel;
     }
+    themeToggle.setAttribute('title', `${themeTitlePrefix}${displayLabel}`.trim());
   };
 
   const applyTheme = (theme, { persist = true } = {}) => {
@@ -782,7 +794,7 @@ const initSolver = () => {
     if (document.documentElement) {
       document.documentElement.style.setProperty('color-scheme', normalized === 'dark' ? 'dark' : 'light');
     }
-    syncThemeSelect(normalized);
+    syncThemeToggle(normalized);
     if (persist) {
       try {
         window.localStorage.setItem(THEME_STORAGE_KEY, normalized);
@@ -831,11 +843,12 @@ const initSolver = () => {
     }
   }
 
-  if (themeSelect) {
-    syncThemeSelect(activeTheme);
-    themeSelect.addEventListener('change', () => {
+  if (themeToggle) {
+    syncThemeToggle(activeTheme);
+    themeToggle.addEventListener('click', () => {
       userSelectedTheme = true;
-      activeTheme = applyTheme(themeSelect.value || DEFAULT_THEME);
+      const nextTheme = themeToggle.getAttribute('aria-pressed') === 'true' ? 'bright' : 'dark';
+      activeTheme = applyTheme(nextTheme || DEFAULT_THEME);
     });
   }
 
