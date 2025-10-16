@@ -370,12 +370,21 @@ export const renderResultCard = (solution, dictionaries = {}) => {
   const countsById = solution && typeof solution.countsById === 'object'
     ? solution.countsById
     : {};
-  Object.entries(countsById).forEach(([id, cnt]) => {
-    const chip = document.createElement('span');
-    chip.className = 'chip result-ingredients__chip';
-    const ingredientName = displayIngredientName(id);
-    const label = `${ingredientName} × ${cnt}`;
-    chip.title = label;
+  const statusPriority = {
+    required: 0,
+    include: 1,
+    optional: 2,
+  };
+  const collator = typeof Intl !== 'undefined'
+    ? new Intl.Collator(undefined, { sensitivity: 'base' })
+    : null;
+
+  const chipEntries = Object.entries(countsById).map(([id, cnt]) => {
+    const nameRaw = displayIngredientName(id);
+    const nameText = typeof nameRaw === 'string'
+      ? nameRaw
+      : String(nameRaw || id);
+    const label = `${nameText} × ${cnt}`;
 
     let status = 'include';
     if (requiredSet.has(id)) {
@@ -386,17 +395,52 @@ export const renderResultCard = (solution, dictionaries = {}) => {
       status = 'include';
     }
 
-    chip.dataset.status = status;
-    const statusText = statusLabelMap[status];
-    if (typeof statusText === 'string' && statusText.length) {
-      chip.setAttribute('data-status-label', statusText);
-      chip.setAttribute('aria-label', `${label} (${statusText})`);
+    return {
+      id,
+      count: cnt,
+      status,
+      label,
+      nameText,
+      statusText: statusLabelMap[status],
+    };
+  });
+
+  chipEntries.sort((a, b) => {
+    const priorityDiff = (statusPriority[a.status] ?? 99) - (statusPriority[b.status] ?? 99);
+    if (priorityDiff !== 0) {
+      return priorityDiff;
+    }
+    const nameA = a.nameText || '';
+    const nameB = b.nameText || '';
+    if (collator) {
+      const nameDiff = collator.compare(nameA, nameB);
+      if (nameDiff !== 0) {
+        return nameDiff;
+      }
+    } else if (nameA !== nameB) {
+      const nameDiff = nameA.localeCompare(nameB);
+      if (nameDiff !== 0) {
+        return nameDiff;
+      }
+    }
+    return String(a.label).localeCompare(String(b.label));
+  });
+
+  chipEntries.forEach((entry) => {
+    const chip = document.createElement('span');
+    chip.className = 'chip result-ingredients__chip';
+    chip.dataset.status = entry.status;
+    chip.title = entry.label;
+
+    if (typeof entry.statusText === 'string' && entry.statusText.length) {
+      chip.setAttribute('data-status-label', entry.statusText);
+      chip.setAttribute('aria-label', `${entry.label} (${entry.statusText})`);
     } else {
-      chip.setAttribute('aria-label', label);
+      chip.setAttribute('aria-label', entry.label);
     }
 
     const span = document.createElement('span');
-    span.textContent = label;
+    span.textContent = entry.label;
     chip.appendChild(span);
     chipsContainer.appendChild(chip);
   });
