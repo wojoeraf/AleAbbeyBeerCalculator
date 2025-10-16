@@ -2508,6 +2508,7 @@ const initSolver = () => {
         bandLabels,
         ATTRS,
         displayIngredientName,
+        displayStyleName,
         sanitizeBand,
         formatResultValue,
         clamp,
