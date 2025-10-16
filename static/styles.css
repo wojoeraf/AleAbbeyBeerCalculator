@@ -422,6 +422,11 @@ body[data-theme='dark'] .language-switcher {
   z-index: -1;
 }
 
+.language-flag:hover::before,
+.language-flag:focus-visible::before {
+  opacity: 1;
+}
+
 .language-flag:hover,
 .language-flag:focus-visible {
   transform: translateY(-4px) scale(1.04);
