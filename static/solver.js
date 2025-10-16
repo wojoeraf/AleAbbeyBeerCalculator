@@ -594,12 +594,31 @@ const initSolver = () => {
       return;
     }
     const activeCategoryId = getActiveCategoryId();
+    const labelEl = categoryOptionalToggleBtn.querySelector('[data-category-optional-label]');
+    const selectLabel = categoryOptionalToggleBtn.dataset.labelSelect || categoryOptionalToggleBtn.textContent || '';
+    const clearLabel = categoryOptionalToggleBtn.dataset.labelClear || categoryOptionalToggleBtn.textContent || '';
     if (!activeCategoryId) {
       categoryOptionalToggleBtn.disabled = true;
+      if (labelEl) {
+        labelEl.textContent = selectLabel;
+      } else {
+        categoryOptionalToggleBtn.textContent = selectLabel;
+      }
+      categoryOptionalToggleBtn.dataset.state = 'none';
       return;
     }
     const enabled = getEnabledOptionalCheckboxes(activeCategoryId);
-    categoryOptionalToggleBtn.disabled = enabled.length === 0;
+    const hasEnabled = enabled.length > 0;
+    const allChecked = hasEnabled && enabled.every((checkbox) => checkbox.checked);
+    const hasAny = enabled.some((checkbox) => checkbox.checked);
+    categoryOptionalToggleBtn.disabled = !hasEnabled;
+    const nextLabel = allChecked ? clearLabel : selectLabel;
+    if (labelEl) {
+      labelEl.textContent = nextLabel;
+    } else {
+      categoryOptionalToggleBtn.textContent = nextLabel;
+    }
+    categoryOptionalToggleBtn.dataset.state = allChecked ? 'all' : hasAny ? 'some' : 'none';
   };
 
   const activateCategory = (categoryId) => {
@@ -2107,14 +2126,19 @@ const initSolver = () => {
       if (!enabledCheckboxes.length) {
         return;
       }
+      const shouldSelectAll = enabledCheckboxes.some((checkbox) => !checkbox.checked);
       enabledCheckboxes.forEach((checkbox) => {
-        checkbox.checked = true;
-        checkbox.dataset.userOptional = 'true';
+        checkbox.checked = shouldSelectAll;
+        checkbox.dataset.userOptional = shouldSelectAll ? 'true' : 'false';
         const row = checkbox.closest('[data-ingredient-row]');
         const includeCheckbox = row
           ? row.querySelector('input[type="checkbox"][name="selected_ingredients"]')
           : null;
-        const { includeChanged } = enforceMutualExclusion(includeCheckbox, checkbox, 'optional');
+        const { includeChanged } = enforceMutualExclusion(
+          includeCheckbox,
+          checkbox,
+          shouldSelectAll ? 'optional' : 'include'
+        );
         if (includeChanged && includeCheckbox) {
           includeCheckbox.dataset.userSelected = 'false';
         }
