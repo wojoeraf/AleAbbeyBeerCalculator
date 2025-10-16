@@ -11,14 +11,24 @@
 <div class="page" data-page-shell>
     <header class="lab-header card">
         <div class="lab-header__liquid" aria-hidden="true">
-            <div class="lab-header__foam"></div>
             <div class="lab-header__bubbles">
-                <span class="lab-header__bubble" style="--index:0"></span>
-                <span class="lab-header__bubble" style="--index:1"></span>
-                <span class="lab-header__bubble" style="--index:2"></span>
-                <span class="lab-header__bubble" style="--index:3"></span>
-                <span class="lab-header__bubble" style="--index:4"></span>
-                <span class="lab-header__bubble" style="--index:5"></span>
+                <div class="lab-header__bubble-field lab-header__bubble-field--back">
+                    <span class="lab-header__bubble" style="--x:8%;--size:46px;--duration:24s;--delay:-9s;--drift:-18;--travel:68;--scale:0.82;--blur:6px;--opacity:0.38"></span>
+                    <span class="lab-header__bubble" style="--x:22%;--size:32px;--duration:28s;--delay:-14s;--drift:10;--travel:74;--scale:0.75;--blur:4px;--opacity:0.32"></span>
+                    <span class="lab-header__bubble" style="--x:38%;--size:40px;--duration:26s;--delay:-21s;--drift:-6;--travel:80;--scale:0.78;--blur:5px;--opacity:0.4"></span>
+                    <span class="lab-header__bubble" style="--x:54%;--size:28px;--duration:30s;--delay:-18s;--drift:18;--travel:86;--scale:0.72;--blur:6px;--opacity:0.3"></span>
+                    <span class="lab-header__bubble" style="--x:68%;--size:44px;--duration:32s;--delay:-25s;--drift:-24;--travel:92;--scale:0.84;--blur:7px;--opacity:0.36"></span>
+                    <span class="lab-header__bubble" style="--x:84%;--size:34px;--duration:29s;--delay:-11s;--drift:12;--travel:76;--scale:0.7;--blur:5px;--opacity:0.34"></span>
+                </div>
+                <div class="lab-header__bubble-field lab-header__bubble-field--front">
+                    <span class="lab-header__bubble" style="--x:12%;--size:58px;--duration:18s;--delay:-6s;--drift:24;--travel:88;--scale:1.05;--blur:1.5px;--opacity:0.62"></span>
+                    <span class="lab-header__bubble" style="--x:28%;--size:36px;--duration:21s;--delay:-12s;--drift:-16;--travel:90;--scale:0.95;--blur:1px;--opacity:0.58"></span>
+                    <span class="lab-header__bubble" style="--x:42%;--size:52px;--duration:19s;--delay:-17s;--drift:8;--travel:96;--scale:1.1;--blur:2px;--opacity:0.66"></span>
+                    <span class="lab-header__bubble" style="--x:58%;--size:40px;--duration:23s;--delay:-4s;--drift:-28;--travel:82;--scale:0.92;--blur:1px;--opacity:0.55"></span>
+                    <span class="lab-header__bubble" style="--x:72%;--size:62px;--duration:20s;--delay:-15s;--drift:16;--travel:94;--scale:1.08;--blur:1.5px;--opacity:0.68"></span>
+                    <span class="lab-header__bubble" style="--x:88%;--size:44px;--duration:22s;--delay:-9s;--drift:-12;--travel:84;--scale:0.98;--blur:1px;--opacity:0.6"></span>
+                    <span class="lab-header__bubble" style="--x:50%;--size:30px;--duration:27s;--delay:-19s;--drift:6;--travel:76;--scale:0.88;--blur:2px;--opacity:0.5"></span>
+                </div>
             </div>
         </div>
         <div class="lab-header__content">
@@ -36,13 +46,35 @@
                                         value="{{ entry.code }}"
                                         class="language-flag{% if entry.code == lang %} language-flag--active{% endif %}"
                                         aria-label="{{ entry.label }}">
-                                    <span aria-hidden="true" class="language-flag__emoji">
-                                        {% if entry.code.lower() in ['en', 'en-us', 'en-gb'] %}
-                                            🇬🇧
-                                        {% elif entry.code.lower() in ['de', 'de-de'] %}
-                                            🇩🇪
+                                    <span aria-hidden="true" class="language-flag__icon">
+                                        {% if entry.code|lower in ['en', 'en-us', 'en-gb'] %}
+                                            {% set clip_id = 'flag-uk-' ~ loop.index0 %}
+                                            <svg viewBox="0 0 60 40" class="language-flag__svg" focusable="false" aria-hidden="true">
+                                                <clipPath id="{{ clip_id }}">
+                                                    <rect width="60" height="40" rx="6"></rect>
+                                                </clipPath>
+                                                <g clip-path="url(#{{ clip_id }})">
+                                                    <rect width="60" height="40" fill="#012169"></rect>
+                                                    <path d="M0 0L60 40M60 0L0 40" stroke="#ffffff" stroke-width="9" stroke-linecap="square"></path>
+                                                    <path d="M0 0L60 40M60 0L0 40" stroke="#C8102E" stroke-width="5" stroke-linecap="square"></path>
+                                                    <path d="M30 0v40M0 20h60" stroke="#ffffff" stroke-width="14" stroke-linecap="square"></path>
+                                                    <path d="M30 0v40M0 20h60" stroke="#C8102E" stroke-width="8" stroke-linecap="square"></path>
+                                                </g>
+                                            </svg>
+                                        {% elif entry.code|lower in ['de', 'de-de'] %}
+                                            {% set clip_id = 'flag-de-' ~ loop.index0 %}
+                                            <svg viewBox="0 0 60 40" class="language-flag__svg" focusable="false" aria-hidden="true">
+                                                <clipPath id="{{ clip_id }}">
+                                                    <rect width="60" height="40" rx="6"></rect>
+                                                </clipPath>
+                                                <g clip-path="url(#{{ clip_id }})">
+                                                    <rect width="60" height="40" fill="#FFCE00"></rect>
+                                                    <rect width="60" height="26.666" y="0" fill="#DD0000"></rect>
+                                                    <rect width="60" height="13.333" y="0" fill="#000000"></rect>
+                                                </g>
+                                            </svg>
                                         {% else %}
-                                            🌐
+                                            <span class="language-flag__emoji-fallback">🌐</span>
                                         {% endif %}
                                     </span>
                                     <span class="sr-only language-flag__label">{{ entry.label }}</span>
