@@ -854,7 +854,7 @@ body[data-theme='dark'] .chip:focus-visible {
   height: 12px;
   border-radius: 999px;
   background: var(--slider-track-gradient);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .range-slider::before {
@@ -863,6 +863,7 @@ body[data-theme='dark'] .chip:focus-visible {
   inset: 0;
   background: var(--slider-track, var(--slider-track-gradient));
   opacity: 0.75;
+  border-radius: inherit;
 }
 
 .range-slider-thumb {
