@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
 </head>
-<body>
+<body data-theme="bright">
 <div class="page" data-page-shell>
     <header class="lab-header card">
         <div class="lab-header__titles">
@@ -38,6 +38,13 @@
                     </div>
                     <input type="hidden" name="style" value="{{ style }}">
                 </form>
+                <div class="theme-switcher">
+                    <label class="theme-switcher__label" for="theme-select">{{ ui.theme_switcher_label }}</label>
+                    <select id="theme-select" data-theme-select>
+                        <option value="bright">{{ ui.theme_option_bright }}</option>
+                        <option value="dark">{{ ui.theme_option_dark }}</option>
+                    </select>
+                </div>
             </div>
         </div>
     </header>

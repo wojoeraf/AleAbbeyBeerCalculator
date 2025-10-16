@@ -329,6 +329,7 @@ const initSolver = () => {
     debugToggle,
     debugContent,
     legacyToggle,
+    themeSelect,
     mixPanel,
     mixList,
     mixToggle,
@@ -755,6 +756,86 @@ const initSolver = () => {
       if (panel) {
         panel.hidden = false;
       }
+    });
+  }
+
+  const THEME_STORAGE_KEY = 'ale-abbey-theme';
+  const DEFAULT_THEME = 'bright';
+
+  const normalizeTheme = (value) => (value === 'dark' ? 'dark' : 'bright');
+
+  const syncThemeSelect = (theme) => {
+    if (!themeSelect) {
+      return;
+    }
+    const normalized = normalizeTheme(theme);
+    if (themeSelect.value !== normalized) {
+      themeSelect.value = normalized;
+    }
+  };
+
+  const applyTheme = (theme, { persist = true } = {}) => {
+    const normalized = normalizeTheme(theme);
+    if (document.body) {
+      document.body.dataset.theme = normalized;
+    }
+    if (document.documentElement) {
+      document.documentElement.style.setProperty('color-scheme', normalized === 'dark' ? 'dark' : 'light');
+    }
+    syncThemeSelect(normalized);
+    if (persist) {
+      try {
+        window.localStorage.setItem(THEME_STORAGE_KEY, normalized);
+      } catch (error) {
+        console.warn('Failed to persist theme preference', error);
+      }
+    }
+    return normalized;
+  };
+
+  let storedTheme = null;
+  try {
+    storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+  } catch (error) {
+    storedTheme = null;
+  }
+
+  let userSelectedTheme = false;
+  let activeTheme = DEFAULT_THEME;
+
+  if (storedTheme) {
+    userSelectedTheme = true;
+    activeTheme = applyTheme(storedTheme, { persist: false });
+  }
+
+  const prefersDarkQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+
+  const resolveSystemTheme = () => (prefersDarkQuery && prefersDarkQuery.matches ? 'dark' : DEFAULT_THEME);
+
+  if (!userSelectedTheme) {
+    activeTheme = applyTheme(resolveSystemTheme(), { persist: false });
+  }
+
+  const handlePrefersThemeChange = () => {
+    if (userSelectedTheme) {
+      return;
+    }
+    activeTheme = applyTheme(resolveSystemTheme(), { persist: false });
+  };
+
+  if (prefersDarkQuery) {
+    if (typeof prefersDarkQuery.addEventListener === 'function') {
+      prefersDarkQuery.addEventListener('change', handlePrefersThemeChange);
+    } else if (typeof prefersDarkQuery.addListener === 'function') {
+      prefersDarkQuery.addListener(handlePrefersThemeChange);
+    }
+  }
+
+  if (themeSelect) {
+    syncThemeSelect(activeTheme);
+    themeSelect.addEventListener('change', () => {
+      userSelectedTheme = true;
+      activeTheme = applyTheme(themeSelect.value || DEFAULT_THEME);
     });
   }
 
