@@ -81,7 +81,8 @@ export const renderResultCard = (solution, dictionaries = {}) => {
     selectionMeta = {},
   } = dictionaries;
 
-  const index = typeof dictionaries.index === 'number' ? dictionaries.index : 0;
+  const indexValue = Number(dictionaries.index);
+  const index = Number.isFinite(indexValue) ? indexValue : 0;
 
   const resolveStyleId = () => {
     if (typeof dictionaries.currentStyleId === 'string' && dictionaries.currentStyleId) {
