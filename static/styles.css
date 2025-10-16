@@ -428,7 +428,10 @@ body[data-theme='dark'] .language-switcher {
   place-items: center;
   cursor: pointer;
   color: inherit;
+  overflow: hidden;
+  transition: transform 0.45s cubic-bezier(0.22, 0.61, 0.36, 1), box-shadow 0.45s ease, border-color 0.45s ease;
 }
+
 
 
 .language-flag::before {
@@ -436,10 +439,21 @@ body[data-theme='dark'] .language-switcher {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(125deg, rgba(253, 230, 138, 0.55), rgba(249, 115, 22, 0.55));
+  background: linear-gradient(125deg, rgba(253, 230, 138, 0.38), rgba(249, 115, 22, 0.32));
   opacity: 0;
   z-index: -1;
   pointer-events: none;
+}
+
+.language-flag::after {
+  content: '';
+  position: absolute;
+  inset: -40%;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.42), rgba(253, 230, 138, 0.04));
+  transform: translateX(-100%) rotate(10deg);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.4s ease;
 }
 
 .language-flag:hover::before,
@@ -447,10 +461,17 @@ body[data-theme='dark'] .language-switcher {
   opacity: 1;
 }
 
+.language-flag:hover::after,
+.language-flag:focus-visible::after {
+  transform: translateX(90%) rotate(10deg);
+  opacity: 0.45;
+}
+
 .language-flag:hover,
 .language-flag:focus-visible {
-  box-shadow: 0 20px 35px -20px rgba(249, 115, 22, 0.5);
-  border-color: rgba(249, 115, 22, 0.4);
+  box-shadow: 0 16px 28px -22px rgba(249, 115, 22, 0.38);
+  border-color: rgba(249, 115, 22, 0.28);
+  transform: translateY(-2px) scale(1.015);
 }
 
 .language-flag:focus-visible {
@@ -469,7 +490,7 @@ body[data-theme='dark'] .language-flag {
 }
 
 body[data-theme='dark'] .language-flag::before {
-  background: linear-gradient(125deg, rgba(253, 230, 138, 0.6), rgba(249, 115, 22, 0.45));
+  background: linear-gradient(125deg, rgba(253, 230, 138, 0.42), rgba(249, 115, 22, 0.3));
 }
 
 .language-flag__icon {
@@ -836,15 +857,45 @@ body[data-theme='dark'] .support-cta__shine {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   cursor: pointer;
-  transition: background 0.35s ease, border-color 0.35s ease, color 0.35s ease, box-shadow 0.35s ease;
+  transition: background 0.35s ease, border-color 0.35s ease, color 0.35s ease, box-shadow 0.35s ease, transform 0.4s cubic-bezier(0.22, 0.61, 0.36, 1);
   box-shadow: 0 18px 40px -28px rgba(15, 23, 42, 0.8);
   touch-action: manipulation;
+  position: relative;
+  overflow: hidden;
+}
+
+.theme-toggle::before {
+  content: '';
+  position: absolute;
+  inset: -30%;
+  border-radius: inherit;
+  background: radial-gradient(circle at center, rgba(253, 230, 138, 0.55), rgba(249, 115, 22, 0.15) 55%, rgba(15, 23, 42, 0));
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.theme-toggle > * {
+  position: relative;
+  z-index: 1;
 }
 
 .theme-toggle:hover {
   background: var(--surface);
   border-color: var(--toggle-border-strong);
   color: var(--text-primary);
+  transform: translateY(-3px) scale(1.01);
+}
+
+.theme-toggle:hover::before {
+  opacity: 0.75;
+  transform: scale(1.08);
+}
+
+.theme-toggle:active {
+  transform: translateY(-1px) scale(0.995);
 }
 
 .theme-toggle:focus-visible {
@@ -953,6 +1004,10 @@ body[data-theme='dark'] .theme-toggle:hover {
   color: var(--results-card-text);
 }
 
+body[data-theme='dark'] .theme-toggle:hover::before {
+  background: radial-gradient(circle at center, rgba(253, 230, 138, 0.4), rgba(249, 115, 22, 0.12) 55%, rgba(15, 23, 42, 0));
+}
+
 body[data-theme='dark'] .theme-toggle[aria-pressed='true'] {
   background: rgba(251, 146, 60, 0.2);
   border-color: rgba(251, 146, 60, 0.55);
@@ -982,6 +1037,24 @@ body[data-theme='dark'] .theme-toggle[aria-pressed='true'] .theme-toggle__text {
   .theme-toggle__icon,
   .theme-toggle__text {
     transition: none;
+  }
+
+  .language-flag,
+  .language-flag::after,
+  .theme-toggle::before {
+    transition: none;
+  }
+
+  .language-flag:hover,
+  .language-flag:focus-visible,
+  .theme-toggle:hover,
+  .theme-toggle:active {
+    transform: none;
+  }
+
+  .language-flag::after,
+  .theme-toggle::before {
+    opacity: 0;
   }
 }
 
