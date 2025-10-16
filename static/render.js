@@ -209,20 +209,99 @@ export const renderResultCard = (solution, dictionaries = {}) => {
   toggleIcon.setAttribute('aria-hidden', 'true');
   toggleButton.appendChild(toggleIcon);
 
-  const setExpandedState = (expanded) => {
+  let bodyAnimation = null;
+
+  const clearBodyAnimationStyles = () => {
+    body.style.removeProperty('height');
+    body.style.removeProperty('opacity');
+    body.style.removeProperty('transform');
+  };
+
+  const animateBody = (expanded) => {
+    if (bodyAnimation) {
+      bodyAnimation.cancel();
+      bodyAnimation = null;
+    }
+
+    if (expanded) {
+      body.hidden = false;
+    }
+
+    const startHeight = expanded ? 0 : body.offsetHeight;
+    const endHeight = expanded ? body.scrollHeight : 0;
+
+    body.classList.add('is-animating');
+
+    bodyAnimation = body.animate(
+      expanded
+        ? [
+            {
+              height: `${startHeight}px`,
+              opacity: startHeight ? 1 : 0,
+              transform: `translateY(${startHeight ? 0 : -8}px)`,
+            },
+            { height: `${endHeight}px`, opacity: 1, transform: 'translateY(0)' },
+          ]
+        : [
+            { height: `${startHeight}px`, opacity: 1, transform: 'translateY(0)' },
+            { height: `${endHeight}px`, opacity: 0, transform: 'translateY(-8px)' },
+          ],
+      {
+        duration: 360,
+        easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+        fill: 'forwards',
+      },
+    );
+
+    bodyAnimation.onfinish = () => {
+      bodyAnimation = null;
+      body.classList.remove('is-animating');
+      if (!expanded) {
+        body.hidden = true;
+      }
+      clearBodyAnimationStyles();
+    };
+
+    bodyAnimation.oncancel = () => {
+      body.classList.remove('is-animating');
+      clearBodyAnimationStyles();
+    };
+  };
+
+  const setExpandedState = (expanded, options = {}) => {
     const next = Boolean(expanded);
+    const { animate = true } = options;
     const label = resolveToggleLabel(next);
     toggleButton.setAttribute('aria-expanded', next ? 'true' : 'false');
     toggleButton.setAttribute('aria-label', label);
     toggleButton.title = label;
     card.dataset.expanded = next ? 'true' : 'false';
     toggleButton.dataset.iconState = next ? 'expanded' : 'collapsed';
-    body.hidden = !next;
+    body.setAttribute('aria-hidden', next ? 'false' : 'true');
+
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const canAnimate = typeof body.animate === 'function';
+
+    if (!animate || prefersReducedMotion || !canAnimate) {
+      if (bodyAnimation) {
+        bodyAnimation.cancel();
+        bodyAnimation = null;
+      }
+      body.classList.remove('is-animating');
+      body.hidden = !next;
+      clearBodyAnimationStyles();
+      return;
+    }
+
+    animateBody(next);
   };
 
   toggleButton.addEventListener('click', () => {
     const isExpanded = card.dataset.expanded === 'true';
-    setExpandedState(!isExpanded);
+    setExpandedState(!isExpanded, { animate: true });
   });
 
   actions.appendChild(toggleButton);
@@ -478,7 +557,7 @@ export const renderResultCard = (solution, dictionaries = {}) => {
   });
 
   const defaultExpanded = index === 0;
-  setExpandedState(defaultExpanded);
+  setExpandedState(defaultExpanded, { animate: false });
 
   return card;
 };

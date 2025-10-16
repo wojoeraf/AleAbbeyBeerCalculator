@@ -1644,18 +1644,17 @@ body[data-theme='dark'] .chip:focus-visible {
   content: '▸';
 }
 
-.result-card[data-expanded='false'] .result-card-body {
-  display: none;
-}
-
-.result-card[data-expanded='true'] .result-card-body {
-  display: flex;
-}
-
 .result-card-body {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow: hidden;
+  transform-origin: top center;
+  will-change: height, opacity, transform;
+}
+
+.result-card-body.is-animating {
+  pointer-events: none;
 }
 
 .result-card[data-expanded='false'] .result-card-toggle {
