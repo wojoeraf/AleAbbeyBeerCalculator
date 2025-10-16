@@ -352,7 +352,7 @@ const initSolver = () => {
     mixCapElements.set(type, { wrapper, valueEl });
   });
 
-  const MIX_VISIBLE_LIMIT = 8;
+  const MIX_VISIBLE_LIMIT = 6;
   let mixExpanded = false;
   let lastMixSummaryCount = 0;
 
