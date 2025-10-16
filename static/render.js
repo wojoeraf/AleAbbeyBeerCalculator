@@ -182,15 +182,15 @@ export const renderResultCard = (solution, dictionaries = {}) => {
   const actions = document.createElement('div');
   actions.className = 'result-card-actions';
 
-  const rank = document.createElement('span');
-  rank.className = 'result-card-rank';
-  rank.textContent = `#${index + 1}`;
-  actions.appendChild(rank);
-
   const toggleButton = document.createElement('button');
   toggleButton.type = 'button';
   toggleButton.className = 'result-card-toggle';
   toggleButton.setAttribute('aria-controls', bodyId);
+
+  const rankLabel = document.createElement('span');
+  rankLabel.className = 'result-card-toggle-label';
+  rankLabel.textContent = `#${index + 1}`;
+  toggleButton.appendChild(rankLabel);
 
   const resolveToggleLabel = (expanded) => {
     const keys = expanded
