@@ -411,6 +411,7 @@ body[data-theme='dark'] .language-switcher {
   color: inherit;
 }
 
+
 .language-flag::before {
   content: '';
   position: absolute;
@@ -418,13 +419,16 @@ body[data-theme='dark'] .language-switcher {
   border-radius: inherit;
   background: linear-gradient(125deg, rgba(253, 230, 138, 0.55), rgba(249, 115, 22, 0.55));
   opacity: 0;
-  transition: opacity 0.35s ease;
+  transform: scale(0.94);
+  transition: opacity 0.35s ease, transform 0.35s ease;
   z-index: -1;
+  pointer-events: none;
 }
 
 .language-flag:hover::before,
 .language-flag:focus-visible::before {
   opacity: 1;
+  transform: scale(1);
 }
 
 .language-flag:hover,
@@ -441,6 +445,7 @@ body[data-theme='dark'] .language-switcher {
 
 .language-flag--active::before {
   opacity: 1;
+  transform: scale(1);
 }
 
 body[data-theme='dark'] .language-flag {
