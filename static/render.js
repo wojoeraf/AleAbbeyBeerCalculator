@@ -212,6 +212,14 @@ export const renderResultCard = (solution, dictionaries = {}) => {
 
   let bodyAnimation = null;
 
+  const applyDisplayState = (expanded) => {
+    if (expanded) {
+      body.style.removeProperty('display');
+      return;
+    }
+    body.style.display = 'none';
+  };
+
   const clearBodyAnimationStyles = () => {
     body.style.removeProperty('height');
     body.style.removeProperty('opacity');
@@ -226,6 +234,7 @@ export const renderResultCard = (solution, dictionaries = {}) => {
 
     if (expanded) {
       body.hidden = false;
+      applyDisplayState(true);
     }
 
     const startHeight = expanded ? 0 : body.offsetHeight;
@@ -259,12 +268,16 @@ export const renderResultCard = (solution, dictionaries = {}) => {
       body.classList.remove('is-animating');
       if (!expanded) {
         body.hidden = true;
+        applyDisplayState(false);
       }
       clearBodyAnimationStyles();
     };
 
     bodyAnimation.oncancel = () => {
       body.classList.remove('is-animating');
+      if (card.dataset.expanded !== 'true') {
+        applyDisplayState(false);
+      }
       clearBodyAnimationStyles();
     };
   };
@@ -293,6 +306,7 @@ export const renderResultCard = (solution, dictionaries = {}) => {
       }
       body.classList.remove('is-animating');
       body.hidden = !next;
+      applyDisplayState(next);
       clearBodyAnimationStyles();
       return;
     }
