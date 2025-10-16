@@ -25,6 +25,8 @@
   --chip-optional-text: #0f172a;
   --required: #2563eb;
   --required-soft: rgba(59, 130, 246, 0.16);
+  --include: #16a34a;
+  --include-soft: rgba(34, 197, 94, 0.18);
   --optional: #f59e0b;
   --optional-soft: rgba(245, 158, 11, 0.18);
   --success: #16a34a;
@@ -103,6 +105,8 @@ body[data-theme='dark'] {
   --danger: #f87171;
   --required: #60a5fa;
   --required-soft: rgba(96, 165, 250, 0.22);
+  --include: #34d399;
+  --include-soft: rgba(34, 197, 94, 0.24);
   --optional: #fbbf24;
   --optional-soft: rgba(245, 158, 11, 0.25);
   --ghost-track: rgba(148, 163, 184, 0.24);
@@ -1446,6 +1450,11 @@ body[data-theme='dark'] .chip:focus-visible {
 .mix-summary__item[data-status="required"] .mix-summary__badge {
   background: var(--required-soft);
   color: var(--required);
+}
+
+.mix-summary__item[data-status="selected"] .mix-summary__badge {
+  background: var(--include-soft);
+  color: var(--include);
 }
 
 .mix-summary__item[data-status="optional"] .mix-summary__badge {
