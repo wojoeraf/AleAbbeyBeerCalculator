@@ -251,6 +251,7 @@ export const solveRecipe = (params) => {
     return {
       solutions: [],
       info: [translate('unknown_style', { style: displayStyleName(styleName) })],
+      totalSolutions: 0,
     };
   }
 
@@ -293,7 +294,7 @@ export const solveRecipe = (params) => {
   });
 
   if (minCounts.some((cnt) => cnt > perCap)) {
-    return { solutions: [], info: [translate('min_exceeds_cap')] };
+    return { solutions: [], info: [translate('min_exceeds_cap')], totalSolutions: 0 };
   }
 
   const minSum = minCounts.reduce((acc, val) => acc + val, 0);
@@ -425,7 +426,7 @@ export const solveRecipe = (params) => {
 
   const perAttrLists = attrs.map((attr) => allowedIntervalsForAttr(attr, allowedBandMap[attr]));
   if (perAttrLists.some((list) => list.length === 0)) {
-    return { solutions: [], info: [translate('no_intervals')] };
+    return { solutions: [], info: [translate('no_intervals')], totalSolutions: 0 };
   }
 
   const attrNeedSigns = attrs.map((_, attrIdx) => {
@@ -559,7 +560,7 @@ export const solveRecipe = (params) => {
     attrs.length,
   );
   if (suffixMinCounts[0] > adjustedTotalCap) {
-    return { solutions: [], info: [translate('cap_too_small')] };
+    return { solutions: [], info: [translate('cap_too_small')], totalSolutions: 0 };
   }
 
   const counts = new Array(orderLength).fill(0);
@@ -634,6 +635,7 @@ export const solveRecipe = (params) => {
 
   const infoMessages = [];
   let globalAborted = false;
+  let totalSolutions = 0;
 
   const iterateBoxes = (attrIdx, lower, upper) => {
     if (attrIdx === attrs.length) {
@@ -685,6 +687,7 @@ export const solveRecipe = (params) => {
             return;
           }
           seenCombos.add(key);
+          totalSolutions += 1;
 
           const bands = {};
           for (let k = 0; k < attrs.length; k += 1) {
@@ -923,15 +926,20 @@ export const solveRecipe = (params) => {
             combinedInfo.push(msg);
           }
         });
+        const fallbackSolutions = Array.isArray(fallbackResult.solutions)
+          ? fallbackResult.solutions
+          : [];
+        const fallbackTotal = Number.isFinite(fallbackResult.totalSolutions)
+          ? fallbackResult.totalSolutions
+          : fallbackSolutions.length;
         return {
-          solutions: Array.isArray(fallbackResult.solutions)
-            ? fallbackResult.solutions
-            : [],
+          solutions: fallbackSolutions,
           info: combinedInfo,
+          totalSolutions: fallbackTotal,
         };
       }
     }
   }
 
-  return { solutions, info: infoMessages };
+  return { solutions, info: infoMessages, totalSolutions };
 };

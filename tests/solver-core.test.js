@@ -154,6 +154,14 @@ test('solveRecipe finds a light ale all-green combination', () => {
     foam: 'green',
   });
   assert.ok(best.totalCost <= 10, 'expected affordable solution');
+  assert.ok(
+    Number.isFinite(result.totalSolutions),
+    'expected totalSolutions to be a finite number',
+  );
+  assert.ok(
+    result.totalSolutions >= result.solutions.length,
+    `expected totalSolutions >= solutions.length, got ${result.totalSolutions} vs ${result.solutions.length}`,
+  );
 });
 
 test('solveRecipe excludes unchecked optional ingredients', () => {
@@ -247,5 +255,48 @@ test('solveRecipe trims large optional sets when hitting search limit', () => {
   assert.ok(
     result.info.includes('trimmed 8/25'),
     `expected trim message, got ${result.info.join(', ')}`,
+  );
+});
+
+test('solveRecipe reports total solutions beyond the displayed top results', () => {
+  const attrs = ['virtue'];
+  const styles = {
+    sampler: {
+      base: [0],
+      min_counts: {},
+      bands: {},
+    },
+  };
+  const ingredients = [
+    { id: 'alpha', vec: [0], cost: 0 },
+    { id: 'beta', vec: [0], cost: 0 },
+  ];
+  const numericIntervals = { virtue: [Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY] };
+  const bandPreferences = { virtue: null };
+
+  const result = solveRecipe({
+    styleName: 'sampler',
+    numericIntervals,
+    bandPreferences,
+    totalCap: 2,
+    perCap: 2,
+    extraMinCounts: {},
+    allowedIngredientIds: null,
+    topK: 1,
+    attrs,
+    styles,
+    ingredients,
+    translate: () => 'msg',
+    displayStyleName: (id) => id,
+  });
+
+  assert.strictEqual(
+    result.solutions.length,
+    1,
+    'expected only the top solution to be returned when topK is 1',
+  );
+  assert.ok(
+    result.totalSolutions > result.solutions.length,
+    `expected totalSolutions to exceed displayed count, got ${result.totalSolutions}`,
   );
 });

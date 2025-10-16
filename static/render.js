@@ -509,6 +509,7 @@ export const renderResults = (state, dictionaries) => {
     solutions = null,
     info = [],
     selection = {},
+    totalSolutions = 0,
   } = state || {};
 
   const {
@@ -571,10 +572,66 @@ export const renderResults = (state, dictionaries) => {
 
   if (resultsTitle) {
     const count = solutions.length;
-    const titleText = translate('results_title', { count });
-    resultsTitle.textContent = typeof titleText === 'string'
-      ? titleText
-      : translate('results_heading');
+    const normalizeNumber = (value, fallback) => {
+      const numericValue = Number(value);
+      return Number.isFinite(numericValue) ? numericValue : fallback;
+    };
+    const formatNumber = (value) => {
+      const numericValue = Number(value);
+      if (!Number.isFinite(numericValue)) {
+        return '';
+      }
+      try {
+        return numericValue.toLocaleString();
+      } catch (error) {
+        return String(numericValue);
+      }
+    };
+
+    const displayedCount = normalizeNumber(count, 0);
+    const totalCount = normalizeNumber(totalSolutions, displayedCount);
+    const displayedFormatted = formatNumber(displayedCount);
+    const totalFormatted = formatNumber(totalCount);
+
+    const prefixRaw = translate('results_title_prefix', {
+      displayed: displayedFormatted,
+      total: totalFormatted,
+    });
+    const suffixKey = totalCount === 1
+      ? 'results_title_suffix_single'
+      : 'results_title_suffix';
+    const suffixRaw = translate(suffixKey, {
+      displayed: displayedFormatted,
+      total: totalFormatted,
+    });
+    const prefixText = typeof prefixRaw === 'string' && prefixRaw !== 'results_title_prefix'
+      ? prefixRaw
+      : null;
+    const suffixText = typeof suffixRaw === 'string' && suffixRaw !== suffixKey
+      ? suffixRaw
+      : null;
+
+    if (!prefixText && !suffixText) {
+      const fallbackRaw = translate('results_title', { count: displayedFormatted });
+      const fallbackText = typeof fallbackRaw === 'string' && fallbackRaw !== 'results_title'
+        ? fallbackRaw
+        : translate('results_heading');
+      resultsTitle.textContent = fallbackText;
+    } else {
+      resultsTitle.textContent = '';
+      if (prefixText) {
+        resultsTitle.append(document.createTextNode(prefixText));
+        resultsTitle.append(document.createTextNode(' '));
+      }
+      const highlight = document.createElement('span');
+      highlight.className = 'results-total-highlight';
+      highlight.textContent = totalFormatted;
+      resultsTitle.append(highlight);
+      if (suffixText) {
+        resultsTitle.append(document.createTextNode(` ${suffixText}`));
+      }
+    }
+
     if (resultsHeader) {
       resultsHeader.classList.toggle('is-ready', count > 0);
     }

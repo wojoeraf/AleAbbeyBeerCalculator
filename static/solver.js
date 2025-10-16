@@ -417,6 +417,7 @@ const initSolver = () => {
       includes: [],
       optional: [],
     },
+    totalSolutions: 0,
   };
 
   const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
@@ -949,7 +950,11 @@ const initSolver = () => {
   }) => {
     const style = stylesData[styleName];
     if (!style) {
-      return { solutions: [], info: [translate('unknown_style', { style: displayStyleName(styleName) })] };
+      return {
+        solutions: [],
+        info: [translate('unknown_style', { style: displayStyleName(styleName) })],
+        totalSolutions: 0,
+      };
     }
 
     const n = ingredients.length;
@@ -974,7 +979,7 @@ const initSolver = () => {
     }
 
     if (minCounts.some((cnt) => cnt > perCap)) {
-      return { solutions: [], info: [translate('min_exceeds_cap')] };
+      return { solutions: [], info: [translate('min_exceeds_cap')], totalSolutions: 0 };
     }
 
     const minSum = minCounts.reduce((acc, val) => acc + val, 0);
@@ -1096,7 +1101,7 @@ const initSolver = () => {
 
     const perAttrLists = ATTRS.map((attr) => allowedIntervalsForAttr(attr, allowedBandMap[attr]));
     if (perAttrLists.some((list) => list.length === 0)) {
-      return { solutions: [], info: [translate('no_intervals')] };
+      return { solutions: [], info: [translate('no_intervals')], totalSolutions: 0 };
     }
 
     const orderedIndices = computeWeightedOrder(vectors);
@@ -1111,13 +1116,14 @@ const initSolver = () => {
       ATTRS.length,
     );
     if (suffixMinCounts[0] > adjustedTotalCap) {
-      return { solutions: [], info: [translate('cap_too_small')] };
+      return { solutions: [], info: [translate('cap_too_small')], totalSolutions: 0 };
     }
 
     const counts = new Array(n).fill(0);
     const seenCombos = new Set();
     const solutions = [];
     let bestSumBound = Infinity;
+    let totalSolutions = 0;
 
     const compareSolutions = (a, b) => {
       if (a.sum !== b.sum) return a.sum - b.sum;
@@ -1187,6 +1193,7 @@ const initSolver = () => {
               return;
             }
             seenCombos.add(key);
+            totalSolutions += 1;
 
             const bands = {};
             for (let k = 0; k < ATTRS.length; k += 1) {
@@ -1272,7 +1279,7 @@ const initSolver = () => {
 
     solutions.sort(compareSolutions);
 
-    return { solutions, info: [] };
+    return { solutions, info: [], totalSolutions };
   };
 
   const updateSliderTracksForStyle = (styleName) => {
@@ -2767,7 +2774,10 @@ const initSolver = () => {
 
   renderState();
 
-  const renderSolutions = (solutions, infoMessages, selectionMeta = {}) => {
+  const renderSolutions = (solutions, infoMessages, selectionMeta = {}, totalSolutions = 0) => {
+    const totalValue = Number.isFinite(Number(totalSolutions))
+      ? Number(totalSolutions)
+      : 0;
     renderState({
       loading: false,
       solutions: Array.isArray(solutions) ? [...solutions] : [],
@@ -2776,6 +2786,7 @@ const initSolver = () => {
         includes: Array.isArray(selectionMeta.includes) ? [...selectionMeta.includes] : [],
         optional: Array.isArray(selectionMeta.optional) ? [...selectionMeta.optional] : [],
       },
+      totalSolutions: totalValue,
     });
   };
 
@@ -2956,13 +2967,13 @@ const initSolver = () => {
             );
 
           solvePromise
-            .then(({ solutions, info }) => {
-              renderSolutions(solutions, info, selectionMeta);
+            .then(({ solutions, info, totalSolutions: totalCount }) => {
+              renderSolutions(solutions, info, selectionMeta, totalCount);
               renderDebug(debugLines);
             })
             .catch((error) => {
               console.error('Recipe calculation failed', error);
-              renderSolutions([], [translate('solver_failed')], selectionMeta);
+              renderSolutions([], [translate('solver_failed')], selectionMeta, 0);
               renderDebug(debugLines);
             })
             .finally(() => {
@@ -2971,7 +2982,7 @@ const initSolver = () => {
           return;
         } catch (error) {
           console.error('Recipe calculation failed', error);
-          renderSolutions([], [translate('solver_failed')]);
+          renderSolutions([], [translate('solver_failed')], {}, 0);
           renderDebug(debugLines);
           setLoadingState(false);
           return;
