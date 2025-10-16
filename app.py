@@ -458,9 +458,9 @@ def index():
         constraints = {
             a: SimpleNamespace(
                 band="any",
-                mode="eq",
-                min=default_value,
-                max=default_value,
+                mode="any",
+                min="",
+                max="",
                 value=default_value,
             )
             for a in ATTRS
