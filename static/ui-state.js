@@ -47,6 +47,7 @@ export const initUIState = () => {
     legacyToggle: document.querySelector('[data-legacy-toggle]'),
     mixPanel: document.querySelector('[data-mix-panel]'),
     mixList: document.querySelector('[data-mix-selected]'),
+    mixToggle: document.querySelector('[data-mix-toggle]'),
     mixSummary: document.querySelector('[data-mix-summary]'),
     mixCaps: Array.from(document.querySelectorAll('[data-cap-value]')),
     styleGhosts: collectCategoryMap('[data-style-ghost]', 'styleGhost'),
