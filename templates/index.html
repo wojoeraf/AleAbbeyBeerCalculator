@@ -10,25 +10,25 @@
 <body data-theme="bright">
 <div class="page" data-page-shell>
     <header class="lab-header card">
-        <div class="lab-header__aura" aria-hidden="true"></div>
-        <div class="lab-header__grain" aria-hidden="true"></div>
-        <div class="lab-header__content">
-            <div class="lab-header__info">
-                <h1 class="lab-header__title">{{ ui.header_title }}</h1>
-                <p class="lab-header__description">{{ ui.header_description }}</p>
-                <p class="lab-header__disclaimer">
-                    {{ ui.header_disclaimer if ui.header_disclaimer is defined else 'Fan-made project crafted for fellow brewers—no affiliation with any official brewery.' }}
-                </p>
+        <div class="lab-header__liquid" aria-hidden="true">
+            <div class="lab-header__foam"></div>
+            <div class="lab-header__bubbles">
+                <span class="lab-header__bubble" style="--index:0"></span>
+                <span class="lab-header__bubble" style="--index:1"></span>
+                <span class="lab-header__bubble" style="--index:2"></span>
+                <span class="lab-header__bubble" style="--index:3"></span>
+                <span class="lab-header__bubble" style="--index:4"></span>
+                <span class="lab-header__bubble" style="--index:5"></span>
             </div>
-            <div class="lab-header__meta">
-                <div class="lab-header__cta">
-                    <div class="support-buttons">
-                        <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="honigbartstudios" data-color="#FFDD00" data-emoji="🍻" data-font="Cookie" data-text="Buy me an Ale" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff"></script>
-                    </div>
+        </div>
+        <div class="lab-header__content">
+            <div class="lab-header__top">
+                <div class="lab-header__branding">
+                    <h1 class="lab-header__title">{{ ui.header_title }}</h1>
                 </div>
-                <div class="lab-header__preferences">
+                <div class="lab-header__controls">
                     <form class="language-switcher" method="get">
-                        <span class="language-switcher__label">{{ ui.language_label }}</span>
+                        <span class="sr-only">{{ ui.language_label }}</span>
                         <div class="language-switcher__flags">
                             {% for entry in languages %}
                                 <button type="submit"
@@ -83,6 +83,21 @@
                             </span>
                             <span class="theme-toggle__text" id="theme-toggle-state" data-theme-toggle-text>{{ ui.theme_option_bright }}</span>
                         </button>
+                    </div>
+                </div>
+            </div>
+            <div class="lab-header__grid">
+                <div class="lab-header__story">
+                    <p class="lab-header__description">{{ ui.header_description }}</p>
+                    <p class="lab-header__disclaimer">
+                        {{ ui.header_disclaimer if ui.header_disclaimer is defined else 'Fan-made project crafted for fellow brewers —no affiliation with any official brewery.' }}
+                    </p>
+                </div>
+                <div class="lab-header__cta-panel">
+                    <div class="lab-header__cta">
+                        <div class="support-buttons">
+                            <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="honigbartstudios" data-color="#FFDD00" data-emoji="🍻" data-font="Cookie" data-text="Buy me an Ale" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff"></script>
+                        </div>
                     </div>
                 </div>
             </div>
