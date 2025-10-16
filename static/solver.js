@@ -330,6 +330,7 @@ const initSolver = () => {
     legacyToggle,
     mixPanel,
     mixList,
+    mixToggle,
     mixSummary,
     mixCaps,
     styleGhosts,
@@ -350,6 +351,45 @@ const initSolver = () => {
     const type = wrapper.dataset.cap || 'total';
     mixCapElements.set(type, { wrapper, valueEl });
   });
+
+  const MIX_VISIBLE_LIMIT = 6;
+  let mixExpanded = false;
+  let lastMixSummaryCount = 0;
+
+  const resolveMixToggleLabel = (expanded) => {
+    if (expanded) {
+      return (
+        uiStrings.mix_show_less ||
+        translate('mix_show_less') ||
+        uiStrings.button_details_hide ||
+        translate('button_details_hide') ||
+        'Show less'
+      );
+    }
+    return (
+      uiStrings.mix_show_more ||
+      translate('mix_show_more') ||
+      uiStrings.button_details_show ||
+      translate('button_details_show') ||
+      'Show more'
+    );
+  };
+
+  const syncMixToggleState = (itemCount) => {
+    lastMixSummaryCount = itemCount;
+    const hasOverflow = itemCount > MIX_VISIBLE_LIMIT;
+    if (mixToggle) {
+      mixToggle.hidden = !hasOverflow;
+      if (!hasOverflow && mixExpanded) {
+        mixExpanded = false;
+      }
+      mixToggle.textContent = resolveMixToggleLabel(mixExpanded);
+      mixToggle.setAttribute('aria-expanded', mixExpanded ? 'true' : 'false');
+    }
+    if (mixPanel) {
+      mixPanel.dataset.expanded = mixExpanded ? 'true' : 'false';
+    }
+  };
 
   const targetSummaryMap = new Map();
   targetSummaryRows.forEach((row, attr) => {
@@ -520,7 +560,7 @@ const initSolver = () => {
         totalSelected += 1;
       }
 
-      const label = nameEl ? nameEl.textContent.trim() : displayIngredientName(ingredientId);
+      const label = (nameEl ? nameEl.textContent.trim() : '') || displayIngredientName(ingredientId);
 
       summaryItems.push({
         id: ingredientId,
@@ -539,8 +579,35 @@ const initSolver = () => {
       if (mixPanel) {
         mixPanel.dataset.empty = 'true';
       }
+      syncMixToggleState(0);
     } else {
-      summaryItems.forEach((item) => {
+      const getPriority = (item) => {
+        if (item.required) {
+          return 0;
+        }
+        if (item.optional) {
+          return 2;
+        }
+        return 1;
+      };
+      const collator = typeof Intl !== 'undefined' ? new Intl.Collator(undefined, { sensitivity: 'base' }) : null;
+      summaryItems.sort((a, b) => {
+        const priorityDiff = getPriority(a) - getPriority(b);
+        if (priorityDiff !== 0) {
+          return priorityDiff;
+        }
+        const labelA = a.label || displayIngredientName(a.id) || '';
+        const labelB = b.label || displayIngredientName(b.id) || '';
+        if (collator) {
+          return collator.compare(labelA, labelB);
+        }
+        return labelA.localeCompare(labelB);
+      });
+
+      const hasOverflow = summaryItems.length > MIX_VISIBLE_LIMIT;
+      const shouldCollapse = hasOverflow && !mixExpanded;
+
+      summaryItems.forEach((item, index) => {
         const li = document.createElement('li');
         li.className = 'mix-summary__item';
         li.dataset.status = item.required ? 'required' : item.optional ? 'optional' : 'selected';
@@ -561,17 +628,36 @@ const initSolver = () => {
         }
         li.appendChild(badge);
 
+        const shouldHide = shouldCollapse && index >= MIX_VISIBLE_LIMIT;
+        li.classList.toggle('mix-summary__item--collapsed', shouldHide);
+        if (shouldHide) {
+          li.setAttribute('aria-hidden', 'true');
+        } else {
+          li.removeAttribute('aria-hidden');
+        }
+
         mixList.appendChild(li);
       });
       if (mixPanel) {
         mixPanel.dataset.empty = 'false';
       }
+      syncMixToggleState(summaryItems.length);
     }
 
     const caps = getCapLimits();
     setCapProgress('total', totalSelected, caps.total);
     setCapProgress('per', optionalSelected, caps.per);
   };
+
+  if (mixToggle) {
+    mixToggle.addEventListener('click', () => {
+      if (lastMixSummaryCount <= MIX_VISIBLE_LIMIT) {
+        return;
+      }
+      mixExpanded = !mixExpanded;
+      refreshMixSummary();
+    });
+  }
 
   const categoryPanelEntries = Array.from(categoryPanels.entries());
   const categoryTabEntries = Array.from(categoryTabs.entries());

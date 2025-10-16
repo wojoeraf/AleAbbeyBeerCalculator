@@ -1067,6 +1067,11 @@ button {
   font-weight: 600;
 }
 
+.mix-cap-bottom {
+  display: flex;
+  justify-content: center;
+}
+
 .mix-panel__submit {
   align-self: stretch;
 }

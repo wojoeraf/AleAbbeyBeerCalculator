@@ -287,6 +287,11 @@
                     <div class="mix-summary" data-mix-summary>
                         <p class="mix-summary__title">{{ ui.phase_mix_summary }}</p>
                         <ul class="mix-summary__list" data-mix-selected></ul>
+                        <div class="mix-cap-bottom">
+                            <button type="button" class="mix-summary__toggle" data-mix-toggle hidden>
+                                {{ ui.mix_show_more }}
+                            </button>
+                        </div>
                         <div class="mix-caps">
                             <div class="mix-cap" data-cap="total">
                                 <span class="mix-cap__label">{{ ui.phase_mix_cap_total }}</span>
