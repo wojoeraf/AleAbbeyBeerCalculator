@@ -329,6 +329,8 @@ const initSolver = () => {
     debugToggle,
     debugContent,
     legacyToggle,
+    themeToggle,
+    themeToggleText,
     mixPanel,
     mixList,
     mixToggle,
@@ -755,6 +757,98 @@ const initSolver = () => {
       if (panel) {
         panel.hidden = false;
       }
+    });
+  }
+
+  const THEME_STORAGE_KEY = 'ale-abbey-theme';
+  const DEFAULT_THEME = 'bright';
+
+  const normalizeTheme = (value) => (value === 'dark' ? 'dark' : 'bright');
+
+  const themeBrightLabel = themeToggle ? themeToggle.dataset.brightLabel : null;
+  const themeDarkLabel = themeToggle ? themeToggle.dataset.darkLabel : null;
+  const themeTitlePrefix = themeToggle ? themeToggle.dataset.titlePrefix || '' : '';
+
+  const syncThemeToggle = (theme) => {
+    if (!themeToggle) {
+      return;
+    }
+    const normalized = normalizeTheme(theme);
+    const isDark = normalized === 'dark';
+    themeToggle.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+    themeToggle.dataset.themeState = normalized;
+    const label = isDark ? themeDarkLabel : themeBrightLabel;
+    const fallbackLabel = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+    const displayLabel = label || fallbackLabel;
+    if (themeToggleText) {
+      themeToggleText.textContent = displayLabel;
+    }
+    themeToggle.setAttribute('title', `${themeTitlePrefix}${displayLabel}`.trim());
+  };
+
+  const applyTheme = (theme, { persist = true } = {}) => {
+    const normalized = normalizeTheme(theme);
+    if (document.body) {
+      document.body.dataset.theme = normalized;
+    }
+    if (document.documentElement) {
+      document.documentElement.style.setProperty('color-scheme', normalized === 'dark' ? 'dark' : 'light');
+    }
+    syncThemeToggle(normalized);
+    if (persist) {
+      try {
+        window.localStorage.setItem(THEME_STORAGE_KEY, normalized);
+      } catch (error) {
+        console.warn('Failed to persist theme preference', error);
+      }
+    }
+    return normalized;
+  };
+
+  let storedTheme = null;
+  try {
+    storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+  } catch (error) {
+    storedTheme = null;
+  }
+
+  let userSelectedTheme = false;
+  let activeTheme = DEFAULT_THEME;
+
+  if (storedTheme) {
+    userSelectedTheme = true;
+    activeTheme = applyTheme(storedTheme, { persist: false });
+  }
+
+  const prefersDarkQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+
+  const resolveSystemTheme = () => (prefersDarkQuery && prefersDarkQuery.matches ? 'dark' : DEFAULT_THEME);
+
+  if (!userSelectedTheme) {
+    activeTheme = applyTheme(resolveSystemTheme(), { persist: false });
+  }
+
+  const handlePrefersThemeChange = () => {
+    if (userSelectedTheme) {
+      return;
+    }
+    activeTheme = applyTheme(resolveSystemTheme(), { persist: false });
+  };
+
+  if (prefersDarkQuery) {
+    if (typeof prefersDarkQuery.addEventListener === 'function') {
+      prefersDarkQuery.addEventListener('change', handlePrefersThemeChange);
+    } else if (typeof prefersDarkQuery.addListener === 'function') {
+      prefersDarkQuery.addListener(handlePrefersThemeChange);
+    }
+  }
+
+  if (themeToggle) {
+    syncThemeToggle(activeTheme);
+    themeToggle.addEventListener('click', () => {
+      userSelectedTheme = true;
+      const nextTheme = themeToggle.getAttribute('aria-pressed') === 'true' ? 'bright' : 'dark';
+      activeTheme = applyTheme(nextTheme || DEFAULT_THEME);
     });
   }
 

@@ -46,6 +46,8 @@ export const initUIState = () => {
     debugToggle: document.getElementById('debug-toggle'),
     debugContent: document.querySelector('[data-debug-content]'),
     legacyToggle: document.querySelector('[data-legacy-toggle]'),
+    themeToggle: document.querySelector('[data-theme-toggle]'),
+    themeToggleText: document.querySelector('[data-theme-toggle-text]'),
     mixPanel: document.querySelector('[data-mix-panel]'),
     mixList: document.querySelector('[data-mix-selected]'),
     mixToggle: document.querySelector('[data-mix-toggle]'),
