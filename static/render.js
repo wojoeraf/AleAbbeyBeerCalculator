@@ -204,15 +204,19 @@ export const renderResultCard = (solution, dictionaries = {}) => {
     return expanded ? 'Hide details' : 'Show details';
   };
 
+  const toggleIcon = document.createElement('span');
+  toggleIcon.className = 'result-card-toggle-icon';
+  toggleIcon.setAttribute('aria-hidden', 'true');
+  toggleButton.appendChild(toggleIcon);
+
   const setExpandedState = (expanded) => {
     const next = Boolean(expanded);
     const label = resolveToggleLabel(next);
-    const icon = next ? '−' : '+';
-    toggleButton.textContent = `${icon} ${label}`;
     toggleButton.setAttribute('aria-expanded', next ? 'true' : 'false');
     toggleButton.setAttribute('aria-label', label);
     toggleButton.title = label;
     card.dataset.expanded = next ? 'true' : 'false';
+    toggleButton.dataset.iconState = next ? 'expanded' : 'collapsed';
     body.hidden = !next;
   };
 

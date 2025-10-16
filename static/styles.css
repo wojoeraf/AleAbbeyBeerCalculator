@@ -1237,10 +1237,11 @@ button {
   background: rgba(15, 23, 42, 0.6);
   color: #f8fafc;
   border-radius: 999px;
-  padding: 6px 14px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
@@ -1255,6 +1256,25 @@ button {
 
 .result-card-toggle:focus-visible {
   box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.35);
+}
+
+.result-card-toggle-icon::before {
+  content: '▾';
+  display: inline-block;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.result-card-toggle[data-icon-state='collapsed'] .result-card-toggle-icon::before {
+  content: '▸';
+}
+
+.result-card[data-expanded='false'] .result-card-body {
+  display: none;
+}
+
+.result-card[data-expanded='true'] .result-card-body {
+  display: flex;
 }
 
 .result-card-body {
