@@ -2041,6 +2041,7 @@ const initSolver = () => {
 
     const handleSliderInput = (handleEl, roleHint) => {
       if (!handleEl) return;
+      const wasNeutralMode = currentMode === 'any';
       const role = roleHint || handleEl.dataset.handleRole || 'eq';
       let value = 0;
       if (sliderController) {
@@ -2048,6 +2049,9 @@ const initSolver = () => {
         value = normalizeValue(key ? sliderController.getValue(key) : 0);
       } else {
         value = normalizeValue(sliderStepToNumber(handleEl.value));
+      }
+      if (wasNeutralMode) {
+        setModeValue('eq');
       }
       if (role === 'ge') {
         storedValues.ge = value;
