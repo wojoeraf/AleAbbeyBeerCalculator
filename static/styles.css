@@ -713,6 +713,10 @@ body[data-theme='dark'] .theme-toggle[aria-pressed='true'] .theme-toggle__text {
   gap: 8px;
 }
 
+.target-summary__value[data-color-only='true'] [data-target-summary-text] {
+  display: none;
+}
+
 .target-summary__colors {
   display: flex;
   align-items: center;

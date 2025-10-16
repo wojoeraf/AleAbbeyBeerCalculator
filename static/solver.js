@@ -425,16 +425,6 @@ const initSolver = () => {
 
   const getTargetSummaryEntry = (attr) => targetSummaryMap.get(attr);
 
-  const clearTargetSummaryBands = (attr) => {
-    const entry = getTargetSummaryEntry(attr);
-    if (!entry || !entry.colorsEl) {
-      return;
-    }
-    entry.colorsEl.innerHTML = '';
-    entry.colorsEl.hidden = true;
-    targetSummaryState.delete(attr);
-  };
-
   const getBandsForRange = (attr, minValue, maxValue) => {
     if (!sliderTrackController || typeof sliderTrackController.getSegments !== 'function') {
       return [];
@@ -474,19 +464,36 @@ const initSolver = () => {
     return SUMMARY_BAND_ORDER.filter((band) => covered.has(band));
   };
 
-  const renderTargetSummaryBands = (attr, minValue, maxValue) => {
+  const sanitizeSummaryColor = (band) => {
+    if (!band) {
+      return null;
+    }
+    const normalized = typeof normalizeTrackBand === 'function' ? normalizeTrackBand(band) : band;
+    if (SUMMARY_BAND_ORDER.includes(normalized)) {
+      return normalized;
+    }
+    return null;
+  };
+
+  const renderTargetSummaryColors = (attr, { range = null, color = null } = {}) => {
     const entry = getTargetSummaryEntry(attr);
     if (!entry || !entry.colorsEl) {
       return;
     }
     const container = entry.colorsEl;
     container.innerHTML = '';
-    const bands = getBandsForRange(attr, minValue, maxValue);
-    if (!bands.length) {
+    const colors = [];
+    const sanitizedColor = sanitizeSummaryColor(color);
+    if (sanitizedColor) {
+      colors.push(sanitizedColor);
+    } else if (range && Number.isFinite(range.min) && Number.isFinite(range.max)) {
+      colors.push(...getBandsForRange(attr, range.min, range.max));
+    }
+    if (!colors.length) {
       container.hidden = true;
       return;
     }
-    bands.forEach((band) => {
+    colors.forEach((band) => {
       const dot = document.createElement('span');
       dot.className = `target-summary__color target-summary__color--${band}`;
       container.appendChild(dot);
@@ -494,30 +501,78 @@ const initSolver = () => {
     container.hidden = false;
   };
 
-  const updateTargetSummaryEntry = (attr, text, range = null) => {
+  const updateTargetSummaryEntry = (attr, value, legacyRange = null) => {
     const entry = getTargetSummaryEntry(attr);
     if (!entry) {
       return;
     }
-    const displayText = text && String(text).trim().length ? text : '–';
+    let options;
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      options = value;
+    } else {
+      options = { text: value, range: legacyRange };
+    }
+    const { text = '', range = null, color = null } = options;
+    const sanitizedColor = sanitizeSummaryColor(color);
+    const rawText = text === null || text === undefined ? '' : String(text);
+    const trimmedText = rawText.trim();
+    const displayText = sanitizedColor ? '' : trimmedText.length ? trimmedText : '–';
     if (entry.textEl) {
       entry.textEl.textContent = displayText;
+      if (sanitizedColor) {
+        entry.textEl.setAttribute('aria-hidden', 'true');
+      } else {
+        entry.textEl.removeAttribute('aria-hidden');
+      }
     } else {
       entry.container.textContent = displayText;
     }
+    if (entry.container) {
+      if (sanitizedColor) {
+        entry.container.dataset.colorOnly = 'true';
+      } else {
+        delete entry.container.dataset.colorOnly;
+      }
+    }
+    if (sanitizedColor) {
+      targetSummaryState.set(attr, { color: sanitizedColor, range: null });
+      renderTargetSummaryColors(attr, { color: sanitizedColor });
+      return;
+    }
     if (!range || !Number.isFinite(range.min) || !Number.isFinite(range.max)) {
-      clearTargetSummaryBands(attr);
+      targetSummaryState.delete(attr);
+      renderTargetSummaryColors(attr);
       return;
     }
     const clampedMin = clamp(range.min, 0, SLIDER_MAX_VALUE);
     const clampedMax = clamp(range.max, 0, SLIDER_MAX_VALUE);
-    targetSummaryState.set(attr, { min: clampedMin, max: clampedMax });
-    renderTargetSummaryBands(attr, clampedMin, clampedMax);
+    const normalizedRange = { min: clampedMin, max: clampedMax };
+    targetSummaryState.set(attr, { color: null, range: normalizedRange });
+    renderTargetSummaryColors(attr, { range: normalizedRange });
   };
 
   const refreshTargetSummaryColors = () => {
-    targetSummaryState.forEach((range, attr) => {
-      renderTargetSummaryBands(attr, range.min, range.max);
+    targetSummaryState.forEach((state, attr) => {
+      renderTargetSummaryColors(attr, state);
+      const entry = getTargetSummaryEntry(attr);
+      if (!entry || !entry.container) {
+        return;
+      }
+      if (state && state.color) {
+        entry.container.dataset.colorOnly = 'true';
+        if (entry.textEl) {
+          entry.textEl.setAttribute('aria-hidden', 'true');
+          entry.textEl.textContent = '';
+        }
+      } else {
+        delete entry.container.dataset.colorOnly;
+        if (entry.textEl) {
+          entry.textEl.removeAttribute('aria-hidden');
+          if (!entry.textEl.textContent?.trim()) {
+            entry.textEl.textContent = '–';
+          }
+        }
+      }
     });
   };
 
@@ -1689,10 +1744,20 @@ const initSolver = () => {
     }
 
     if (!hasAdvancedControls) {
+      let simpleSummaryUpdater = null;
+
       updateColorState = () => {
         const selected = colorRadios.find((radio) => radio.checked) || null;
+        const selectedColor = selected ? selected.value : null;
         syncColorChipVisuals();
-        syncCardSliderHighlight(selected ? selected.value : null);
+        syncCardSliderHighlight(selectedColor);
+        if (attrName) {
+          if (selectedColor) {
+            updateTargetSummaryEntry(attrName, { text: '', color: selectedColor });
+          } else if (typeof simpleSummaryUpdater === 'function') {
+            simpleSummaryUpdater();
+          }
+        }
         updateSubmitState();
       };
 
@@ -1719,21 +1784,21 @@ const initSolver = () => {
           return { min: value, max: value };
         };
 
-        const updateSimpleSummary = () => {
+        simpleSummaryUpdater = () => {
           const text = sliderSingleValueEl.textContent?.trim() || sliderSingleValueEl.textContent || '–';
           const range = readSimpleSummaryRange();
           const hasRange = Number.isFinite(range.min) && Number.isFinite(range.max);
-          updateTargetSummaryEntry(attrName, text, hasRange ? range : null);
+          updateTargetSummaryEntry(attrName, { text, range: hasRange ? range : null });
         };
 
-        updateSimpleSummary();
+        simpleSummaryUpdater();
 
         const attachSimpleSummaryListener = (handle) => {
-          if (!handle) {
+          if (!handle || typeof simpleSummaryUpdater !== 'function') {
             return;
           }
-          handle.addEventListener('input', updateSimpleSummary);
-          handle.addEventListener('change', updateSimpleSummary);
+          handle.addEventListener('input', simpleSummaryUpdater);
+          handle.addEventListener('change', simpleSummaryUpdater);
         };
 
         attachSimpleSummaryListener(sliderMinHandle);
@@ -2001,7 +2066,7 @@ const initSolver = () => {
         const value = sliderSingleValueEl ? sliderSingleValueEl.textContent.trim() : formatDisplayValue(storedValues.eq);
         summaryText = value || formatDisplayValue(storedValues.eq);
       }
-      updateTargetSummaryEntry(attrName, summaryText || '–', range);
+      updateTargetSummaryEntry(attrName, { text: summaryText || '–', range });
     };
 
     const updateSliderDisplay = () => {
@@ -2455,9 +2520,10 @@ const initSolver = () => {
 
     updateColorState = () => {
       const selected = colorRadios.find((radio) => radio.checked) || null;
+      const selectedColor = selected ? selected.value : null;
       syncColorChipVisuals();
-      syncCardSliderHighlight(selected ? selected.value : null);
-      const isColorActive = !!selected;
+      syncCardSliderHighlight(selectedColor);
+      const isColorActive = !!selectedColor;
       if (isColorActive) {
         if (currentMode !== 'any') {
           savedNumericMode = currentMode;
@@ -2469,6 +2535,9 @@ const initSolver = () => {
         maxInput.value = '';
         syncSliderHandles();
         updateSliderDisplay();
+        if (attrName) {
+          updateTargetSummaryEntry(attrName, { text: '', color: selectedColor });
+        }
       } else {
         setSliderDisabled(false);
         const restoreMode = savedNumericMode || 'any';
