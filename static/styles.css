@@ -364,10 +364,16 @@ body[data-theme='dark'] .lab-header__bubble {
 .lab-header__controls {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-end;
   justify-content: flex-end;
   gap: clamp(14px, 2vw, 24px);
   flex-wrap: wrap;
+}
+
+.lab-header__support {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
 }
 
 .language-switcher {
@@ -733,6 +739,11 @@ body[data-theme='dark'] .support-cta__shine {
   .lab-header__controls {
     justify-content: flex-start;
     flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .lab-header__support {
+    justify-content: flex-start;
   }
 }
 
