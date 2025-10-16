@@ -1128,8 +1128,8 @@ const initSolver = () => {
     }
   };
 
-  const getOptionalCheckboxes = (categoryId = null) =>
-    ingredientRows
+  function getOptionalCheckboxes(categoryId = null) {
+    return ingredientRows
       .filter((row) => {
         if (!row) {
           return false;
@@ -1142,9 +1142,11 @@ const initSolver = () => {
       })
       .map((row) => row.querySelector('input[type="checkbox"][name="optional_ingredients"]'))
       .filter((checkbox) => checkbox && typeof checkbox.checked === 'boolean');
+  }
 
-  const getEnabledOptionalCheckboxes = (categoryId = null) =>
-    getOptionalCheckboxes(categoryId).filter((checkbox) => !checkbox.disabled);
+  function getEnabledOptionalCheckboxes(categoryId = null) {
+    return getOptionalCheckboxes(categoryId).filter((checkbox) => !checkbox.disabled);
+  }
 
   const enforceMutualExclusion = (includeCheckbox, optionalCheckbox, priority = 'include') => {
     let includeChanged = false;
