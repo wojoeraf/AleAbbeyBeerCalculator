@@ -70,6 +70,7 @@ export const renderResultCard = (solution, dictionaries = {}) => {
   const {
     translate = (key) => key,
     displayIngredientName = (value) => value,
+    displayStyleName = (value) => value,
     ATTRS = [],
     formatCost = (value) => String(value),
     seasonOrder = [],
@@ -121,11 +122,27 @@ export const renderResultCard = (solution, dictionaries = {}) => {
   const card = document.createElement('article');
   card.className = 'card result-card';
 
+  const body = document.createElement('div');
+  body.className = 'result-card-body';
+  const bodyId = `result-card-body-${Math.random().toString(36).slice(2, 10)}`;
+  body.id = bodyId;
+
   const header = document.createElement('div');
   header.className = 'result-card-header';
 
   const titleRow = document.createElement('div');
   titleRow.className = 'result-card-title-row';
+
+  const styleNameRaw = typeof displayStyleName === 'function'
+    ? displayStyleName(activeStyleId)
+    : activeStyleId;
+  const styleName = typeof styleNameRaw === 'string' ? styleNameRaw.trim() : '';
+  if (styleName) {
+    const styleEl = document.createElement('p');
+    styleEl.className = 'result-card-style';
+    styleEl.textContent = styleName;
+    titleRow.appendChild(styleEl);
+  }
 
   const heading = document.createElement('h3');
   const totalCost = Number.isFinite(solution && solution.totalCost)
@@ -161,12 +178,54 @@ export const renderResultCard = (solution, dictionaries = {}) => {
 
   header.appendChild(titleRow);
 
+  const actions = document.createElement('div');
+  actions.className = 'result-card-actions';
+
   const rank = document.createElement('span');
   rank.className = 'result-card-rank';
   rank.textContent = `#${index + 1}`;
-  header.appendChild(rank);
+  actions.appendChild(rank);
+
+  const toggleButton = document.createElement('button');
+  toggleButton.type = 'button';
+  toggleButton.className = 'result-card-toggle';
+  toggleButton.setAttribute('aria-controls', bodyId);
+
+  const resolveToggleLabel = (expanded) => {
+    const keys = expanded
+      ? ['button_details_hide', 'results_hide_details']
+      : ['button_details_show', 'results_show_details'];
+    for (const key of keys) {
+      const value = translate(key);
+      if (typeof value === 'string' && value.length && value !== key) {
+        return value;
+      }
+    }
+    return expanded ? 'Hide details' : 'Show details';
+  };
+
+  const setExpandedState = (expanded) => {
+    const next = Boolean(expanded);
+    const label = resolveToggleLabel(next);
+    const icon = next ? '−' : '+';
+    toggleButton.textContent = `${icon} ${label}`;
+    toggleButton.setAttribute('aria-expanded', next ? 'true' : 'false');
+    toggleButton.setAttribute('aria-label', label);
+    toggleButton.title = label;
+    card.dataset.expanded = next ? 'true' : 'false';
+    body.hidden = !next;
+  };
+
+  toggleButton.addEventListener('click', () => {
+    const isExpanded = card.dataset.expanded === 'true';
+    setExpandedState(!isExpanded);
+  });
+
+  actions.appendChild(toggleButton);
+  header.appendChild(actions);
 
   card.appendChild(header);
+  card.appendChild(body);
 
   const mixSection = document.createElement('div');
   mixSection.className = 'result-ingredients';
@@ -244,7 +303,7 @@ export const renderResultCard = (solution, dictionaries = {}) => {
     chipsContainer.appendChild(chip);
   });
   mixSection.appendChild(chipsContainer);
-  card.appendChild(mixSection);
+  body.appendChild(mixSection);
 
   const usedIngredientIds = Object.keys(countsById);
   const singleVariety = requiredSet.size > 0 && usedIngredientIds.length > 0
@@ -380,14 +439,14 @@ export const renderResultCard = (solution, dictionaries = {}) => {
     }
 
     if (summaryList.childElementCount > 0 || hasSeasonData) {
-      card.appendChild(costSection);
+      body.appendChild(costSection);
     }
   }
 
   const attrTitle = document.createElement('p');
   attrTitle.className = 'result-section-title';
   attrTitle.textContent = translate('section_attributes');
-  card.appendChild(attrTitle);
+  body.appendChild(attrTitle);
 
   const chart = document.createElement('div');
   chart.className = 'result-attr-chart';
@@ -406,13 +465,16 @@ export const renderResultCard = (solution, dictionaries = {}) => {
     chart.appendChild(bar);
   });
 
-  card.appendChild(chart);
+  body.appendChild(chart);
 
   ATTRS.forEach((attr) => {
     const band = solution && solution.bands ? solution.bands[attr] : null;
     const pill = createBandPill(attr, band, dictionaries);
     bandContainer.appendChild(pill);
   });
+
+  const defaultExpanded = index === 0;
+  setExpandedState(defaultExpanded);
 
   return card;
 };

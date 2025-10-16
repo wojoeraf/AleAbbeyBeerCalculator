@@ -1153,10 +1153,25 @@ button {
   gap: 16px;
 }
 
+.result-card-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
 .result-card-title-row {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.result-card-style {
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(248, 250, 252, 0.7);
 }
 
 .result-card-meta {
@@ -1214,6 +1229,47 @@ button {
   padding: 6px 10px;
   border-radius: 999px;
   background: rgba(248, 250, 252, 0.18);
+}
+
+.result-card-toggle {
+  appearance: none;
+  border: 1px solid rgba(248, 250, 252, 0.18);
+  background: rgba(15, 23, 42, 0.6);
+  color: #f8fafc;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.result-card-toggle:hover,
+.result-card-toggle:focus-visible {
+  background: rgba(248, 250, 252, 0.16);
+  border-color: rgba(248, 250, 252, 0.36);
+  color: #fff;
+  outline: none;
+}
+
+.result-card-toggle:focus-visible {
+  box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.35);
+}
+
+.result-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.result-card[data-expanded='false'] .result-card-toggle {
+  background: rgba(15, 23, 42, 0.4);
+}
+
+.result-card[data-expanded='false'] .result-card-toggle:hover,
+.result-card[data-expanded='false'] .result-card-toggle:focus-visible {
+  background: rgba(248, 250, 252, 0.14);
 }
 
 .result-ingredients,
