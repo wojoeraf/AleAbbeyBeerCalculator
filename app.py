@@ -454,9 +454,14 @@ def index():
                 value=f"{slider_value:.1f}",
             )
     else:
+        default_value = f"{5.5:.1f}"
         constraints = {
             a: SimpleNamespace(
-                band="any", mode="any", min="", max="", value=f"{5.5:.1f}"
+                band="any",
+                mode="eq",
+                min=default_value,
+                max=default_value,
+                value=default_value,
             )
             for a in ATTRS
         }
