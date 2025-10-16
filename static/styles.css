@@ -607,7 +607,8 @@ button {
   transition: background 0.2s ease, color 0.2s ease;
 }
 
-.attr-card__fine-toggle[data-expanded="true"] {
+.attr-card__fine-toggle[data-active="true"],
+.attr-card__fine-toggle[aria-pressed="true"] {
   background: var(--accent-muted);
   color: var(--accent-strong);
 }

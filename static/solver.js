@@ -1276,37 +1276,9 @@ const initSolver = () => {
     const hasAdvancedControls = !!(modeInput && minInput && maxInput);
     const cardType = hasAdvancedControls ? 'range' : 'simple';
 
-    let advancedExpanded = false;
-    const setAdvancedVisibility = (visible) => {
-      if (!advancedContainer) {
-        return;
-      }
-      advancedExpanded = !!visible;
-      if (advancedExpanded) {
-        advancedContainer.hidden = false;
-        advancedContainer.dataset.expanded = 'true';
-      } else {
-        advancedContainer.hidden = true;
-        advancedContainer.dataset.expanded = 'false';
-      }
-      if (fineToggle) {
-        fineToggle.dataset.expanded = advancedExpanded ? 'true' : 'false';
-        fineToggle.setAttribute('aria-expanded', advancedExpanded ? 'true' : 'false');
-      }
-    };
-
     if (advancedContainer) {
-      if (!advancedContainer.hasAttribute('hidden')) {
-        setAdvancedVisibility(true);
-      } else {
-        setAdvancedVisibility(false);
-      }
-    }
-
-    if (fineToggle && advancedContainer) {
-      fineToggle.addEventListener('click', () => {
-        setAdvancedVisibility(!advancedExpanded);
-      });
+      advancedContainer.hidden = false;
+      advancedContainer.dataset.expanded = 'true';
     }
 
     const syncCardSliderHighlight = (band) => {
@@ -1532,19 +1504,96 @@ const initSolver = () => {
     let savedNumericMode = currentMode !== 'any' ? currentMode : null;
     let isUpdatingHandles = false;
 
-    const clampSliderValue = (value) => clamp(Number.isFinite(value) ? value : fallbackValue, 0, 11);
+    const SLIDER_MAX_VALUE = 11;
+    const clampSliderValue = (value) => clamp(Number.isFinite(value) ? value : fallbackValue, 0, SLIDER_MAX_VALUE);
+    const coarseSnapValue = (value) => {
+      const safe = clampSliderValue(value);
+      if (safe >= SLIDER_MAX_VALUE - 0.25) {
+        return SLIDER_MAX_VALUE;
+      }
+      if (safe <= 0.5) {
+        return Math.min(SLIDER_MAX_VALUE, 0.5);
+      }
+      const base = Math.floor(safe);
+      return clampSliderValue(base + 0.5);
+    };
+    const coarseDisplayValue = (value) => {
+      const safe = clampSliderValue(value);
+      if (safe >= SLIDER_MAX_VALUE - 1e-3) {
+        return SLIDER_MAX_VALUE;
+      }
+      return Math.max(0, Math.floor(safe));
+    };
+    const coarseLowerBound = (value) => coarseDisplayValue(value);
+    const coarseUpperBound = (value) => {
+      const display = coarseDisplayValue(value);
+      if (display >= SLIDER_MAX_VALUE) {
+        return SLIDER_MAX_VALUE;
+      }
+      const hi = display + 0.99;
+      return hi > SLIDER_MAX_VALUE ? SLIDER_MAX_VALUE : hi;
+    };
+    const isValueCoarseAligned = (value) => {
+      if (!Number.isFinite(value)) {
+        return false;
+      }
+      const safe = clampSliderValue(value);
+      if (Math.abs(safe - SLIDER_MAX_VALUE) <= 1e-3) {
+        return true;
+      }
+      if (safe <= 1e-3 || Math.abs(safe - Math.round(safe)) <= 1e-3) {
+        return true;
+      }
+      const fractional = safe - Math.floor(safe);
+      return Math.abs(fractional - 0.5) <= 1e-3;
+    };
+
+    let fineTuneActive = [storedValues.eq, storedValues.ge, storedValues.le].some((value) => !isValueCoarseAligned(value));
+
+    const normalizeValue = (value) => (fineTuneActive ? clampSliderValue(value) : coarseSnapValue(value));
+
+    const applyCurrentSnapToStoredValues = () => {
+      storedValues.eq = normalizeValue(storedValues.eq);
+      storedValues.ge = normalizeValue(storedValues.ge);
+      storedValues.le = normalizeValue(storedValues.le);
+      if (!fineTuneActive && currentMode === 'between' && storedValues.le < storedValues.ge) {
+        storedValues.le = storedValues.ge;
+      }
+    };
+
+    applyCurrentSnapToStoredValues();
+
+    const formatHiddenNumber = (value) => {
+      if (!Number.isFinite(value)) {
+        return '';
+      }
+      return value.toFixed(2);
+    };
+
+    const formatDisplayValue = (value) => {
+      const normalized = normalizeValue(value);
+      if (fineTuneActive) {
+        return formatSliderValue(normalized);
+      }
+      return String(coarseDisplayValue(normalized));
+    };
 
     const setSliderHandleValue = (handle, value) => {
-      const safe = clampSliderValue(value);
+      const normalized = normalizeValue(value);
       if (!handle || !sliderController) {
-        return safe;
+        if (handle) {
+          handle.setAttribute('aria-valuenow', formatSliderValue(normalized));
+          handle.setAttribute('aria-valuetext', formatDisplayValue(normalized));
+        }
+        return normalized;
       }
       const key = sliderController.getHandleKey(handle);
       if (key) {
-        sliderController.setValue(key, safe);
+        sliderController.setValue(key, normalized);
       }
-      handle.setAttribute('aria-valuenow', formatSliderValue(safe));
-      return safe;
+      handle.setAttribute('aria-valuenow', formatSliderValue(normalized));
+      handle.setAttribute('aria-valuetext', formatDisplayValue(normalized));
+      return normalized;
     };
 
     const setHandleState = (handle, { visible, role, value, zIndex }) => {
@@ -1616,26 +1665,27 @@ const initSolver = () => {
       const { eq, ge, le } = getModeFlags();
       let summaryText = '';
       if (eq) {
-        const value = sliderSingleValueEl ? sliderSingleValueEl.textContent.trim() : formatSliderValue(storedValues.eq);
-        summaryText = value || formatSliderValue(storedValues.eq);
+        const value = sliderSingleValueEl ? sliderSingleValueEl.textContent.trim() : formatDisplayValue(storedValues.eq);
+        summaryText = value || formatDisplayValue(storedValues.eq);
       } else if (!eq && ge && le) {
-        const minValue = sliderMinValueEl ? sliderMinValueEl.textContent.trim() : formatSliderValue(storedValues.ge);
-        const maxValue = sliderMaxValueEl ? sliderMaxValueEl.textContent.trim() : formatSliderValue(storedValues.le);
+        const minValue = sliderMinValueEl ? sliderMinValueEl.textContent.trim() : formatDisplayValue(storedValues.ge);
+        const maxValue = sliderMaxValueEl ? sliderMaxValueEl.textContent.trim() : formatDisplayValue(storedValues.le);
         summaryText = `${minValue} – ${maxValue}`;
       } else if (ge) {
-        const minValue = sliderMinValueEl ? sliderMinValueEl.textContent.trim() : formatSliderValue(storedValues.ge);
+        const minValue = sliderMinValueEl ? sliderMinValueEl.textContent.trim() : formatDisplayValue(storedValues.ge);
         summaryText = `≥ ${minValue}`;
       } else if (le) {
-        const maxValue = sliderMaxValueEl ? sliderMaxValueEl.textContent.trim() : formatSliderValue(storedValues.le);
+        const maxValue = sliderMaxValueEl ? sliderMaxValueEl.textContent.trim() : formatDisplayValue(storedValues.le);
         summaryText = `≤ ${maxValue}`;
       } else {
-        const value = sliderSingleValueEl ? sliderSingleValueEl.textContent.trim() : formatSliderValue(storedValues.eq);
-        summaryText = value || formatSliderValue(storedValues.eq);
+        const value = sliderSingleValueEl ? sliderSingleValueEl.textContent.trim() : formatDisplayValue(storedValues.eq);
+        summaryText = value || formatDisplayValue(storedValues.eq);
       }
       summaryEl.textContent = summaryText || '–';
     };
 
     const updateSliderDisplay = () => {
+      applyCurrentSnapToStoredValues();
       const { eq, ge, le } = getModeFlags();
       const showRange = !eq && ge && le;
       if (sliderRangeContainer) {
@@ -1647,10 +1697,10 @@ const initSolver = () => {
       if (showRange) {
         sliderRangeContainer.classList.add('slider-value-range');
         if (sliderMinValueEl) {
-          sliderMinValueEl.textContent = formatSliderValue(clampSliderValue(storedValues.ge));
+          sliderMinValueEl.textContent = formatDisplayValue(storedValues.ge);
         }
         if (sliderMaxValueEl) {
-          sliderMaxValueEl.textContent = formatSliderValue(clampSliderValue(storedValues.le));
+          sliderMaxValueEl.textContent = formatDisplayValue(storedValues.le);
         }
       } else if (sliderSingleValueEl) {
         sliderRangeContainer.classList.remove('slider-value-range');
@@ -1664,7 +1714,7 @@ const initSolver = () => {
         } else {
           displayValue = storedValues.eq;
         }
-        sliderSingleValueEl.textContent = formatSliderValue(clampSliderValue(displayValue));
+        sliderSingleValueEl.textContent = formatDisplayValue(displayValue);
       } else {
         sliderRangeContainer.classList.remove('slider-value-range');
       }
@@ -1672,19 +1722,32 @@ const initSolver = () => {
     };
 
     const syncHiddenValues = () => {
+      applyCurrentSnapToStoredValues();
+      const normalized = {
+        eq: normalizeValue(storedValues.eq),
+        ge: normalizeValue(storedValues.ge),
+        le: normalizeValue(storedValues.le),
+      };
       if (currentMode === 'ge') {
-        minInput.value = formatSliderValue(clampSliderValue(storedValues.ge));
+        const minValue = fineTuneActive ? normalized.ge : coarseLowerBound(normalized.ge);
+        minInput.value = formatHiddenNumber(minValue);
         maxInput.value = '';
       } else if (currentMode === 'le') {
+        const maxValue = fineTuneActive ? normalized.le : coarseUpperBound(normalized.le);
         minInput.value = '';
-        maxInput.value = formatSliderValue(clampSliderValue(storedValues.le));
+        maxInput.value = formatHiddenNumber(maxValue);
       } else if (currentMode === 'eq') {
-        const formatted = formatSliderValue(clampSliderValue(storedValues.eq));
-        minInput.value = formatted;
-        maxInput.value = formatted;
+        const bounds = fineTuneActive
+          ? { min: normalized.eq, max: normalized.eq }
+          : { min: coarseLowerBound(normalized.eq), max: coarseUpperBound(normalized.eq) };
+        minInput.value = formatHiddenNumber(bounds.min);
+        maxInput.value = formatHiddenNumber(bounds.max);
       } else if (currentMode === 'between') {
-        minInput.value = formatSliderValue(clampSliderValue(storedValues.ge));
-        maxInput.value = formatSliderValue(clampSliderValue(storedValues.le));
+        const minValue = fineTuneActive ? normalized.ge : coarseLowerBound(normalized.ge);
+        const rawMax = fineTuneActive ? normalized.le : coarseUpperBound(normalized.le);
+        const maxValue = Math.max(minValue, rawMax);
+        minInput.value = formatHiddenNumber(minValue);
+        maxInput.value = formatHiddenNumber(maxValue);
       } else {
         minInput.value = '';
         maxInput.value = '';
@@ -1692,36 +1755,37 @@ const initSolver = () => {
     };
 
     const syncSliderHandles = () => {
+      applyCurrentSnapToStoredValues();
       const { eq, ge, le } = getModeFlags();
       const showRange = !eq && ge && le;
       if (eq) {
-        const value = clampSliderValue(storedValues.eq);
+        const value = normalizeValue(storedValues.eq);
         storedValues.eq = value;
         storedValues.ge = value;
         storedValues.le = value;
         setHandleState(sliderMinHandle, { visible: true, role: 'eq', value, zIndex: 3 });
         setHandleState(sliderMaxHandle, { visible: false, role: 'le', value, zIndex: 2 });
       } else if (showRange) {
-        const minValue = clampSliderValue(storedValues.ge);
-        const maxValue = clampSliderValue(Math.max(storedValues.le, minValue));
+        const minValue = normalizeValue(storedValues.ge);
+        const maxValue = normalizeValue(Math.max(storedValues.le, minValue));
         storedValues.ge = minValue;
         storedValues.le = maxValue;
         setHandleState(sliderMinHandle, { visible: true, role: 'ge', value: minValue, zIndex: 2 });
         setHandleState(sliderMaxHandle, { visible: true, role: 'le', value: maxValue, zIndex: 3 });
       } else if (ge) {
-        const value = clampSliderValue(storedValues.ge);
+        const value = normalizeValue(storedValues.ge);
         storedValues.ge = value;
         storedValues.le = Math.max(storedValues.le, value);
         setHandleState(sliderMinHandle, { visible: true, role: 'ge', value, zIndex: 3 });
         setHandleState(sliderMaxHandle, { visible: false, role: 'le', value, zIndex: 2 });
       } else if (le) {
-        const value = clampSliderValue(storedValues.le);
+        const value = normalizeValue(storedValues.le);
         storedValues.le = value;
         storedValues.ge = Math.min(storedValues.ge, value);
         setHandleState(sliderMinHandle, { visible: false, role: 'ge', value, zIndex: 2 });
         setHandleState(sliderMaxHandle, { visible: true, role: 'le', value, zIndex: 3 });
       } else {
-        const value = clampSliderValue(storedValues.eq);
+        const value = normalizeValue(storedValues.eq);
         storedValues.eq = value;
         storedValues.ge = value;
         storedValues.le = value;
@@ -1730,6 +1794,33 @@ const initSolver = () => {
       }
       updateSliderDisplay();
     };
+
+    const updateFineTuneIndicators = () => {
+      if (fineToggle) {
+        fineToggle.dataset.active = fineTuneActive ? 'true' : 'false';
+        fineToggle.setAttribute('aria-pressed', fineTuneActive ? 'true' : 'false');
+      }
+      if (sliderRoot) {
+        sliderRoot.dataset.fineTune = fineTuneActive ? 'true' : 'false';
+        sliderRoot.dataset.snapMode = fineTuneActive ? 'fine' : 'coarse';
+      }
+      if (card) {
+        card.dataset.fineTune = fineTuneActive ? 'true' : 'false';
+      }
+    };
+
+    const applySliderSnapMode = () => {
+      if (sliderController) {
+        if (fineTuneActive) {
+          sliderController.setSnapFunction(null);
+        } else {
+          sliderController.setSnapFunction(coarseSnapValue);
+        }
+      }
+      updateFineTuneIndicators();
+    };
+
+    applySliderSnapMode();
 
     const setSliderDisabled = (disabled) => {
       if (sliderController) {
@@ -1748,6 +1839,9 @@ const initSolver = () => {
       modeButtons.forEach((btn) => {
         btn.disabled = !!disabled;
       });
+      if (fineToggle) {
+        fineToggle.disabled = !!disabled;
+      }
       setModeButtonsState();
     };
 
@@ -1766,18 +1860,18 @@ const initSolver = () => {
       currentMode = sanitized;
       modeInput.value = sanitized;
       if (sanitized === 'eq') {
-        const base = clampSliderValue(storedValues.ge);
-        storedValues.eq = clampSliderValue(storedValues.eq);
-        storedValues.ge = clampSliderValue(storedValues.ge ?? base);
+        const base = normalizeValue(storedValues.ge);
+        storedValues.eq = normalizeValue(storedValues.eq);
+        storedValues.ge = normalizeValue(storedValues.ge ?? base);
         storedValues.le = storedValues.ge;
         storedValues.eq = storedValues.ge;
       } else if (sanitized === 'ge') {
-        storedValues.ge = clampSliderValue(storedValues.ge);
+        storedValues.ge = normalizeValue(storedValues.ge);
       } else if (sanitized === 'le') {
-        storedValues.le = clampSliderValue(storedValues.le);
+        storedValues.le = normalizeValue(storedValues.le);
       } else if (sanitized === 'between') {
-        storedValues.ge = clampSliderValue(storedValues.ge);
-        storedValues.le = clampSliderValue(storedValues.le);
+        storedValues.ge = normalizeValue(storedValues.ge);
+        storedValues.le = normalizeValue(storedValues.le);
         if (storedValues.le < storedValues.ge) {
           storedValues.le = storedValues.ge;
         }
@@ -1799,9 +1893,9 @@ const initSolver = () => {
       let value = 0;
       if (sliderController) {
         const key = sliderController.getHandleKey(handleEl);
-        value = clampSliderValue(key ? sliderController.getValue(key) : 0);
+        value = normalizeValue(key ? sliderController.getValue(key) : 0);
       } else {
-        value = clampSliderValue(sliderStepToNumber(handleEl.value));
+        value = normalizeValue(sliderStepToNumber(handleEl.value));
       }
       if (role === 'ge') {
         storedValues.ge = value;
@@ -1842,11 +1936,37 @@ const initSolver = () => {
         }
       }
       setSliderHandleValue(handleEl, value);
+      applyCurrentSnapToStoredValues();
       syncHiddenValues();
       updateSliderDisplay();
       updateSubmitState();
       syncClearButtonState();
     };
+
+    const setFineTuneState = (nextState) => {
+      const desired = !!nextState;
+      if (desired === fineTuneActive) {
+        return;
+      }
+      fineTuneActive = desired;
+      applySliderSnapMode();
+      applyCurrentSnapToStoredValues();
+      syncSliderHandles();
+      syncHiddenValues();
+      updateSliderDisplay();
+      updateSubmitState();
+      syncClearButtonState();
+    };
+
+    const toggleFineTune = () => {
+      setFineTuneState(!fineTuneActive);
+    };
+
+    if (fineToggle) {
+      fineToggle.addEventListener('click', () => {
+        toggleFineTune();
+      });
+    }
 
     const toggleEq = () => {
       if (currentMode === 'eq') {
@@ -1955,12 +2075,14 @@ const initSolver = () => {
           ge: storedValues.ge,
           le: storedValues.le,
         },
+        fine: fineTuneActive,
       }),
       applyState: (state) => {
         if (!state || typeof state !== 'object') {
           return;
         }
-        const { color = null, mode = 'any', values = {} } = state;
+        const { color = null, mode = 'any', values = {}, fine = fineTuneActive } = state;
+        setFineTuneState(fine);
         applyColorSelection(color, { focus: false });
         if (!color) {
           if (Number.isFinite(values.eq)) {
@@ -1982,6 +2104,9 @@ const initSolver = () => {
       },
       setColor: (value) => {
         applyColorSelection(value, { focus: false });
+      },
+      setFine: (next) => {
+        setFineTuneState(next);
       },
     };
 
@@ -2492,6 +2617,7 @@ const initSolver = () => {
           const numericIntervals = {};
           const bandPreferences = {};
           const debugIntervals = {};
+          const INTERVAL_EPS = 1e-3;
 
           ATTRS.forEach((attr) => {
             const bandChoice = formData.get(`band_${attr}`) || 'any';
@@ -2517,15 +2643,30 @@ const initSolver = () => {
               debugLo = Number.NEGATIVE_INFINITY;
               debugHi = hi;
             } else if (mode === 'eq') {
-              const target = minVal !== null ? minVal : maxVal;
-              if (target !== null) {
-                lo = target;
-                hi = target;
-                debugLo = target;
-                debugHi = target;
+              if (minVal !== null && maxVal !== null) {
+                const loVal = Math.min(minVal, maxVal);
+                const hiVal = Math.max(minVal, maxVal);
+                if (hiVal > loVal + INTERVAL_EPS) {
+                  lo = loVal;
+                  hi = hiVal;
+                  debugLo = loVal;
+                  debugHi = hiVal;
+                } else {
+                  lo = hi = hiVal;
+                  debugLo = hiVal;
+                  debugHi = hiVal;
+                }
               } else {
-                debugLo = 0;
-                debugHi = 11;
+                const target = minVal !== null ? minVal : maxVal;
+                if (target !== null) {
+                  lo = target;
+                  hi = target;
+                  debugLo = target;
+                  debugHi = target;
+                } else {
+                  debugLo = 0;
+                  debugHi = 11;
+                }
               }
             } else if (mode === 'between') {
               const loVal = minVal === null ? 0 : minVal;

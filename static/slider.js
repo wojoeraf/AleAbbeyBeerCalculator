@@ -187,7 +187,16 @@ export const initSlider = ({
     }
 
     const clampValue = (value) => clamp(Number.isFinite(value) ? value : 0, 0, maxValue);
-    const snapValue = (value) => Math.round(clampValue(value) * stepScale) / stepScale;
+    const defaultSnapValue = (value) => {
+      const safe = clampValue(value);
+      return Math.round(safe * stepScale) / stepScale;
+    };
+    let snapStrategy = defaultSnapValue;
+    const snapValue = (value) => {
+      const safeInput = clampValue(value);
+      const snapped = snapStrategy(safeInput);
+      return clampValue(Number.isFinite(snapped) ? snapped : safeInput);
+    };
     const percentFromValue = (value) => {
       const safe = clampValue(value);
       return (safe / maxValue) * 100;
@@ -508,6 +517,27 @@ export const initSlider = ({
         root.classList.toggle('range-slider--disabled', !!disabled);
       },
       setActiveBand,
+      setSnapFunction: (fn) => {
+        if (typeof fn === 'function') {
+          snapStrategy = (value) => {
+            const safe = clampValue(value);
+            const next = fn(safe);
+            return clampValue(Number.isFinite(next) ? next : safe);
+          };
+        } else {
+          snapStrategy = defaultSnapValue;
+        }
+        handleList.forEach((state) => {
+          const next = snapValue(state.value);
+          if (Math.abs(state.value - next) > EPS) {
+            state.value = next;
+            updateHandlePosition(state);
+          } else {
+            state.value = next;
+          }
+        });
+        updateTrackState();
+      },
       refresh: () => {
         handleList.forEach((state) => {
           updateHandlePosition(state);
