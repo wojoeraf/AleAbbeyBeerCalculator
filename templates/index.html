@@ -128,7 +128,10 @@
                             {% for a in attrs %}
                                 <div class="target-summary__row" data-target-summary-row="{{ a }}">
                                     <dt>{{ attr_labels[a] }}</dt>
-                                    <dd data-target-summary-value>–</dd>
+                                    <dd class="target-summary__value" data-target-summary-value>
+                                        <span class="target-summary__colors" data-target-summary-colors aria-hidden="true" hidden></span>
+                                        <span data-target-summary-text>–</span>
+                                    </dd>
                                 </div>
                             {% endfor %}
                         </dl>
