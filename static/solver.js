@@ -1755,16 +1755,28 @@ const initSolver = () => {
     if ((!modeInput || modeInput.value === 'any') && colorRadios.some((radio) => radio.checked)) {
       colorModeEnforced = true;
     }
+    let suppressColorModeRestore = false;
     let updateColorState = () => {};
 
-    const applyColorSelection = (value, { focus = true } = {}) => {
+    const applyColorSelection = (
+      value,
+      { focus = true, suppressSolve = false, suppressModeRestore = false } = {},
+    ) => {
       colorModeEnforced = value !== null && value !== undefined;
+      const previousSuppress = suppressColorModeRestore;
+      suppressColorModeRestore = !!suppressModeRestore;
       const selected = setColorSelectionValue(value);
-      updateColorState();
+      try {
+        updateColorState();
+      } finally {
+        suppressColorModeRestore = previousSuppress;
+      }
       if (typeof allGreenWatcher === 'function') {
         allGreenWatcher();
       }
-      scheduleAutoSolve();
+      if (!suppressSolve) {
+        scheduleAutoSolve();
+      }
       if (focus && selected && typeof selected.focus === 'function') {
         selected.focus();
       }
@@ -2351,6 +2363,9 @@ const initSolver = () => {
       }
       if (sanitized !== 'any') {
         savedNumericMode = sanitized;
+        if (colorRadios.some((radio) => radio.checked)) {
+          applyColorSelection(null, { focus: false, suppressSolve: true, suppressModeRestore: true });
+        }
         colorModeEnforced = false;
       }
       setModeButtonsState();
@@ -2420,8 +2435,12 @@ const initSolver = () => {
       updateSliderDisplay();
       updateSubmitState();
       syncClearButtonState();
-      colorModeEnforced = false;
-      updateColorState();
+      if (colorRadios.some((radio) => radio.checked)) {
+        applyColorSelection(null, { focus: false, suppressSolve: true, suppressModeRestore: true });
+      } else {
+        colorModeEnforced = false;
+        updateColorState();
+      }
       scheduleAutoSolve();
     };
 
@@ -2643,11 +2662,15 @@ const initSolver = () => {
       }
 
       if (hasSelection && colorModeEnforced && modeInput.value !== 'any') {
-        setModeValue('any');
+        if (!suppressColorModeRestore) {
+          setModeValue('any');
+        }
       } else if (!hasSelection) {
-        const restoreMode = savedNumericMode || 'any';
-        if (currentMode !== restoreMode) {
-          setModeValue(restoreMode);
+        if (!suppressColorModeRestore) {
+          const restoreMode = savedNumericMode || 'any';
+          if (currentMode !== restoreMode) {
+            setModeValue(restoreMode);
+          }
         }
         colorModeEnforced = false;
       }
@@ -2742,7 +2765,7 @@ const initSolver = () => {
 
     setAllGreenBtn.addEventListener('click', () => {
       const currentMode = setAllGreenBtn.dataset.mode === 'any' ? 'any' : 'green';
-      const targetColor = currentMode === 'green' ? 'green' : null;
+      const targetColor = currentMode === 'green' ? 'green' : 'any';
 
       attrControllers.forEach((controller) => {
         if (!controller || typeof controller.setColor !== 'function') {
