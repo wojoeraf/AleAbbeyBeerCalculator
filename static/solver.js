@@ -364,7 +364,6 @@ const initSolver = () => {
 
   const {
     attrCards,
-    submitBtn,
     setAllGreenBtn,
     styleSelect,
     ingredientRows,
@@ -1626,19 +1625,6 @@ const initSolver = () => {
     optionalToggleBtn.dataset.state = allChecked ? 'all' : hasAny ? 'some' : 'none';
   };
 
-  const updateSubmitState = () => {
-    if (!submitBtn) return;
-    const hasConstraint = attrCards.some((card) => {
-      const selectedBand = card.querySelector('input[type="radio"][data-color-radio]:checked');
-      const modeInput = card.querySelector('[data-mode-input]');
-      const bandValue = selectedBand ? selectedBand.value : null;
-      const bandActive = !!bandValue && bandValue !== 'any';
-      const modeActive = modeInput && modeInput.value !== 'any';
-      return bandActive || modeActive;
-    });
-    submitBtn.disabled = !hasConstraint;
-  };
-
   attrCards.forEach((card) => {
     const sliderRoot = card.querySelector('[data-slider]');
     const sliderController = sliderRoot ? createSlider(sliderRoot) : null;
@@ -1858,7 +1844,6 @@ const initSolver = () => {
             simpleSummaryUpdater();
           }
         }
-        updateSubmitState();
       };
 
       if (clearBtn) {
@@ -2383,7 +2368,6 @@ const initSolver = () => {
       syncSliderHandles();
       syncHiddenValues();
       updateSliderDisplay();
-      updateSubmitState();
       syncClearButtonState();
       scheduleAutoSolve();
     };
@@ -2444,7 +2428,6 @@ const initSolver = () => {
       applyCurrentSnapToStoredValues();
       syncHiddenValues();
       updateSliderDisplay();
-      updateSubmitState();
       syncClearButtonState();
       if (colorRadios.some((radio) => radio.checked)) {
         applyColorSelection(null, { focus: false, suppressSolve: true, suppressModeRestore: true });
@@ -2466,7 +2449,6 @@ const initSolver = () => {
       syncSliderHandles();
       syncHiddenValues();
       updateSliderDisplay();
-      updateSubmitState();
       syncClearButtonState();
       scheduleAutoSolve();
     };
@@ -2524,7 +2506,6 @@ const initSolver = () => {
       syncHiddenValues();
       updateSliderDisplay();
       applyColorSelection(null, { focus: false });
-      updateSubmitState();
       syncClearButtonState();
     };
 
@@ -2698,7 +2679,6 @@ const initSolver = () => {
       }
 
       setSliderDisabled(false);
-      updateSubmitState();
       syncClearButtonState();
     };
 
@@ -2789,7 +2769,6 @@ const initSolver = () => {
       if (typeof allGreenWatcher === 'function') {
         allGreenWatcher();
       }
-      updateSubmitState();
       scheduleAutoSolve();
 
       setButtonMode(currentMode === 'green' ? 'any' : 'green');
@@ -3450,7 +3429,6 @@ const initSolver = () => {
     applyStyleRequirements(styleSelect.value);
   }
 
-  updateSubmitState();
   updateOptionalToggleState();
   if (!styleSelect) {
     refreshMixSummary();

@@ -21,7 +21,6 @@ export const initUIState = () => {
 
   const selectors = {
     attrCards,
-    submitBtn: document.querySelector('[data-submit-button]'),
     setAllGreenBtn: document.querySelector('[data-set-all-green]'),
     styleSelect: document.querySelector('select[name="style"]'),
     ingredientRows: Array.from(document.querySelectorAll('[data-ingredient-row]')),
