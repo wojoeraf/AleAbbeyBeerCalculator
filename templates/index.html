@@ -423,11 +423,13 @@
                             </div>
                         </div>
                     </div>
-                    <button class="btn-primary mix-panel__submit" type="submit" data-submit-button{% if not has_active_constraints %} disabled{% endif %}>{{ ui.button_submit }}</button>
                     <section class="results-section" data-results>
                         <div class="results-header" data-results-header>
                             <div class="results-heading">
-                                <h3 class="section-title results-title" data-results-title>{{ ui.section_results }}</h3>
+                                <h3 class="section-title results-title" data-results-title>
+                                    <span class="results-title__icon" aria-hidden="true">⚗️</span>
+                                    {{ ui.section_results }}
+                                </h3>
                                 <p class="hint results-placeholder" data-results-placeholder>{{ ui.results_placeholder }}</p>
                             </div>
                             <div class="results-loading" data-results-loading hidden role="status" aria-live="polite">
