@@ -249,6 +249,59 @@ const initSolver = () => {
     return costFormatter.format(num);
   };
 
+  const normalizedLang = typeof currentLang === 'string' ? currentLang.toLowerCase() : '';
+  const fallbackConjunction = normalizedLang.startsWith('de') ? 'und' : 'and';
+
+  let formatList = (values) => {
+    if (!Array.isArray(values)) {
+      return '';
+    }
+    const filtered = values
+      .map((value) => (typeof value === 'string' ? value.trim() : ''))
+      .filter((value) => value.length > 0);
+    if (!filtered.length) {
+      return '';
+    }
+    if (filtered.length === 1) {
+      return filtered[0];
+    }
+    if (filtered.length === 2) {
+      return `${filtered[0]} ${fallbackConjunction} ${filtered[1]}`;
+    }
+    const head = filtered.slice(0, -1).join(', ');
+    const tail = filtered[filtered.length - 1];
+    return `${head}, ${fallbackConjunction} ${tail}`;
+  };
+
+  const fallbackFormatList = formatList;
+
+  if (typeof Intl !== 'undefined' && typeof Intl.ListFormat === 'function') {
+    try {
+      const listFormatter = new Intl.ListFormat(currentLang || undefined, {
+        style: 'long',
+        type: 'conjunction',
+      });
+      formatList = (values) => {
+        if (!Array.isArray(values)) {
+          return '';
+        }
+        const filtered = values
+          .map((value) => (typeof value === 'string' ? value.trim() : ''))
+          .filter((value) => value.length > 0);
+        if (!filtered.length) {
+          return '';
+        }
+        try {
+          return listFormatter.format(filtered);
+        } catch (error) {
+          return fallbackFormatList(filtered);
+        }
+      };
+    } catch (error) {
+      // Ignore and fall back to basic join.
+    }
+  }
+
   const seasonLabels = {};
   SEASON_ORDER.forEach((season) => {
     const label = translate(`season_${season}`);
@@ -3049,6 +3102,40 @@ const initSolver = () => {
       return Promise.resolve();
     }
     const formData = new FormData(form);
+    const missingVirtues = [];
+    ATTRS.forEach((attr) => {
+      const bandChoice = formData.get(`band_${attr}`);
+      const bandActive = typeof bandChoice === 'string' && bandChoice.length > 0 && bandChoice !== 'any';
+      const rawMode = formData.get(`mode_${attr}`);
+      const modeValue = typeof rawMode === 'string' && rawMode.length > 0 ? rawMode : 'any';
+      const modeActive = modeValue !== 'any';
+      if (!bandActive && !modeActive) {
+        missingVirtues.push(attr);
+      }
+    });
+
+    if (missingVirtues.length > 0) {
+      const virtueNames = missingVirtues.map((attr) => {
+        const label = attrLabels[attr];
+        if (typeof label === 'string' && label.trim().length > 0) {
+          return label.trim();
+        }
+        return attr;
+      });
+      const formattedVirtues = formatList(virtueNames);
+      const message = translate('virtue_missing_rule', { virtues: formattedVirtues });
+      renderSolutions(
+        [],
+        [message],
+        {
+          includes: formData.getAll('selected_ingredients'),
+          optional: formData.getAll('optional_ingredients'),
+        },
+        0,
+      );
+      renderDebug([]);
+      return Promise.resolve();
+    }
     setLoadingState(true);
 
     const runComputation = (resolve) => {
