@@ -7,36 +7,58 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body class="legal-page">
-<div class="legal-container card">
-    <a class="back-link" href="{{ url_for('index') }}">← Zurück zur Startseite</a>
-    <h1>Impressum</h1>
-    <p>
-        Rafael Wörner<br>
-        Honigbart Studios (Einzelunternehmen<br>
-        Konrad-Adenauer-Str. 18<br>
-        69221 Dossenheim<br>
-        Deutschland
-    </p>
+<div class="legal-layout">
+    <header class="legal-hero card">
+        <a class="back-link" href="{{ url_for('index') }}">← Zurück zur Startseite</a>
+        <p class="legal-badge">Ale Abbey Beer Calculator</p>
+        <h1>Impressum</h1>
+        <p class="legal-subtitle">Transparenz und verantwortliche Kontaktpersonen auf einen Blick.</p>
+    </header>
 
-    <h2>Kontakt</h2>
-    <p>E-Mail: <a href="mailto:info@honigbartstudios.de">info@honigbartstudios.de</a></p>
+    <main class="legal-content card">
+        <section class="legal-section">
+            <h2>Verantwortlich für den Inhalt</h2>
+            <p class="legal-highlight">
+                Rafael Wörner<br>
+                Honigbart Studios (Einzelunternehmen)<br>
+                Konrad-Adenauer-Str. 18<br>
+                69221 Dossenheim<br>
+                Deutschland
+            </p>
+        </section>
 
-    <h2>Umsatzsteuer-ID</h2>
-    <p>Umsatzsteuer-Identifikationsnummer gemäß § 27 a Umsatzsteuergesetz:<br>DE345361486</p>
+        <section class="legal-section">
+            <h2>Kontakt</h2>
+            <p class="legal-highlight">E-Mail: <a href="mailto:info@honigbartstudios.de">info@honigbartstudios.de</a></p>
+        </section>
 
-    <h2>Redaktionell verantwortlich</h2>
-    <p>Rafael Wörner<br>
-        Konrad-Adenauer-Str. 18<br>
-        69221 Dossenheim</p>
+        <section class="legal-section">
+            <h2>Umsatzsteuer-ID</h2>
+            <p>Umsatzsteuer-Identifikationsnummer gemäß § 27 a Umsatzsteuergesetz:<br><strong>DE345361486</strong></p>
+        </section>
 
-    <h2>EU-Streitschlichtung</h2>
-    <p>Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit: <a
-            href="https://ec.europa.eu/consumers/odr/" target="_blank" rel="noopener noreferrer">https://ec.europa.eu/consumers/odr/</a>.
-        Unsere E-Mail-Adresse finden Sie oben im Impressum.</p>
+        <section class="legal-section">
+            <h2>Redaktionell verantwortlich</h2>
+            <p>
+                Rafael Wörner<br>
+                Konrad-Adenauer-Str. 18<br>
+                69221 Dossenheim
+            </p>
+        </section>
 
-    <h2>Verbraucher­streit­beilegung/Universal­schlichtungs­stelle</h2>
-    <p>Wir sind nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle
-        teilzunehmen.</p>
+        <section class="legal-section">
+            <h2>EU-Streitschlichtung</h2>
+            <p>Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit: <a
+                    href="https://ec.europa.eu/consumers/odr/" target="_blank" rel="noopener noreferrer">https://ec.europa.eu/consumers/odr/</a>.
+                Unsere E-Mail-Adresse finden Sie oben im Impressum.</p>
+        </section>
+
+        <section class="legal-section">
+            <h2>Verbraucher­streit­beilegung / Universal­schlichtungs­stelle</h2>
+            <p>Wir sind nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle
+                teilzunehmen.</p>
+        </section>
+    </main>
 </div>
 </body>
 </html>
