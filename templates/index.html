@@ -35,6 +35,9 @@
             <div class="lab-header__top">
                 <div class="lab-header__branding">
                     <h1 class="lab-header__title">{{ ui.header_title }}</h1>
+                    <p class="lab-header__disclaimer">
+                        {{ ui.header_disclaimer if ui.header_disclaimer is defined else 'Fan-made project crafted for fellow brewers —no affiliation with any official brewery.' }}
+                    </p>
                 </div>
                 <div class="lab-header__controls">
                     <form class="language-switcher" method="get">
@@ -138,26 +141,10 @@
                             <span class="theme-toggle__text" id="theme-toggle-state" data-theme-toggle-text>{{ ui.theme_option_dark }}</span>
                         </button>
                     </div>
-                    <div class="lab-header__support">
-                        <a class="support-cta"
-                           href="https://www.buymeacoffee.com/honigbartstudios"
-                           target="_blank"
-                           rel="noopener noreferrer">
-                            <span class="support-cta__shine" aria-hidden="true"></span>
-                            <span class="support-cta__icon" aria-hidden="true">🍺</span>
-                            <span class="support-cta__content">
-                                <span class="support-cta__title">Buy me an Ale</span>
-                                <span class="support-cta__subtitle">and support me</span>
-                            </span>
-                        </a>
-                    </div>
                 </div>
             </div>
             <div class="lab-header__grid">
                 <div class="lab-header__story">
-                    <p class="lab-header__disclaimer">
-                        {{ ui.header_disclaimer if ui.header_disclaimer is defined else 'Fan-made project crafted for fellow brewers —no affiliation with any official brewery.' }}
-                    </p>
                 </div>
             </div>
         </div>
@@ -457,29 +444,30 @@
             </aside>
         </div>
     </form>
-
-    <section class="card support-section" id="support">
-        <h2>{{ ui.support_header }}</h2>
-        <p>{{ ui.support }}</p>
-        <div class="support-actions">
+    <div class="support-container">
+        <section class="card support-section" id="support">
+            <h2>{{ ui.support_header }}</h2>
+            <p>{{ ui.support }}</p>
             <p class="support-note">{{ ui.support_note }}</p>
-            <div class="support-buttons">
-                <a class="support-cta"
-                   href="https://www.buymeacoffee.com/honigbartstudios"
-                   target="_blank"
-                   rel="noopener noreferrer">
-                    <span class="support-cta__shine" aria-hidden="true"></span>
-                    <span class="support-cta__icon" aria-hidden="true">🍺</span>
-                    <span class="support-cta__content">
-                        <span class="support-cta__title">Buy me an Ale</span>
-                        <span class="support-cta__subtitle">and support me</span>
-                    </span>
-                </a>
+            <div class="support-actions">
+                <div class="support-buttons">
+                    <a class="support-cta"
+                       href="https://www.buymeacoffee.com/honigbartstudios"
+                       target="_blank"
+                       rel="noopener noreferrer">
+                        <span class="support-cta__shine" aria-hidden="true"></span>
+                        <span class="support-cta__icon" aria-hidden="true">🍺</span>
+                        <span class="support-cta__content">
+                            <span class="support-cta__title">Buy me an Ale</span>
+                            <span class="support-cta__subtitle">and support me</span>
+                        </span>
+                    </a>
+                </div>
             </div>
-        </div>
-        <h3>Disclaimer</h3>
-        <p>{{ ui.disclaimer }}</p>
-    </section>
+            <h3>Disclaimer</h3>
+            <p>{{ ui.disclaimer }}</p>
+        </section>
+    </div>
 </div>
 
 <footer class="site-footer">

@@ -339,7 +339,7 @@ body[data-theme='dark'] .lab-header__bubble {
   position: relative;
   z-index: 1;
   display: grid;
-  gap: clamp(18px, 3vw, 28px);
+  /*gap: clamp(18px, 3vw, 28px);*/
 }
 
 .lab-header__top {
@@ -382,12 +382,6 @@ body[data-theme='dark'] .lab-header__bubble {
   display: inline-flex;
   align-items: center;
   gap: clamp(10px, 1.8vw, 18px);
-  padding: clamp(8px, 1.6vw, 12px) clamp(12px, 2.6vw, 18px);
-  border-radius: 999px;
-  background: linear-gradient(140deg, rgba(255, 255, 255, 0.8), rgba(253, 230, 138, 0.65));
-  border: 1px solid rgba(249, 115, 22, 0.16);
-  box-shadow: 0 18px 38px -24px rgba(249, 115, 22, 0.55);
-  backdrop-filter: blur(10px);
 }
 
 .language-switcher::after {
@@ -405,11 +399,6 @@ body[data-theme='dark'] .lab-header__bubble {
   opacity: 1;
 }
 
-body[data-theme='dark'] .language-switcher {
-  background: linear-gradient(140deg, rgba(30, 41, 59, 0.78), rgba(249, 115, 22, 0.32));
-  border-color: rgba(253, 230, 138, 0.28);
-  box-shadow: 0 18px 48px -24px rgba(15, 23, 42, 0.85);
-}
 
 .language-switcher__flags {
   display: flex;
@@ -775,8 +764,7 @@ body[data-theme='dark'] .support-cta__shine {
   }
 
   .language-switcher {
-    width: 120px;
-    justify-content: space-between;
+    justify-content: flex-start;
   }
 
   .language-switcher__flags {
@@ -2605,10 +2593,15 @@ body[data-theme='dark'] .chip:focus-visible {
   text-align: center;
 }
 
+.support-container {
+  display: flex;
+  justify-content: center;
+}
+
 .support-section {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  width: 66%;
 }
 
 .support-actions {
@@ -2616,11 +2609,11 @@ body[data-theme='dark'] .chip:focus-visible {
   flex-wrap: wrap;
   gap: 16px;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
 }
 
 .support-note {
-  margin: 0;
+  margin-top: 0;
   color: var(--text-secondary);
 }
 
@@ -2729,6 +2722,10 @@ body[data-theme='dark'] .chip:focus-visible {
 
   .mix-caps {
     grid-template-columns: 1fr;
+  }
+
+  .support-section {
+    width: unset;
   }
 }
 
