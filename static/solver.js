@@ -1884,9 +1884,20 @@ const initSolver = () => {
           return { min: value, max: value };
         };
 
-        simpleSummaryUpdater = () => {
-          const text = sliderSingleValueEl.textContent?.trim() || sliderSingleValueEl.textContent || '–';
+        const readSimpleSummaryValue = () => {
           const range = readSimpleSummaryRange();
+          if (Number.isFinite(range.min)) {
+            return { text: formatSliderValue(range.min), range };
+          }
+          const fallbackText = sliderSingleValueEl.textContent?.trim() || sliderSingleValueEl.textContent || '–';
+          return { text: fallbackText, range };
+        };
+
+        simpleSummaryUpdater = () => {
+          const { text, range } = readSimpleSummaryValue();
+          if (sliderSingleValueEl) {
+            sliderSingleValueEl.textContent = text || '–';
+          }
           const hasRange = Number.isFinite(range.min) && Number.isFinite(range.max);
           updateTargetSummaryEntry(attrName, { text, range: hasRange ? range : null });
         };
