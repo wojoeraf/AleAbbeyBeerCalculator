@@ -276,6 +276,10 @@ const initSolver = () => {
     }
   }
 
+  let performSolve = () => Promise.resolve();
+  let scheduleAutoSolve = () => {};
+  let cancelScheduledAutoSolve = () => {};
+
   const displayIngredientName = (id) => {
     if (!id) {
       return translate('style_unknown');
@@ -1687,6 +1691,7 @@ const initSolver = () => {
       if (typeof allGreenWatcher === 'function') {
         allGreenWatcher();
       }
+      scheduleAutoSolve();
       if (focus && selected && typeof selected.focus === 'function') {
         selected.focus();
       }
@@ -2275,6 +2280,7 @@ const initSolver = () => {
       updateSliderDisplay();
       updateSubmitState();
       syncClearButtonState();
+      scheduleAutoSolve();
     };
 
     const handleSliderInput = (handleEl, roleHint) => {
@@ -2350,6 +2356,7 @@ const initSolver = () => {
       updateSliderDisplay();
       updateSubmitState();
       syncClearButtonState();
+      scheduleAutoSolve();
     };
 
     const toggleFineTune = () => {
@@ -2640,6 +2647,7 @@ const initSolver = () => {
         allGreenWatcher();
       }
       updateSubmitState();
+      scheduleAutoSolve();
 
       setButtonMode(currentMode === 'green' ? 'any' : 'green');
     });
@@ -2667,6 +2675,7 @@ const initSolver = () => {
       updateOptionalToggleState();
       refreshMixSummary();
       updateCategoryOptionalButtonState();
+      scheduleAutoSolve();
     });
   }
 
@@ -2700,6 +2709,7 @@ const initSolver = () => {
       updateOptionalToggleState();
       refreshMixSummary();
       updateCategoryOptionalButtonState();
+      scheduleAutoSolve();
     });
   }
 
@@ -2757,6 +2767,7 @@ const initSolver = () => {
       }
       refreshMixSummary();
       updateCategoryOptionalButtonState();
+      scheduleAutoSolve();
     });
 
   }
@@ -2833,20 +2844,6 @@ const initSolver = () => {
     refreshMixSummary();
     updateCategoryOptionalButtonState();
   };
-
-  if (styleSelect) {
-    styleSelect.addEventListener('change', () => {
-      applyStyleRequirements(styleSelect.value);
-    });
-    applyStyleRequirements(styleSelect.value);
-  }
-
-  updateSubmitState();
-  updateOptionalToggleState();
-  if (!styleSelect) {
-    refreshMixSummary();
-  }
-  updateCategoryOptionalButtonState();
 
   const parseFloatOrNull = (value) => {
     if (value === null || value === undefined) return null;
@@ -3036,196 +3033,257 @@ const initSolver = () => {
     renderState({ loading: next });
   };
 
+  const AUTO_SOLVE_DEBOUNCE_MS = 250;
+  let autoSolveTimerId = null;
+
+  cancelScheduledAutoSolve = () => {
+    if (autoSolveTimerId !== null) {
+      clearTimeout(autoSolveTimerId);
+      autoSolveTimerId = null;
+    }
+  };
+
+  performSolve = () => {
+    cancelScheduledAutoSolve();
+    if (!form) {
+      return Promise.resolve();
+    }
+    const formData = new FormData(form);
+    setLoadingState(true);
+
+    const runComputation = (resolve) => {
+      const debugLines = [];
+      const finalize = () => {
+        setLoadingState(false);
+        resolve();
+      };
+
+      try {
+        let styleName = formData.get('style');
+        if (!styleName && styleIds.length) {
+          styleName = styleIds[0];
+        }
+        if (styleName && !(styleName in stylesData) && styleIds.length) {
+          styleName = styleIds[0];
+        }
+
+        const totalCapRaw = Number(formData.get('total_cap'));
+        const perCapRaw = Number(formData.get('per_cap'));
+        const totalCap = clamp(Number.isFinite(totalCapRaw) ? totalCapRaw : 25, 1, 99);
+        const perCap = clamp(Number.isFinite(perCapRaw) ? perCapRaw : 25, 1, 99);
+
+        const numericIntervals = {};
+        const bandPreferences = {};
+        const debugIntervals = {};
+        const INTERVAL_EPS = 1e-3;
+
+        ATTRS.forEach((attr) => {
+          const bandChoice = formData.get(`band_${attr}`) || 'any';
+          bandPreferences[attr] = bandChoice === 'any' ? null : [bandChoice];
+
+          const mode = formData.get(`mode_${attr}`) || 'any';
+          const rawMin = parseFloatOrNull(formData.get(`min_${attr}`));
+          const rawMax = parseFloatOrNull(formData.get(`max_${attr}`));
+          const minVal = rawMin === null ? null : clamp(rawMin, 0, 11);
+          const maxVal = rawMax === null ? null : clamp(rawMax, 0, 11);
+
+          let lo = Number.NEGATIVE_INFINITY;
+          let hi = Number.POSITIVE_INFINITY;
+          let debugLo = 0;
+          let debugHi = 11;
+
+          if (mode === 'ge') {
+            lo = minVal === null ? 0 : minVal;
+            debugLo = lo;
+            debugHi = Number.POSITIVE_INFINITY;
+          } else if (mode === 'le') {
+            hi = maxVal === null ? 11 : maxVal;
+            debugLo = Number.NEGATIVE_INFINITY;
+            debugHi = hi;
+          } else if (mode === 'eq') {
+            if (minVal !== null && maxVal !== null) {
+              const loVal = Math.min(minVal, maxVal);
+              const hiVal = Math.max(minVal, maxVal);
+              if (hiVal > loVal + INTERVAL_EPS) {
+                lo = loVal;
+                hi = hiVal;
+                debugLo = loVal;
+                debugHi = hiVal;
+              } else {
+                lo = hi = hiVal;
+                debugLo = hiVal;
+                debugHi = hiVal;
+              }
+            } else {
+              const target = minVal !== null ? minVal : maxVal;
+              if (target !== null) {
+                lo = target;
+                hi = target;
+                debugLo = target;
+                debugHi = target;
+              } else {
+                debugLo = 0;
+                debugHi = 11;
+              }
+            }
+          } else if (mode === 'between') {
+            const loVal = minVal === null ? 0 : minVal;
+            const hiVal = maxVal === null ? 11 : Math.max(loVal, maxVal);
+            lo = loVal;
+            hi = hiVal;
+            debugLo = loVal;
+            debugHi = hiVal;
+          } else {
+            debugLo = 0;
+            debugHi = 11;
+          }
+
+          numericIntervals[attr] = [lo, hi];
+          debugIntervals[attr] = [debugLo, debugHi];
+        });
+
+        const selectedRequired = new Set(formData.getAll('selected_ingredients'));
+        const optionalPool = new Set(formData.getAll('optional_ingredients'));
+        const extraMinCounts = {};
+        selectedRequired.forEach((id) => {
+          extraMinCounts[id] = Math.max(extraMinCounts[id] || 0, 1);
+        });
+
+        const allowedSet = new Set(optionalPool);
+        selectedRequired.forEach((id) => allowedSet.add(id));
+
+        const styleLabel = displayStyleName(styleName) || translate('style_unknown');
+        debugLines.push(translate('debug_style', { style: styleLabel }));
+        debugLines.push(translate('debug_caps', { total: totalCap, per: perCap }));
+        debugLines.push(translate('debug_attr_heading'));
+        ATTRS.forEach((attr) => {
+          const interval = debugIntervals[attr] || [0, 11];
+          const bandPref = bandPreferences[attr];
+          const bandKey = bandPref && bandPref.length === 1 ? bandPref[0] : 'any';
+          const bandText = bandLabels[bandKey] || bandKey;
+          debugLines.push(
+            translate('debug_attr_entry', {
+              label: attrLabels[attr] || attr,
+              band: bandText,
+              min: formatIntervalValue(interval[0]),
+              max: formatIntervalValue(interval[1]),
+            }),
+          );
+        });
+        if (selectedRequired.size) {
+          const requiredList = Array.from(selectedRequired)
+            .map((id) => displayIngredientName(id))
+            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+          debugLines.push(translate('debug_required', { list: requiredList.join(', ') }));
+        }
+        if (optionalPool.size) {
+          const optionalList = Array.from(optionalPool)
+            .map((id) => displayIngredientName(id))
+            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+          debugLines.push(translate('debug_optional', { list: optionalList.join(', ') }));
+        }
+
+        const selectionMeta = {
+          includes: Array.from(selectedRequired),
+          optional: Array.from(optionalPool),
+        };
+
+        const workerRequest = {
+          styleName,
+          numericIntervals,
+          bandPreferences,
+          totalCap,
+          perCap,
+          extraMinCounts,
+          allowedIngredientIds: Array.from(allowedSet),
+          topK: DEFAULT_TOP_K,
+        };
+
+        const solvePromise = workerController
+          ? workerController.solve(workerRequest).catch((error) => {
+            console.warn('Solver worker solve failed; falling back to main thread', error);
+            if (workerController) {
+              workerController.terminate();
+              workerController = null;
+            }
+            return runSolveOnMainThread({
+              ...workerRequest,
+              allowedIngredientIds: allowedSet,
+            });
+          })
+          : Promise.resolve(
+            runSolveOnMainThread({
+              ...workerRequest,
+              allowedIngredientIds: allowedSet,
+            }),
+          );
+
+        solvePromise
+          .then(({ solutions, info, totalSolutions: totalCount }) => {
+            renderSolutions(solutions, info, selectionMeta, totalCount);
+            renderDebug(debugLines);
+          })
+          .catch((error) => {
+            console.error('Recipe calculation failed', error);
+            renderSolutions([], [translate('solver_failed')], selectionMeta, 0);
+            renderDebug(debugLines);
+          })
+          .finally(finalize);
+      } catch (error) {
+        console.error('Recipe calculation failed', error);
+        renderSolutions([], [translate('solver_failed')], {}, 0);
+        renderDebug(debugLines);
+        finalize();
+      }
+    };
+
+    return new Promise((resolve) => {
+      const runner = () => runComputation(resolve);
+      if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(runner);
+      } else {
+        setTimeout(runner, 0);
+      }
+    });
+  };
+
+  scheduleAutoSolve = ({ immediate = false } = {}) => {
+    if (!form) {
+      return;
+    }
+    if (immediate) {
+      cancelScheduledAutoSolve();
+      performSolve();
+      return;
+    }
+    cancelScheduledAutoSolve();
+    autoSolveTimerId = setTimeout(() => {
+      autoSolveTimerId = null;
+      performSolve();
+    }, AUTO_SOLVE_DEBOUNCE_MS);
+  };
+
+  if (styleSelect) {
+    styleSelect.addEventListener('change', () => {
+      applyStyleRequirements(styleSelect.value);
+      scheduleAutoSolve();
+    });
+    applyStyleRequirements(styleSelect.value);
+  }
+
+  updateSubmitState();
+  updateOptionalToggleState();
+  if (!styleSelect) {
+    refreshMixSummary();
+  }
+  updateCategoryOptionalButtonState();
+
+  scheduleAutoSolve({ immediate: true });
+
   if (form) {
     form.addEventListener('submit', (event) => {
       event.preventDefault();
-      const formData = new FormData(form);
-      setLoadingState(true);
-
-      window.requestAnimationFrame(() => {
-        const debugLines = [];
-        try {
-          let styleName = formData.get('style');
-          if (!styleName && styleIds.length) {
-            styleName = styleIds[0];
-          }
-          if (styleName && !(styleName in stylesData) && styleIds.length) {
-            styleName = styleIds[0];
-          }
-
-          const totalCapRaw = Number(formData.get('total_cap'));
-          const perCapRaw = Number(formData.get('per_cap'));
-          const totalCap = clamp(Number.isFinite(totalCapRaw) ? totalCapRaw : 25, 1, 99);
-          const perCap = clamp(Number.isFinite(perCapRaw) ? perCapRaw : 25, 1, 99);
-
-          const numericIntervals = {};
-          const bandPreferences = {};
-          const debugIntervals = {};
-          const INTERVAL_EPS = 1e-3;
-
-          ATTRS.forEach((attr) => {
-            const bandChoice = formData.get(`band_${attr}`) || 'any';
-            bandPreferences[attr] = bandChoice === 'any' ? null : [bandChoice];
-
-            const mode = formData.get(`mode_${attr}`) || 'any';
-            const rawMin = parseFloatOrNull(formData.get(`min_${attr}`));
-            const rawMax = parseFloatOrNull(formData.get(`max_${attr}`));
-            const minVal = rawMin === null ? null : clamp(rawMin, 0, 11);
-            const maxVal = rawMax === null ? null : clamp(rawMax, 0, 11);
-
-            let lo = Number.NEGATIVE_INFINITY;
-            let hi = Number.POSITIVE_INFINITY;
-            let debugLo = 0;
-            let debugHi = 11;
-
-            if (mode === 'ge') {
-              lo = minVal === null ? 0 : minVal;
-              debugLo = lo;
-              debugHi = Number.POSITIVE_INFINITY;
-            } else if (mode === 'le') {
-              hi = maxVal === null ? 11 : maxVal;
-              debugLo = Number.NEGATIVE_INFINITY;
-              debugHi = hi;
-            } else if (mode === 'eq') {
-              if (minVal !== null && maxVal !== null) {
-                const loVal = Math.min(minVal, maxVal);
-                const hiVal = Math.max(minVal, maxVal);
-                if (hiVal > loVal + INTERVAL_EPS) {
-                  lo = loVal;
-                  hi = hiVal;
-                  debugLo = loVal;
-                  debugHi = hiVal;
-                } else {
-                  lo = hi = hiVal;
-                  debugLo = hiVal;
-                  debugHi = hiVal;
-                }
-              } else {
-                const target = minVal !== null ? minVal : maxVal;
-                if (target !== null) {
-                  lo = target;
-                  hi = target;
-                  debugLo = target;
-                  debugHi = target;
-                } else {
-                  debugLo = 0;
-                  debugHi = 11;
-                }
-              }
-            } else if (mode === 'between') {
-              const loVal = minVal === null ? 0 : minVal;
-              const hiVal = maxVal === null ? 11 : Math.max(loVal, maxVal);
-              lo = loVal;
-              hi = hiVal;
-              debugLo = loVal;
-              debugHi = hiVal;
-            } else {
-              debugLo = 0;
-              debugHi = 11;
-            }
-
-            numericIntervals[attr] = [lo, hi];
-            debugIntervals[attr] = [debugLo, debugHi];
-          });
-
-          const selectedRequired = new Set(formData.getAll('selected_ingredients'));
-          const optionalPool = new Set(formData.getAll('optional_ingredients'));
-          const extraMinCounts = {};
-          selectedRequired.forEach((id) => {
-            extraMinCounts[id] = Math.max(extraMinCounts[id] || 0, 1);
-          });
-
-          const allowedSet = new Set(optionalPool);
-          selectedRequired.forEach((id) => allowedSet.add(id));
-
-          const styleLabel = displayStyleName(styleName) || translate('style_unknown');
-          debugLines.push(translate('debug_style', { style: styleLabel }));
-          debugLines.push(translate('debug_caps', { total: totalCap, per: perCap }));
-          debugLines.push(translate('debug_attr_heading'));
-          ATTRS.forEach((attr) => {
-            const interval = debugIntervals[attr] || [0, 11];
-            const bandPref = bandPreferences[attr];
-            const bandKey = bandPref && bandPref.length === 1 ? bandPref[0] : 'any';
-            const bandText = bandLabels[bandKey] || bandKey;
-            debugLines.push(
-              translate('debug_attr_entry', {
-                label: attrLabels[attr] || attr,
-                band: bandText,
-                min: formatIntervalValue(interval[0]),
-                max: formatIntervalValue(interval[1]),
-              }),
-            );
-          });
-          if (selectedRequired.size) {
-            const requiredList = Array.from(selectedRequired)
-              .map((id) => displayIngredientName(id))
-              .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
-            debugLines.push(translate('debug_required', { list: requiredList.join(', ') }));
-          }
-          if (optionalPool.size) {
-            const optionalList = Array.from(optionalPool)
-              .map((id) => displayIngredientName(id))
-              .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
-            debugLines.push(translate('debug_optional', { list: optionalList.join(', ') }));
-          }
-
-          const selectionMeta = {
-            includes: Array.from(selectedRequired),
-            optional: Array.from(optionalPool),
-          };
-
-          const workerRequest = {
-            styleName,
-            numericIntervals,
-            bandPreferences,
-            totalCap,
-            perCap,
-            extraMinCounts,
-            allowedIngredientIds: Array.from(allowedSet),
-            topK: DEFAULT_TOP_K,
-          };
-
-          const solvePromise = workerController
-            ? workerController.solve(workerRequest).catch((error) => {
-              console.warn('Solver worker solve failed; falling back to main thread', error);
-              if (workerController) {
-                workerController.terminate();
-                workerController = null;
-              }
-              return runSolveOnMainThread({
-                ...workerRequest,
-                allowedIngredientIds: allowedSet,
-              });
-            })
-            : Promise.resolve(
-              runSolveOnMainThread({
-                ...workerRequest,
-                allowedIngredientIds: allowedSet,
-              }),
-            );
-
-          solvePromise
-            .then(({ solutions, info, totalSolutions: totalCount }) => {
-              renderSolutions(solutions, info, selectionMeta, totalCount);
-              renderDebug(debugLines);
-            })
-            .catch((error) => {
-              console.error('Recipe calculation failed', error);
-              renderSolutions([], [translate('solver_failed')], selectionMeta, 0);
-              renderDebug(debugLines);
-            })
-            .finally(() => {
-              setLoadingState(false);
-            });
-          return;
-        } catch (error) {
-          console.error('Recipe calculation failed', error);
-          renderSolutions([], [translate('solver_failed')], {}, 0);
-          renderDebug(debugLines);
-          setLoadingState(false);
-          return;
-        }
-      });
+      performSolve();
     });
   }
 };
