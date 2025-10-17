@@ -249,6 +249,59 @@ const initSolver = () => {
     return costFormatter.format(num);
   };
 
+  const normalizedLang = typeof currentLang === 'string' ? currentLang.toLowerCase() : '';
+  const fallbackConjunction = normalizedLang.startsWith('de') ? 'und' : 'and';
+
+  let formatList = (values) => {
+    if (!Array.isArray(values)) {
+      return '';
+    }
+    const filtered = values
+      .map((value) => (typeof value === 'string' ? value.trim() : ''))
+      .filter((value) => value.length > 0);
+    if (!filtered.length) {
+      return '';
+    }
+    if (filtered.length === 1) {
+      return filtered[0];
+    }
+    if (filtered.length === 2) {
+      return `${filtered[0]} ${fallbackConjunction} ${filtered[1]}`;
+    }
+    const head = filtered.slice(0, -1).join(', ');
+    const tail = filtered[filtered.length - 1];
+    return `${head}, ${fallbackConjunction} ${tail}`;
+  };
+
+  const fallbackFormatList = formatList;
+
+  if (typeof Intl !== 'undefined' && typeof Intl.ListFormat === 'function') {
+    try {
+      const listFormatter = new Intl.ListFormat(currentLang || undefined, {
+        style: 'long',
+        type: 'conjunction',
+      });
+      formatList = (values) => {
+        if (!Array.isArray(values)) {
+          return '';
+        }
+        const filtered = values
+          .map((value) => (typeof value === 'string' ? value.trim() : ''))
+          .filter((value) => value.length > 0);
+        if (!filtered.length) {
+          return '';
+        }
+        try {
+          return listFormatter.format(filtered);
+        } catch (error) {
+          return fallbackFormatList(filtered);
+        }
+      };
+    } catch (error) {
+      // Ignore and fall back to basic join.
+    }
+  }
+
   const seasonLabels = {};
   SEASON_ORDER.forEach((season) => {
     const label = translate(`season_${season}`);
@@ -275,6 +328,10 @@ const initSolver = () => {
       });
     }
   }
+
+  let performSolve = () => Promise.resolve();
+  let scheduleAutoSolve = () => {};
+  let cancelScheduledAutoSolve = () => {};
 
   const displayIngredientName = (id) => {
     if (!id) {
@@ -1574,7 +1631,8 @@ const initSolver = () => {
     const hasConstraint = attrCards.some((card) => {
       const selectedBand = card.querySelector('input[type="radio"][data-color-radio]:checked');
       const modeInput = card.querySelector('[data-mode-input]');
-      const bandActive = !!selectedBand;
+      const bandValue = selectedBand ? selectedBand.value : null;
+      const bandActive = !!bandValue && bandValue !== 'any';
       const modeActive = modeInput && modeInput.value !== 'any';
       return bandActive || modeActive;
     });
@@ -1602,6 +1660,20 @@ const initSolver = () => {
     const colorGroup = card.querySelector('[data-color-group]');
     const colorRadios = Array.from(card.querySelectorAll('input[type="radio"][data-color-radio]'));
     const colorChips = colorRadios.map((radio) => radio.closest('[data-color]'));
+    const getRadioLabel = (radio) => {
+      if (!radio) {
+        return '';
+      }
+      const chip = radio.closest('[data-color]');
+      if (!chip) {
+        return '';
+      }
+      const labelSpan = chip.querySelector('span');
+      if (!labelSpan) {
+        return '';
+      }
+      return (labelSpan.textContent || '').trim();
+    };
     const clearBtn = card.querySelector('[data-clear-color]');
     const attrName = card.dataset.attr || null;
     const fineToggle = card.querySelector('[data-attr-fine-toggle]');
@@ -1679,13 +1751,31 @@ const initSolver = () => {
       return selected;
     };
 
+    let colorModeEnforced = false;
+    if ((!modeInput || modeInput.value === 'any') && colorRadios.some((radio) => radio.checked)) {
+      colorModeEnforced = true;
+    }
+    let suppressColorModeRestore = false;
     let updateColorState = () => {};
 
-    const applyColorSelection = (value, { focus = true } = {}) => {
+    const applyColorSelection = (
+      value,
+      { focus = true, suppressSolve = false, suppressModeRestore = false } = {},
+    ) => {
+      colorModeEnforced = value !== null && value !== undefined;
+      const previousSuppress = suppressColorModeRestore;
+      suppressColorModeRestore = !!suppressModeRestore;
       const selected = setColorSelectionValue(value);
-      updateColorState();
+      try {
+        updateColorState();
+      } finally {
+        suppressColorModeRestore = previousSuppress;
+      }
       if (typeof allGreenWatcher === 'function') {
         allGreenWatcher();
+      }
+      if (!suppressSolve) {
+        scheduleAutoSolve();
       }
       if (focus && selected && typeof selected.focus === 'function') {
         selected.focus();
@@ -1753,12 +1843,17 @@ const initSolver = () => {
 
       updateColorState = () => {
         const selected = colorRadios.find((radio) => radio.checked) || null;
-        const selectedColor = selected ? selected.value : null;
+        const selectedValue = selected ? selected.value : null;
+        const selectedColor = selectedValue && selectedValue !== 'any' ? selectedValue : null;
+        const isAnySelected = selectedValue === 'any';
         syncColorChipVisuals();
         syncCardSliderHighlight(selectedColor);
         if (attrName) {
-          if (selectedColor) {
+          if (selectedColor && colorModeEnforced) {
             updateTargetSummaryEntry(attrName, { text: '', color: selectedColor });
+          } else if (isAnySelected && colorModeEnforced) {
+            const labelText = getRadioLabel(selected);
+            updateTargetSummaryEntry(attrName, { text: labelText || '' });
           } else if (typeof simpleSummaryUpdater === 'function') {
             simpleSummaryUpdater();
           }
@@ -1789,9 +1884,20 @@ const initSolver = () => {
           return { min: value, max: value };
         };
 
-        simpleSummaryUpdater = () => {
-          const text = sliderSingleValueEl.textContent?.trim() || sliderSingleValueEl.textContent || '–';
+        const readSimpleSummaryValue = () => {
           const range = readSimpleSummaryRange();
+          if (Number.isFinite(range.min)) {
+            return { text: formatSliderValue(range.min), range };
+          }
+          const fallbackText = sliderSingleValueEl.textContent?.trim() || sliderSingleValueEl.textContent || '–';
+          return { text: fallbackText, range };
+        };
+
+        simpleSummaryUpdater = () => {
+          const { text, range } = readSimpleSummaryValue();
+          if (sliderSingleValueEl) {
+            sliderSingleValueEl.textContent = text || '–';
+          }
           const hasRange = Number.isFinite(range.min) && Number.isFinite(range.max);
           updateTargetSummaryEntry(attrName, { text, range: hasRange ? range : null });
         };
@@ -2268,6 +2374,10 @@ const initSolver = () => {
       }
       if (sanitized !== 'any') {
         savedNumericMode = sanitized;
+        if (colorRadios.some((radio) => radio.checked)) {
+          applyColorSelection(null, { focus: false, suppressSolve: true, suppressModeRestore: true });
+        }
+        colorModeEnforced = false;
       }
       setModeButtonsState();
       syncSliderHandles();
@@ -2275,6 +2385,7 @@ const initSolver = () => {
       updateSliderDisplay();
       updateSubmitState();
       syncClearButtonState();
+      scheduleAutoSolve();
     };
 
     const handleSliderInput = (handleEl, roleHint) => {
@@ -2335,6 +2446,13 @@ const initSolver = () => {
       updateSliderDisplay();
       updateSubmitState();
       syncClearButtonState();
+      if (colorRadios.some((radio) => radio.checked)) {
+        applyColorSelection(null, { focus: false, suppressSolve: true, suppressModeRestore: true });
+      } else {
+        colorModeEnforced = false;
+        updateColorState();
+      }
+      scheduleAutoSolve();
     };
 
     const setFineTuneState = (nextState) => {
@@ -2350,6 +2468,7 @@ const initSolver = () => {
       updateSliderDisplay();
       updateSubmitState();
       syncClearButtonState();
+      scheduleAutoSolve();
     };
 
     const toggleFineTune = () => {
@@ -2455,22 +2574,34 @@ const initSolver = () => {
       });
     }
 
-    const getSelectedColor = () => {
+    const getSelectedBandValue = () => {
       const selected = colorRadios.find((radio) => radio.checked) || null;
       return selected ? selected.value : null;
     };
 
+    const getSelectedColor = () => {
+      const value = getSelectedBandValue();
+      if (!value) {
+        return null;
+      }
+      return value === 'any' ? null : value;
+    };
+
     const controller = {
-      getState: () => ({
-        color: getSelectedColor(),
-        mode: modeInput.value,
-        values: {
-          eq: storedValues.eq,
-          ge: storedValues.ge,
-          le: storedValues.le,
-        },
-        fine: fineTuneActive,
-      }),
+      getState: () => {
+        const bandValue = getSelectedBandValue();
+        const effectiveColor = bandValue === 'any' && !colorModeEnforced ? null : bandValue;
+        return {
+          color: effectiveColor,
+          mode: modeInput.value,
+          values: {
+            eq: storedValues.eq,
+            ge: storedValues.ge,
+            le: storedValues.le,
+          },
+          fine: fineTuneActive,
+        };
+      },
       applyState: (state) => {
         if (!state || typeof state !== 'object') {
           return;
@@ -2525,29 +2656,48 @@ const initSolver = () => {
 
     updateColorState = () => {
       const selected = colorRadios.find((radio) => radio.checked) || null;
-      const selectedColor = selected ? selected.value : null;
+      const selectedValue = selected ? selected.value : null;
+      const selectedColor = selectedValue && selectedValue !== 'any' ? selectedValue : null;
+      const isAnySelected = selectedValue === 'any';
+      const hasSelection = !!selectedValue;
+
+      if (hasSelection && !colorModeEnforced && modeInput.value === 'any' && currentMode === 'any') {
+        colorModeEnforced = true;
+      }
+
       syncColorChipVisuals();
       syncCardSliderHighlight(selectedColor);
-      const isColorActive = !!selectedColor;
-      if (isColorActive) {
-        if (currentMode !== 'any') {
-          savedNumericMode = currentMode;
-        }
-        currentMode = 'any';
-        modeInput.value = 'any';
-        setSliderDisabled(true);
-        minInput.value = '';
-        maxInput.value = '';
-        syncSliderHandles();
-        updateSliderDisplay();
-        if (attrName) {
-          updateTargetSummaryEntry(attrName, { text: '', color: selectedColor });
-        }
-      } else {
-        setSliderDisabled(false);
-        const restoreMode = savedNumericMode || 'any';
-        setModeValue(restoreMode);
+
+      if (hasSelection && colorModeEnforced && currentMode !== 'any') {
+        savedNumericMode = currentMode;
       }
+
+      if (hasSelection && colorModeEnforced && modeInput.value !== 'any') {
+        if (!suppressColorModeRestore) {
+          setModeValue('any');
+        }
+      } else if (!hasSelection) {
+        if (!suppressColorModeRestore) {
+          const restoreMode = savedNumericMode || 'any';
+          if (currentMode !== restoreMode) {
+            setModeValue(restoreMode);
+          }
+        }
+        colorModeEnforced = false;
+      }
+
+      if (attrName) {
+        if (selectedColor && colorModeEnforced && modeInput.value === 'any') {
+          updateTargetSummaryEntry(attrName, { text: '', color: selectedColor });
+        } else if (isAnySelected && colorModeEnforced && modeInput.value === 'any') {
+          const labelText = getRadioLabel(selected);
+          updateTargetSummaryEntry(attrName, { text: labelText || '' });
+        } else {
+          updateTargetSummaryValue();
+        }
+      }
+
+      setSliderDisabled(false);
       updateSubmitState();
       syncClearButtonState();
     };
@@ -2626,7 +2776,7 @@ const initSolver = () => {
 
     setAllGreenBtn.addEventListener('click', () => {
       const currentMode = setAllGreenBtn.dataset.mode === 'any' ? 'any' : 'green';
-      const targetColor = currentMode === 'green' ? 'green' : null;
+      const targetColor = currentMode === 'green' ? 'green' : 'any';
 
       attrControllers.forEach((controller) => {
         if (!controller || typeof controller.setColor !== 'function') {
@@ -2640,6 +2790,7 @@ const initSolver = () => {
         allGreenWatcher();
       }
       updateSubmitState();
+      scheduleAutoSolve();
 
       setButtonMode(currentMode === 'green' ? 'any' : 'green');
     });
@@ -2667,6 +2818,7 @@ const initSolver = () => {
       updateOptionalToggleState();
       refreshMixSummary();
       updateCategoryOptionalButtonState();
+      scheduleAutoSolve();
     });
   }
 
@@ -2700,6 +2852,7 @@ const initSolver = () => {
       updateOptionalToggleState();
       refreshMixSummary();
       updateCategoryOptionalButtonState();
+      scheduleAutoSolve();
     });
   }
 
@@ -2757,6 +2910,7 @@ const initSolver = () => {
       }
       refreshMixSummary();
       updateCategoryOptionalButtonState();
+      scheduleAutoSolve();
     });
 
   }
@@ -2833,20 +2987,6 @@ const initSolver = () => {
     refreshMixSummary();
     updateCategoryOptionalButtonState();
   };
-
-  if (styleSelect) {
-    styleSelect.addEventListener('change', () => {
-      applyStyleRequirements(styleSelect.value);
-    });
-    applyStyleRequirements(styleSelect.value);
-  }
-
-  updateSubmitState();
-  updateOptionalToggleState();
-  if (!styleSelect) {
-    refreshMixSummary();
-  }
-  updateCategoryOptionalButtonState();
 
   const parseFloatOrNull = (value) => {
     if (value === null || value === undefined) return null;
@@ -3036,196 +3176,293 @@ const initSolver = () => {
     renderState({ loading: next });
   };
 
+  const AUTO_SOLVE_DEBOUNCE_MS = 250;
+  let autoSolveTimerId = null;
+
+  cancelScheduledAutoSolve = () => {
+    if (autoSolveTimerId !== null) {
+      clearTimeout(autoSolveTimerId);
+      autoSolveTimerId = null;
+    }
+  };
+
+  performSolve = () => {
+    cancelScheduledAutoSolve();
+    if (!form) {
+      return Promise.resolve();
+    }
+    const formData = new FormData(form);
+    const missingVirtues = [];
+    ATTRS.forEach((attr) => {
+      const bandChoice = formData.get(`band_${attr}`);
+      const hasBandSelection = typeof bandChoice === 'string' && bandChoice.length > 0;
+      const bandIsAny = bandChoice === 'any';
+      const bandActive = hasBandSelection && !bandIsAny;
+      const rawMode = formData.get(`mode_${attr}`);
+      const modeValue = typeof rawMode === 'string' && rawMode.length > 0 ? rawMode : 'any';
+      const modeActive = modeValue !== 'any';
+      if (!bandActive && !modeActive && !bandIsAny) {
+        missingVirtues.push(attr);
+      }
+    });
+
+    if (missingVirtues.length > 0) {
+      const virtueNames = missingVirtues.map((attr) => {
+        const label = attrLabels[attr];
+        if (typeof label === 'string' && label.trim().length > 0) {
+          return label.trim();
+        }
+        return attr;
+      });
+      const formattedVirtues = formatList(virtueNames);
+      const message = translate('virtue_missing_rule', { virtues: formattedVirtues });
+      renderSolutions(
+        [],
+        [message],
+        {
+          includes: formData.getAll('selected_ingredients'),
+          optional: formData.getAll('optional_ingredients'),
+        },
+        0,
+      );
+      renderDebug([]);
+      return Promise.resolve();
+    }
+    setLoadingState(true);
+
+    const runComputation = (resolve) => {
+      const debugLines = [];
+      const finalize = () => {
+        setLoadingState(false);
+        resolve();
+      };
+
+      try {
+        let styleName = formData.get('style');
+        if (!styleName && styleIds.length) {
+          styleName = styleIds[0];
+        }
+        if (styleName && !(styleName in stylesData) && styleIds.length) {
+          styleName = styleIds[0];
+        }
+
+        const totalCapRaw = Number(formData.get('total_cap'));
+        const perCapRaw = Number(formData.get('per_cap'));
+        const totalCap = clamp(Number.isFinite(totalCapRaw) ? totalCapRaw : 25, 1, 99);
+        const perCap = clamp(Number.isFinite(perCapRaw) ? perCapRaw : 25, 1, 99);
+
+        const numericIntervals = {};
+        const bandPreferences = {};
+        const debugIntervals = {};
+        const INTERVAL_EPS = 1e-3;
+
+        ATTRS.forEach((attr) => {
+          const bandChoice = formData.get(`band_${attr}`) || 'any';
+          bandPreferences[attr] = bandChoice === 'any' ? null : [bandChoice];
+
+          const mode = formData.get(`mode_${attr}`) || 'any';
+          const rawMin = parseFloatOrNull(formData.get(`min_${attr}`));
+          const rawMax = parseFloatOrNull(formData.get(`max_${attr}`));
+          const minVal = rawMin === null ? null : clamp(rawMin, 0, 11);
+          const maxVal = rawMax === null ? null : clamp(rawMax, 0, 11);
+
+          let lo = Number.NEGATIVE_INFINITY;
+          let hi = Number.POSITIVE_INFINITY;
+          let debugLo = 0;
+          let debugHi = 11;
+
+          if (mode === 'ge') {
+            lo = minVal === null ? 0 : minVal;
+            debugLo = lo;
+            debugHi = Number.POSITIVE_INFINITY;
+          } else if (mode === 'le') {
+            hi = maxVal === null ? 11 : maxVal;
+            debugLo = Number.NEGATIVE_INFINITY;
+            debugHi = hi;
+          } else if (mode === 'eq') {
+            if (minVal !== null && maxVal !== null) {
+              const loVal = Math.min(minVal, maxVal);
+              const hiVal = Math.max(minVal, maxVal);
+              if (hiVal > loVal + INTERVAL_EPS) {
+                lo = loVal;
+                hi = hiVal;
+                debugLo = loVal;
+                debugHi = hiVal;
+              } else {
+                lo = hi = hiVal;
+                debugLo = hiVal;
+                debugHi = hiVal;
+              }
+            } else {
+              const target = minVal !== null ? minVal : maxVal;
+              if (target !== null) {
+                lo = target;
+                hi = target;
+                debugLo = target;
+                debugHi = target;
+              } else {
+                debugLo = 0;
+                debugHi = 11;
+              }
+            }
+          } else if (mode === 'between') {
+            const loVal = minVal === null ? 0 : minVal;
+            const hiVal = maxVal === null ? 11 : Math.max(loVal, maxVal);
+            lo = loVal;
+            hi = hiVal;
+            debugLo = loVal;
+            debugHi = hiVal;
+          } else {
+            debugLo = 0;
+            debugHi = 11;
+          }
+
+          numericIntervals[attr] = [lo, hi];
+          debugIntervals[attr] = [debugLo, debugHi];
+        });
+
+        const selectedRequired = new Set(formData.getAll('selected_ingredients'));
+        const optionalPool = new Set(formData.getAll('optional_ingredients'));
+        const extraMinCounts = {};
+        selectedRequired.forEach((id) => {
+          extraMinCounts[id] = Math.max(extraMinCounts[id] || 0, 1);
+        });
+
+        const allowedSet = new Set(optionalPool);
+        selectedRequired.forEach((id) => allowedSet.add(id));
+
+        const styleLabel = displayStyleName(styleName) || translate('style_unknown');
+        debugLines.push(translate('debug_style', { style: styleLabel }));
+        debugLines.push(translate('debug_caps', { total: totalCap, per: perCap }));
+        debugLines.push(translate('debug_attr_heading'));
+        ATTRS.forEach((attr) => {
+          const interval = debugIntervals[attr] || [0, 11];
+          const bandPref = bandPreferences[attr];
+          const bandKey = bandPref && bandPref.length === 1 ? bandPref[0] : 'any';
+          const bandText = bandLabels[bandKey] || bandKey;
+          debugLines.push(
+            translate('debug_attr_entry', {
+              label: attrLabels[attr] || attr,
+              band: bandText,
+              min: formatIntervalValue(interval[0]),
+              max: formatIntervalValue(interval[1]),
+            }),
+          );
+        });
+        if (selectedRequired.size) {
+          const requiredList = Array.from(selectedRequired)
+            .map((id) => displayIngredientName(id))
+            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+          debugLines.push(translate('debug_required', { list: requiredList.join(', ') }));
+        }
+        if (optionalPool.size) {
+          const optionalList = Array.from(optionalPool)
+            .map((id) => displayIngredientName(id))
+            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+          debugLines.push(translate('debug_optional', { list: optionalList.join(', ') }));
+        }
+
+        const selectionMeta = {
+          includes: Array.from(selectedRequired),
+          optional: Array.from(optionalPool),
+        };
+
+        const workerRequest = {
+          styleName,
+          numericIntervals,
+          bandPreferences,
+          totalCap,
+          perCap,
+          extraMinCounts,
+          allowedIngredientIds: Array.from(allowedSet),
+          topK: DEFAULT_TOP_K,
+        };
+
+        const solvePromise = workerController
+          ? workerController.solve(workerRequest).catch((error) => {
+            console.warn('Solver worker solve failed; falling back to main thread', error);
+            if (workerController) {
+              workerController.terminate();
+              workerController = null;
+            }
+            return runSolveOnMainThread({
+              ...workerRequest,
+              allowedIngredientIds: allowedSet,
+            });
+          })
+          : Promise.resolve(
+            runSolveOnMainThread({
+              ...workerRequest,
+              allowedIngredientIds: allowedSet,
+            }),
+          );
+
+        solvePromise
+          .then(({ solutions, info, totalSolutions: totalCount }) => {
+            renderSolutions(solutions, info, selectionMeta, totalCount);
+            renderDebug(debugLines);
+          })
+          .catch((error) => {
+            console.error('Recipe calculation failed', error);
+            renderSolutions([], [translate('solver_failed')], selectionMeta, 0);
+            renderDebug(debugLines);
+          })
+          .finally(finalize);
+      } catch (error) {
+        console.error('Recipe calculation failed', error);
+        renderSolutions([], [translate('solver_failed')], {}, 0);
+        renderDebug(debugLines);
+        finalize();
+      }
+    };
+
+    return new Promise((resolve) => {
+      const runner = () => runComputation(resolve);
+      if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(runner);
+      } else {
+        setTimeout(runner, 0);
+      }
+    });
+  };
+
+  scheduleAutoSolve = ({ immediate = false } = {}) => {
+    if (!form) {
+      return;
+    }
+    if (immediate) {
+      cancelScheduledAutoSolve();
+      performSolve();
+      return;
+    }
+    cancelScheduledAutoSolve();
+    autoSolveTimerId = setTimeout(() => {
+      autoSolveTimerId = null;
+      performSolve();
+    }, AUTO_SOLVE_DEBOUNCE_MS);
+  };
+
+  if (styleSelect) {
+    styleSelect.addEventListener('change', () => {
+      applyStyleRequirements(styleSelect.value);
+      scheduleAutoSolve();
+    });
+    applyStyleRequirements(styleSelect.value);
+  }
+
+  updateSubmitState();
+  updateOptionalToggleState();
+  if (!styleSelect) {
+    refreshMixSummary();
+  }
+  updateCategoryOptionalButtonState();
+
+  scheduleAutoSolve({ immediate: true });
+
   if (form) {
     form.addEventListener('submit', (event) => {
       event.preventDefault();
-      const formData = new FormData(form);
-      setLoadingState(true);
-
-      window.requestAnimationFrame(() => {
-        const debugLines = [];
-        try {
-          let styleName = formData.get('style');
-          if (!styleName && styleIds.length) {
-            styleName = styleIds[0];
-          }
-          if (styleName && !(styleName in stylesData) && styleIds.length) {
-            styleName = styleIds[0];
-          }
-
-          const totalCapRaw = Number(formData.get('total_cap'));
-          const perCapRaw = Number(formData.get('per_cap'));
-          const totalCap = clamp(Number.isFinite(totalCapRaw) ? totalCapRaw : 25, 1, 99);
-          const perCap = clamp(Number.isFinite(perCapRaw) ? perCapRaw : 25, 1, 99);
-
-          const numericIntervals = {};
-          const bandPreferences = {};
-          const debugIntervals = {};
-          const INTERVAL_EPS = 1e-3;
-
-          ATTRS.forEach((attr) => {
-            const bandChoice = formData.get(`band_${attr}`) || 'any';
-            bandPreferences[attr] = bandChoice === 'any' ? null : [bandChoice];
-
-            const mode = formData.get(`mode_${attr}`) || 'any';
-            const rawMin = parseFloatOrNull(formData.get(`min_${attr}`));
-            const rawMax = parseFloatOrNull(formData.get(`max_${attr}`));
-            const minVal = rawMin === null ? null : clamp(rawMin, 0, 11);
-            const maxVal = rawMax === null ? null : clamp(rawMax, 0, 11);
-
-            let lo = Number.NEGATIVE_INFINITY;
-            let hi = Number.POSITIVE_INFINITY;
-            let debugLo = 0;
-            let debugHi = 11;
-
-            if (mode === 'ge') {
-              lo = minVal === null ? 0 : minVal;
-              debugLo = lo;
-              debugHi = Number.POSITIVE_INFINITY;
-            } else if (mode === 'le') {
-              hi = maxVal === null ? 11 : maxVal;
-              debugLo = Number.NEGATIVE_INFINITY;
-              debugHi = hi;
-            } else if (mode === 'eq') {
-              if (minVal !== null && maxVal !== null) {
-                const loVal = Math.min(minVal, maxVal);
-                const hiVal = Math.max(minVal, maxVal);
-                if (hiVal > loVal + INTERVAL_EPS) {
-                  lo = loVal;
-                  hi = hiVal;
-                  debugLo = loVal;
-                  debugHi = hiVal;
-                } else {
-                  lo = hi = hiVal;
-                  debugLo = hiVal;
-                  debugHi = hiVal;
-                }
-              } else {
-                const target = minVal !== null ? minVal : maxVal;
-                if (target !== null) {
-                  lo = target;
-                  hi = target;
-                  debugLo = target;
-                  debugHi = target;
-                } else {
-                  debugLo = 0;
-                  debugHi = 11;
-                }
-              }
-            } else if (mode === 'between') {
-              const loVal = minVal === null ? 0 : minVal;
-              const hiVal = maxVal === null ? 11 : Math.max(loVal, maxVal);
-              lo = loVal;
-              hi = hiVal;
-              debugLo = loVal;
-              debugHi = hiVal;
-            } else {
-              debugLo = 0;
-              debugHi = 11;
-            }
-
-            numericIntervals[attr] = [lo, hi];
-            debugIntervals[attr] = [debugLo, debugHi];
-          });
-
-          const selectedRequired = new Set(formData.getAll('selected_ingredients'));
-          const optionalPool = new Set(formData.getAll('optional_ingredients'));
-          const extraMinCounts = {};
-          selectedRequired.forEach((id) => {
-            extraMinCounts[id] = Math.max(extraMinCounts[id] || 0, 1);
-          });
-
-          const allowedSet = new Set(optionalPool);
-          selectedRequired.forEach((id) => allowedSet.add(id));
-
-          const styleLabel = displayStyleName(styleName) || translate('style_unknown');
-          debugLines.push(translate('debug_style', { style: styleLabel }));
-          debugLines.push(translate('debug_caps', { total: totalCap, per: perCap }));
-          debugLines.push(translate('debug_attr_heading'));
-          ATTRS.forEach((attr) => {
-            const interval = debugIntervals[attr] || [0, 11];
-            const bandPref = bandPreferences[attr];
-            const bandKey = bandPref && bandPref.length === 1 ? bandPref[0] : 'any';
-            const bandText = bandLabels[bandKey] || bandKey;
-            debugLines.push(
-              translate('debug_attr_entry', {
-                label: attrLabels[attr] || attr,
-                band: bandText,
-                min: formatIntervalValue(interval[0]),
-                max: formatIntervalValue(interval[1]),
-              }),
-            );
-          });
-          if (selectedRequired.size) {
-            const requiredList = Array.from(selectedRequired)
-              .map((id) => displayIngredientName(id))
-              .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
-            debugLines.push(translate('debug_required', { list: requiredList.join(', ') }));
-          }
-          if (optionalPool.size) {
-            const optionalList = Array.from(optionalPool)
-              .map((id) => displayIngredientName(id))
-              .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
-            debugLines.push(translate('debug_optional', { list: optionalList.join(', ') }));
-          }
-
-          const selectionMeta = {
-            includes: Array.from(selectedRequired),
-            optional: Array.from(optionalPool),
-          };
-
-          const workerRequest = {
-            styleName,
-            numericIntervals,
-            bandPreferences,
-            totalCap,
-            perCap,
-            extraMinCounts,
-            allowedIngredientIds: Array.from(allowedSet),
-            topK: DEFAULT_TOP_K,
-          };
-
-          const solvePromise = workerController
-            ? workerController.solve(workerRequest).catch((error) => {
-              console.warn('Solver worker solve failed; falling back to main thread', error);
-              if (workerController) {
-                workerController.terminate();
-                workerController = null;
-              }
-              return runSolveOnMainThread({
-                ...workerRequest,
-                allowedIngredientIds: allowedSet,
-              });
-            })
-            : Promise.resolve(
-              runSolveOnMainThread({
-                ...workerRequest,
-                allowedIngredientIds: allowedSet,
-              }),
-            );
-
-          solvePromise
-            .then(({ solutions, info, totalSolutions: totalCount }) => {
-              renderSolutions(solutions, info, selectionMeta, totalCount);
-              renderDebug(debugLines);
-            })
-            .catch((error) => {
-              console.error('Recipe calculation failed', error);
-              renderSolutions([], [translate('solver_failed')], selectionMeta, 0);
-              renderDebug(debugLines);
-            })
-            .finally(() => {
-              setLoadingState(false);
-            });
-          return;
-        } catch (error) {
-          console.error('Recipe calculation failed', error);
-          renderSolutions([], [translate('solver_failed')], {}, 0);
-          renderDebug(debugLines);
-          setLoadingState(false);
-          return;
-        }
-      });
+      performSolve();
     });
   }
 };

@@ -223,7 +223,7 @@
                                 <div class="attr-card__title">
                                     <h3>{{ attr_labels[a] }}</h3>
                                     <div class="attr-card__band-chips" data-color-group>
-                                        {% for band in ['green', 'yellow', 'red'] %}
+                                        {% for band in ['green', 'yellow', 'red', 'any'] %}
                                             {% set label = band_labels.get(band, band) %}
                                             <label class="chip" data-color="{{ band }}">
                                                 <input type="radio" name="band_{{ a }}" value="{{ band }}" data-color-radio{% if constraints[a].band == band %} checked{% endif %}>
