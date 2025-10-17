@@ -1923,7 +1923,7 @@ body[data-theme='dark'] .chip:focus-visible {
 .mix-panel__header {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 24px;
 }
 
 .mix-panel__header .phase-card__step {

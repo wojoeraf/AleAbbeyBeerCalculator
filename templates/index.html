@@ -184,11 +184,11 @@
 
         <div class="lab-layout" data-lab-layout>
             <section class="phase-card card phase-card--attributes" data-phase="attributes">
-                            <p class="phase-card__step">{{ ui.phase_attributes_step }}</p>
+                <p class="phase-card__step">{{ ui.phase_attributes_step }}</p>
+                <h2 class="phase-card__title">{{ ui.phase_attributes_title }}</h2>
                 <header class="phase-card__header">
                     <div class="phase-card__header-main">
                         <div class="phase-card__intro">
-                            <h2 class="phase-card__title">{{ ui.phase_attributes_title }}</h2>
                             <p class="phase-card__hint">{{ ui.phase_attributes_hint }}</p>
                         </div>
                         <div class="phase-card__actions">
@@ -286,11 +286,11 @@
 
             <section class="phase-card card phase-card--ingredients" data-phase="ingredients">
                 <p class="phase-card__step">{{ ui.phase_ingredients_step }}</p>
+                <div>
+                    <h2 class="phase-card__title">{{ ui.phase_ingredients_title }}</h2>
+                    <p class="phase-card__hint">{{ ui.phase_ingredients_hint }}</p>
+                </div>
                 <header class="phase-card__header">
-                    <div>
-                        <h2 class="phase-card__title">{{ ui.phase_ingredients_title }}</h2>
-                        <p class="phase-card__hint">{{ ui.phase_ingredients_hint }}</p>
-                    </div>
                     <div class="ingredients-actions">
                         <button type="button" class="btn-secondary" data-toggle-details data-label-show="{{ ui.button_details_show }}" data-label-hide="{{ ui.button_details_hide }}">
                             <span data-toggle-details-label>{{ ui.button_details_show }}</span>
