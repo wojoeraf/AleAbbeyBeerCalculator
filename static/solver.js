@@ -1631,7 +1631,8 @@ const initSolver = () => {
     const hasConstraint = attrCards.some((card) => {
       const selectedBand = card.querySelector('input[type="radio"][data-color-radio]:checked');
       const modeInput = card.querySelector('[data-mode-input]');
-      const bandActive = !!selectedBand;
+      const bandValue = selectedBand ? selectedBand.value : null;
+      const bandActive = !!bandValue && bandValue !== 'any';
       const modeActive = modeInput && modeInput.value !== 'any';
       return bandActive || modeActive;
     });
@@ -1659,6 +1660,20 @@ const initSolver = () => {
     const colorGroup = card.querySelector('[data-color-group]');
     const colorRadios = Array.from(card.querySelectorAll('input[type="radio"][data-color-radio]'));
     const colorChips = colorRadios.map((radio) => radio.closest('[data-color]'));
+    const getRadioLabel = (radio) => {
+      if (!radio) {
+        return '';
+      }
+      const chip = radio.closest('[data-color]');
+      if (!chip) {
+        return '';
+      }
+      const labelSpan = chip.querySelector('span');
+      if (!labelSpan) {
+        return '';
+      }
+      return (labelSpan.textContent || '').trim();
+    };
     const clearBtn = card.querySelector('[data-clear-color]');
     const attrName = card.dataset.attr || null;
     const fineToggle = card.querySelector('[data-attr-fine-toggle]');
@@ -1736,9 +1751,14 @@ const initSolver = () => {
       return selected;
     };
 
+    let colorModeEnforced = false;
+    if ((!modeInput || modeInput.value === 'any') && colorRadios.some((radio) => radio.checked)) {
+      colorModeEnforced = true;
+    }
     let updateColorState = () => {};
 
     const applyColorSelection = (value, { focus = true } = {}) => {
+      colorModeEnforced = value !== null && value !== undefined;
       const selected = setColorSelectionValue(value);
       updateColorState();
       if (typeof allGreenWatcher === 'function') {
@@ -1811,12 +1831,17 @@ const initSolver = () => {
 
       updateColorState = () => {
         const selected = colorRadios.find((radio) => radio.checked) || null;
-        const selectedColor = selected ? selected.value : null;
+        const selectedValue = selected ? selected.value : null;
+        const selectedColor = selectedValue && selectedValue !== 'any' ? selectedValue : null;
+        const isAnySelected = selectedValue === 'any';
         syncColorChipVisuals();
         syncCardSliderHighlight(selectedColor);
         if (attrName) {
-          if (selectedColor) {
+          if (selectedColor && colorModeEnforced) {
             updateTargetSummaryEntry(attrName, { text: '', color: selectedColor });
+          } else if (isAnySelected && colorModeEnforced) {
+            const labelText = getRadioLabel(selected);
+            updateTargetSummaryEntry(attrName, { text: labelText || '' });
           } else if (typeof simpleSummaryUpdater === 'function') {
             simpleSummaryUpdater();
           }
@@ -2326,6 +2351,7 @@ const initSolver = () => {
       }
       if (sanitized !== 'any') {
         savedNumericMode = sanitized;
+        colorModeEnforced = false;
       }
       setModeButtonsState();
       syncSliderHandles();
@@ -2394,6 +2420,9 @@ const initSolver = () => {
       updateSliderDisplay();
       updateSubmitState();
       syncClearButtonState();
+      colorModeEnforced = false;
+      updateColorState();
+      scheduleAutoSolve();
     };
 
     const setFineTuneState = (nextState) => {
@@ -2515,22 +2544,34 @@ const initSolver = () => {
       });
     }
 
-    const getSelectedColor = () => {
+    const getSelectedBandValue = () => {
       const selected = colorRadios.find((radio) => radio.checked) || null;
       return selected ? selected.value : null;
     };
 
+    const getSelectedColor = () => {
+      const value = getSelectedBandValue();
+      if (!value) {
+        return null;
+      }
+      return value === 'any' ? null : value;
+    };
+
     const controller = {
-      getState: () => ({
-        color: getSelectedColor(),
-        mode: modeInput.value,
-        values: {
-          eq: storedValues.eq,
-          ge: storedValues.ge,
-          le: storedValues.le,
-        },
-        fine: fineTuneActive,
-      }),
+      getState: () => {
+        const bandValue = getSelectedBandValue();
+        const effectiveColor = bandValue === 'any' && !colorModeEnforced ? null : bandValue;
+        return {
+          color: effectiveColor,
+          mode: modeInput.value,
+          values: {
+            eq: storedValues.eq,
+            ge: storedValues.ge,
+            le: storedValues.le,
+          },
+          fine: fineTuneActive,
+        };
+      },
       applyState: (state) => {
         if (!state || typeof state !== 'object') {
           return;
@@ -2585,29 +2626,44 @@ const initSolver = () => {
 
     updateColorState = () => {
       const selected = colorRadios.find((radio) => radio.checked) || null;
-      const selectedColor = selected ? selected.value : null;
+      const selectedValue = selected ? selected.value : null;
+      const selectedColor = selectedValue && selectedValue !== 'any' ? selectedValue : null;
+      const isAnySelected = selectedValue === 'any';
+      const hasSelection = !!selectedValue;
+
+      if (hasSelection && !colorModeEnforced && modeInput.value === 'any' && currentMode === 'any') {
+        colorModeEnforced = true;
+      }
+
       syncColorChipVisuals();
       syncCardSliderHighlight(selectedColor);
-      const isColorActive = !!selectedColor;
-      if (isColorActive) {
-        if (currentMode !== 'any') {
-          savedNumericMode = currentMode;
-        }
-        currentMode = 'any';
-        modeInput.value = 'any';
-        setSliderDisabled(true);
-        minInput.value = '';
-        maxInput.value = '';
-        syncSliderHandles();
-        updateSliderDisplay();
-        if (attrName) {
-          updateTargetSummaryEntry(attrName, { text: '', color: selectedColor });
-        }
-      } else {
-        setSliderDisabled(false);
-        const restoreMode = savedNumericMode || 'any';
-        setModeValue(restoreMode);
+
+      if (hasSelection && colorModeEnforced && currentMode !== 'any') {
+        savedNumericMode = currentMode;
       }
+
+      if (hasSelection && colorModeEnforced && modeInput.value !== 'any') {
+        setModeValue('any');
+      } else if (!hasSelection) {
+        const restoreMode = savedNumericMode || 'any';
+        if (currentMode !== restoreMode) {
+          setModeValue(restoreMode);
+        }
+        colorModeEnforced = false;
+      }
+
+      if (attrName) {
+        if (selectedColor && colorModeEnforced && modeInput.value === 'any') {
+          updateTargetSummaryEntry(attrName, { text: '', color: selectedColor });
+        } else if (isAnySelected && colorModeEnforced && modeInput.value === 'any') {
+          const labelText = getRadioLabel(selected);
+          updateTargetSummaryEntry(attrName, { text: labelText || '' });
+        } else {
+          updateTargetSummaryValue();
+        }
+      }
+
+      setSliderDisabled(false);
       updateSubmitState();
       syncClearButtonState();
     };
@@ -3105,11 +3161,13 @@ const initSolver = () => {
     const missingVirtues = [];
     ATTRS.forEach((attr) => {
       const bandChoice = formData.get(`band_${attr}`);
-      const bandActive = typeof bandChoice === 'string' && bandChoice.length > 0 && bandChoice !== 'any';
+      const hasBandSelection = typeof bandChoice === 'string' && bandChoice.length > 0;
+      const bandIsAny = bandChoice === 'any';
+      const bandActive = hasBandSelection && !bandIsAny;
       const rawMode = formData.get(`mode_${attr}`);
       const modeValue = typeof rawMode === 'string' && rawMode.length > 0 ? rawMode : 'any';
       const modeActive = modeValue !== 'any';
-      if (!bandActive && !modeActive) {
+      if (!bandActive && !modeActive && !bandIsAny) {
         missingVirtues.push(attr);
       }
     });
