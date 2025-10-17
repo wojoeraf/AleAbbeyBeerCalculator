@@ -2119,11 +2119,7 @@ body[data-theme='dark'] .chip:focus-visible {
 
 .results-title {
   margin: 0;
-  display: inline-flex;
   align-items: center;
-  gap: 12px;
-  font-size: 1.15rem;
-  letter-spacing: 0.02em;
   color: var(--results-card-title);
 }
 
