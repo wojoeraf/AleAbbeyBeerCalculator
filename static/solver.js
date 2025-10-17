@@ -2794,7 +2794,7 @@ const initSolver = () => {
       }
       const requiredCount = activeMins[ingredientId] || 0;
       if (requiredCount > 0) {
-        row.classList.add('ingredient-locked');
+        row.classList.add('ingredient-locked', 'ingredient-card--locked');
         includeCheckbox.checked = true;
         includeCheckbox.disabled = true;
         includeCheckbox.dataset.userSelected = 'false';
@@ -2810,7 +2810,7 @@ const initSolver = () => {
           badge.textContent = formatRequiredBadge(requiredCount);
         }
       } else {
-        row.classList.remove('ingredient-locked');
+        row.classList.remove('ingredient-locked', 'ingredient-card--locked');
         includeCheckbox.disabled = false;
         const userSelected = includeCheckbox.dataset.userSelected === 'true';
         includeCheckbox.checked = userSelected;
