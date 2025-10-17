@@ -457,7 +457,7 @@ def index():
         default_value = f"{5.5:.1f}"
         constraints = {
             a: SimpleNamespace(
-                band="any",
+                band="green",
                 mode="any",
                 min="",
                 max="",
