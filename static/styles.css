@@ -2854,3 +2854,178 @@ body[data-theme='dark'] .band-style-picker select:focus {
   box-shadow: 0 0 0 3px rgba(251, 146, 60, 0.28);
 }
 
+/* Legal pages */
+body.legal-page {
+  padding: clamp(32px, 6vw, 72px) clamp(16px, 6vw, 72px);
+  display: flex;
+  justify-content: center;
+  background: radial-gradient(circle at top, rgba(249, 250, 252, 0.85), rgba(236, 242, 255, 0.75)),
+    var(--bg-gradient);
+  background-attachment: fixed;
+}
+
+body.legal-page::after {
+  opacity: 0.18;
+  filter: blur(28px);
+}
+
+body[data-theme='dark'].legal-page {
+  background: radial-gradient(circle at top, rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.65)), var(--bg-gradient);
+}
+
+body[data-theme='dark'].legal-page::after {
+  opacity: 0.12;
+  filter: blur(32px);
+}
+
+.legal-page .legal-container {
+  width: min(960px, 100%);
+  margin: 0 auto;
+  padding: clamp(32px, 4vw, 48px);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(16px, 2vw, 28px);
+  line-height: 1.65;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.88));
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  box-shadow: 0 40px 80px -45px rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(20px);
+}
+
+body[data-theme='dark'].legal-page .legal-container {
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.78));
+  border-color: rgba(148, 163, 184, 0.28);
+  box-shadow: 0 32px 64px -40px rgba(2, 6, 23, 0.85);
+}
+
+.legal-page .legal-container > * {
+  margin: 0;
+}
+
+.legal-page .back-link {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--accent-strong);
+  background: rgba(249, 115, 22, 0.1);
+  border-radius: 999px;
+  text-decoration: none;
+  transition: background-color 0.25s ease, transform 0.25s ease, color 0.25s ease;
+}
+
+.legal-page .back-link:hover {
+  background: rgba(249, 115, 22, 0.18);
+  color: var(--accent);
+  transform: translateX(-2px);
+}
+
+.legal-page h1 {
+  font-size: clamp(2.4rem, 5vw, 3rem);
+  letter-spacing: -0.02em;
+  margin-top: 8px;
+}
+
+.legal-page h2 {
+  font-size: clamp(1.45rem, 3vw, 1.9rem);
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  margin-top: clamp(32px, 6vw, 48px);
+  padding-top: clamp(20px, 4vw, 30px);
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+body[data-theme='dark'].legal-page h2 {
+  border-color: rgba(148, 163, 184, 0.24);
+}
+
+.legal-page h2:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.legal-page h3 {
+  font-size: clamp(1.15rem, 2.2vw, 1.4rem);
+  margin-top: clamp(24px, 4vw, 32px);
+  color: var(--text-primary);
+}
+
+.legal-page h4 {
+  font-size: clamp(1rem, 2vw, 1.15rem);
+  margin-top: clamp(20px, 3vw, 28px);
+  color: var(--text-secondary);
+  text-transform: none;
+}
+
+.legal-page p,
+.legal-page ul,
+.legal-page ol {
+  color: var(--text-secondary);
+}
+
+.legal-page p {
+  font-size: 1.02rem;
+}
+
+.legal-page ul {
+  padding: clamp(12px, 3vw, 18px) clamp(20px, 4vw, 32px);
+  margin: clamp(8px, 2vw, 16px) 0;
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  display: grid;
+  gap: clamp(10px, 2vw, 16px);
+}
+
+body[data-theme='dark'].legal-page ul {
+  background: rgba(148, 163, 184, 0.12);
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+.legal-page li {
+  margin: 0;
+  padding-left: 12px;
+}
+
+.legal-page a {
+  color: var(--accent-strong);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-decoration-color: rgba(249, 115, 22, 0.4);
+  transition: color 0.2s ease, text-decoration-color 0.2s ease;
+}
+
+.legal-page a:hover {
+  color: var(--accent);
+  text-decoration-color: rgba(249, 115, 22, 0.75);
+}
+
+.legal-page .legal-container > p + h2,
+.legal-page .legal-container > p + h3 {
+  margin-top: clamp(24px, 4vw, 36px);
+}
+
+@media (max-width: 768px) {
+  body.legal-page {
+    padding: clamp(24px, 6vw, 48px) clamp(12px, 6vw, 36px);
+  }
+
+  .legal-page .legal-container {
+    padding: clamp(24px, 5vw, 36px);
+    border-radius: 20px;
+  }
+
+  .legal-page .back-link {
+    position: sticky;
+    top: 0;
+  }
+
+  .legal-page ul {
+    padding: clamp(16px, 5vw, 22px) clamp(18px, 6vw, 28px);
+  }
+}
+
