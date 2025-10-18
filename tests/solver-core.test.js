@@ -162,6 +162,19 @@ test('solveRecipe finds a light ale all-green combination', () => {
     result.totalSolutions >= result.solutions.length,
     `expected totalSolutions >= solutions.length, got ${result.totalSolutions} vs ${result.solutions.length}`,
   );
+  assert.ok(
+    Number.isFinite(result.visitedStates),
+    'expected visitedStates to be a finite number',
+  );
+  assert.ok(
+    Number.isFinite(result.maxStateVisits) && result.maxStateVisits > 0,
+    `expected positive maxStateVisits, got ${result.maxStateVisits}`,
+  );
+  assert.strictEqual(typeof result.aborted, 'boolean', 'expected aborted to be boolean');
+  assert.ok(
+    [null, 'user', 'limit'].includes(result.abortReason ?? null),
+    `expected abortReason to be null, "user", or "limit", got ${result.abortReason}`,
+  );
 });
 
 test('solveRecipe excludes unchecked optional ingredients', () => {
@@ -199,7 +212,7 @@ test('solveRecipe excludes unchecked optional ingredients', () => {
 });
 
 test('solveRecipe trims large optional sets when hitting search limit', () => {
-  const optionalCount = 25;
+  const optionalCount = 40;
   const attrs = SAMPLE_ATTRS;
   const ingredients = [
     { id: 'base_malt', vec: [0.2, 0.1, 0.1, 0.1], cost: 1 },
@@ -253,7 +266,7 @@ test('solveRecipe trims large optional sets when hitting search limit', () => {
   });
   assert.ok(result.solutions.length > 0, 'expected fallback run to produce solutions');
   assert.ok(
-    result.info.includes('trimmed 8/25'),
+    result.info.includes('trimmed 8/40'),
     `expected trim message, got ${result.info.join(', ')}`,
   );
 });

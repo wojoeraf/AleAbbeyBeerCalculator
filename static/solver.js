@@ -34,6 +34,7 @@ const createSolverWorkerController = (initPayload) => {
 
   const pending = new Map();
   let nextId = 1;
+  let activeSolveId = null;
 
   const rejectAll = (error) => {
     const reason = error instanceof Error ? error : new Error(String(error || 'Worker error'));
@@ -45,6 +46,7 @@ const createSolverWorkerController = (initPayload) => {
       }
     });
     pending.clear();
+    activeSolveId = null;
   };
 
   worker.addEventListener('message', (event) => {
@@ -53,7 +55,18 @@ const createSolverWorkerController = (initPayload) => {
     if (id === undefined || id === null || !pending.has(id)) {
       return;
     }
-    const { resolve, reject } = pending.get(id);
+    const entry = pending.get(id);
+    const { resolve, reject, onProgress } = entry;
+    if (type === 'progress') {
+      if (typeof onProgress === 'function') {
+        try {
+          onProgress(payload);
+        } catch (progressError) {
+          console.error('Solver worker progress handler failed', progressError);
+        }
+      }
+      return;
+    }
     pending.delete(id);
     if (type === 'error') {
       reject(error instanceof Error ? error : new Error(String((error && error.message) || error || 'Worker error')));
@@ -70,35 +83,76 @@ const createSolverWorkerController = (initPayload) => {
     rejectAll(event?.data || 'Worker message error');
   });
 
-  const post = (type, payload) => {
+  const post = (type, payload, options = {}) => {
     if (!worker) {
-      return Promise.reject(new Error('Worker not available'));
+      return { id: null, promise: Promise.reject(new Error('Worker not available')) };
     }
     const id = nextId;
     nextId += 1;
     const message = { id, type, payload };
+    let resolveFn;
+    let rejectFn;
     const promise = new Promise((resolve, reject) => {
-      pending.set(id, { resolve, reject });
+      resolveFn = resolve;
+      rejectFn = reject;
+    });
+    pending.set(id, {
+      resolve: resolveFn,
+      reject: rejectFn,
+      onProgress: typeof options.onProgress === 'function' ? options.onProgress : null,
     });
     try {
       worker.postMessage(message);
     } catch (error) {
       pending.delete(id);
-      return Promise.reject(error);
+      if (typeof rejectFn === 'function') {
+        try {
+          rejectFn(error);
+        } catch (rejectError) {
+          console.error('Solver worker rejection failed', rejectError);
+        }
+      }
+      return { id, promise };
     }
-    return promise;
+    return { id, promise };
   };
 
-  const ready = post('init', initPayload).catch((error) => {
+  const readyMessage = post('init', initPayload);
+  const ready = readyMessage.promise.catch((error) => {
     rejectAll(error);
     return Promise.reject(error);
   });
 
-  const solve = (params) => ready.then(() => post('solve', { params }));
+  const solve = (params, { onProgress } = {}) => ready.then(() => {
+    const message = post('solve', { params }, { onProgress });
+    if (message.id !== null) {
+      activeSolveId = message.id;
+      message.promise.finally(() => {
+        if (activeSolveId === message.id) {
+          activeSolveId = null;
+        }
+      });
+    }
+    return message.promise;
+  });
+
+  const cancelSolve = () => {
+    if (!worker || activeSolveId === null) {
+      return false;
+    }
+    try {
+      worker.postMessage({ type: 'cancel', payload: { targetId: activeSolveId } });
+      return true;
+    } catch (error) {
+      console.warn('Failed to send cancel request to worker', error);
+      return false;
+    }
+  };
 
   return {
     ready,
     solve,
+    cancelSolve,
     terminate: () => {
       if (worker) {
         worker.terminate();
@@ -353,8 +407,9 @@ const initSolver = () => {
     return styleNameMap[id] || id;
   };
 
-  const runSolveOnMainThread = (request) => solveRecipeSync({
-    ...request,
+  const runSolveOnMainThread = (params, extra = {}) => solveRecipeSync({
+    ...params,
+    ...extra,
     attrs: ATTRS,
     styles: stylesData,
     ingredients,
@@ -382,6 +437,9 @@ const initSolver = () => {
     resultsList,
     resultsEmpty,
     statusMessage,
+    resultsProgress,
+    resultsProgressText,
+    resultsStop: resultsStopButton,
     debugToggle,
     debugContent,
     legacyToggle,
@@ -400,6 +458,124 @@ const initSolver = () => {
 
   if (categoryOptionalToggleBtn) {
     categoryOptionalToggleBtn.disabled = true;
+  }
+
+  const formatCount = (value) => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return '0';
+    }
+    const floored = Math.floor(Math.max(0, numeric));
+    try {
+      return floored.toLocaleString();
+    } catch (error) {
+      return String(floored);
+    }
+  };
+
+  let stopRequested = false;
+  let lastProgressSnapshot = {
+    visitedStates: 0,
+    maxStateVisits: 0,
+    aborted: false,
+    reason: null,
+    final: false,
+  };
+
+  const renderProgressSnapshot = (snapshot) => {
+    if (!resultsProgress && !resultsProgressText && !resultsStopButton) {
+      return;
+    }
+    const visitedText = formatCount(snapshot.visitedStates);
+    const hasLimit = Number.isFinite(snapshot.maxStateVisits) && snapshot.maxStateVisits > 0;
+    const limitText = hasLimit ? formatCount(snapshot.maxStateVisits) : null;
+    let text;
+    if (stopRequested && !snapshot.final && !snapshot.aborted) {
+      text = hasLimit
+        ? translate('results_progress_stopping_limit', { visited: visitedText, limit: limitText })
+        : translate('results_progress_stopping', { visited: visitedText });
+    } else {
+      text = hasLimit
+        ? translate('results_progress_states_limit', { visited: visitedText, limit: limitText })
+        : translate('results_progress_states', { visited: visitedText });
+    }
+    if (resultsProgressText) {
+      resultsProgressText.textContent = text;
+    }
+    if (resultsProgress) {
+      resultsProgress.hidden = false;
+    }
+    if (resultsStopButton) {
+      const hideButton = snapshot.final || snapshot.aborted;
+      resultsStopButton.hidden = hideButton;
+      resultsStopButton.disabled = stopRequested || hideButton;
+    }
+  };
+
+  const handleProgressUpdate = (update = {}) => {
+    const visited = Number(update && update.visitedStates);
+    const limit = Number(update && update.maxStateVisits);
+    lastProgressSnapshot = {
+      visitedStates: Number.isFinite(visited) && visited >= 0 ? visited : 0,
+      maxStateVisits: Number.isFinite(limit) && limit > 0 ? limit : 0,
+      aborted: Boolean(update && update.aborted),
+      reason: typeof update?.reason === 'string' ? update.reason : null,
+      final: Boolean(update && update.final),
+    };
+    renderProgressSnapshot(lastProgressSnapshot);
+  };
+
+  const beginProgressUI = () => {
+    stopRequested = false;
+    lastProgressSnapshot = {
+      visitedStates: 0,
+      maxStateVisits: 0,
+      aborted: false,
+      reason: null,
+      final: false,
+    };
+    renderProgressSnapshot(lastProgressSnapshot);
+  };
+
+  const resetProgressUI = () => {
+    stopRequested = false;
+    lastProgressSnapshot = {
+      visitedStates: 0,
+      maxStateVisits: 0,
+      aborted: false,
+      reason: null,
+      final: false,
+    };
+    if (resultsProgress) {
+      resultsProgress.hidden = true;
+    }
+    if (resultsProgressText) {
+      resultsProgressText.textContent = '';
+    }
+    if (resultsStopButton) {
+      resultsStopButton.hidden = true;
+      resultsStopButton.disabled = false;
+    }
+  };
+
+  const requestStopSolve = () => {
+    if (stopRequested) {
+      return;
+    }
+    stopRequested = true;
+    renderProgressSnapshot(lastProgressSnapshot);
+    if (workerController && typeof workerController.cancelSolve === 'function') {
+      workerController.cancelSolve();
+    }
+  };
+
+  resetProgressUI();
+
+  if (resultsStopButton) {
+    resultsStopButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      requestStopSolve();
+    });
   }
 
   const mixCapElements = new Map();
@@ -3153,6 +3329,9 @@ const initSolver = () => {
       return;
     }
     renderState({ loading: next });
+    if (!next) {
+      resetProgressUI();
+    }
   };
 
   const AUTO_SOLVE_DEBOUNCE_MS = 250;
@@ -3195,6 +3374,7 @@ const initSolver = () => {
       });
       const formattedVirtues = formatList(virtueNames);
       const message = translate('virtue_missing_rule', { virtues: formattedVirtues });
+      resetProgressUI();
       renderSolutions(
         [],
         [message],
@@ -3208,6 +3388,7 @@ const initSolver = () => {
       return Promise.resolve();
     }
     setLoadingState(true);
+    beginProgressUI();
 
     const runComputation = (resolve) => {
       const debugLines = [];
@@ -3357,8 +3538,12 @@ const initSolver = () => {
           topK: DEFAULT_TOP_K,
         };
 
+        const solverOptions = {
+          onProgress: handleProgressUpdate,
+        };
+
         const solvePromise = workerController
-          ? workerController.solve(workerRequest).catch((error) => {
+          ? workerController.solve(workerRequest, solverOptions).catch((error) => {
             console.warn('Solver worker solve failed; falling back to main thread', error);
             if (workerController) {
               workerController.terminate();
@@ -3367,12 +3552,20 @@ const initSolver = () => {
             return runSolveOnMainThread({
               ...workerRequest,
               allowedIngredientIds: allowedSet,
+            }, {
+              allowedIngredientIds: allowedSet,
+              onProgress: handleProgressUpdate,
+              shouldAbort: () => stopRequested,
             });
           })
           : Promise.resolve(
             runSolveOnMainThread({
               ...workerRequest,
               allowedIngredientIds: allowedSet,
+            }, {
+              allowedIngredientIds: allowedSet,
+              onProgress: handleProgressUpdate,
+              shouldAbort: () => stopRequested,
             }),
           );
 

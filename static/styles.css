@@ -2117,6 +2117,23 @@ body[data-theme='dark'] .chip:focus-visible {
   gap: 4px;
 }
 
+.results-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.results-progress__text {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--results-card-subtle);
+}
+
+.results-progress__stop {
+  flex-shrink: 0;
+}
+
 .results-title {
   margin: 0;
   align-items: center;

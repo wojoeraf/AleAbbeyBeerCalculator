@@ -12,6 +12,8 @@ const workerState = {
 
 let translate = (key) => key;
 let displayStyleName = (id) => id || '';
+let activeSolveId = null;
+let abortRequested = false;
 
 const applyInit = (payload = {}) => {
   workerState.attrs = Array.isArray(payload.attrs) ? payload.attrs : [];
@@ -65,6 +67,8 @@ self.addEventListener('message', (event) => {
       if (!params || typeof params !== 'object') {
         throw new Error('Missing solve parameters');
       }
+      activeSolveId = id;
+      abortRequested = false;
       const result = solveRecipe({
         ...params,
         attrs: workerState.attrs,
@@ -72,10 +76,32 @@ self.addEventListener('message', (event) => {
         ingredients: workerState.ingredients,
         translate,
         displayStyleName,
+        onProgress: (update) => {
+          if (activeSolveId === id) {
+            respond(id, 'progress', update);
+          }
+        },
+        shouldAbort: () => abortRequested,
       });
       respond(id, 'result', result);
     } catch (error) {
       respondWithError(id, error);
+    } finally {
+      if (activeSolveId === id) {
+        activeSolveId = null;
+        abortRequested = false;
+      }
+    }
+    return;
+  }
+
+  if (type === 'cancel') {
+    const targetId = payload && typeof payload === 'object' ? payload.targetId : undefined;
+    if (activeSolveId !== null && (targetId === undefined || targetId === activeSolveId)) {
+      abortRequested = true;
+    }
+    if (id !== undefined && id !== null) {
+      respond(id, 'cancelled', { ok: true });
     }
     return;
   }
