@@ -249,7 +249,7 @@
     "min_counts": {
       "pale_malt": 1,
       "estery_yeast": 1,
-      "standard_yeast": 1,
+      "sugar": 1,
       "berries": 1,
       "cherries": 1
     },
