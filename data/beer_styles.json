@@ -340,9 +340,9 @@
         {"band": "red", "min": 10.0, "max": 1000.0}
       ],
       "color": [
-        {"band": "red", "min": 0.0, "max": 3.99},
-        {"band": "yellow", "min": 4.0, "max": 4.99},
-        {"band": "green", "min": 5.0, "max": 5.99},
+        {"band": "red", "min": 0.0, "max": 2.99},
+        {"band": "yellow", "min": 3.0, "max": 3.99},
+        {"band": "green", "min": 4.0, "max": 5.99},
         {"band": "yellow", "min": 6.0, "max": 6.99},
         {"band": "red", "min": 7.0, "max": 1000.0}
       ],
