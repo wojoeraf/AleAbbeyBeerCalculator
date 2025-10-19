@@ -48,6 +48,7 @@
       "badge_single_variety": "Sortenrein",
       "tooltip_required": "Diese Zutat ist vorgegeben.",
       "button_submit": "Rezept berechnen",
+      "button_stop_search": "Suche stoppen",
       "label_include": "Zutat als Pflicht festlegen",
       "label_optional": "Optional",
       "button_optional_all": "Alle optional markieren",
@@ -67,6 +68,10 @@
       "results_empty": "Keine Lösung unter den gegebenen Regeln gefunden.",
       "results_placeholder": "Noch kein Rezept berechnet. Nutze das Formular und starte die Berechnung, um Ergebnisse zu sehen.",
       "results_loading": "Rezept wird berechnet …",
+      "results_progress_states": "Suche läuft – {visited} Kombinationen geprüft",
+      "results_progress_states_limit": "Suche läuft – {visited} von {limit} Kombinationen geprüft",
+      "results_progress_stopping": "Stopp wird durchgeführt – {visited} Kombinationen geprüft",
+      "results_progress_stopping_limit": "Stopp wird durchgeführt – {visited} von {limit} Kombinationen geprüft",
       "mix_empty": "Noch keine Zutaten ausgewählt.",
       "mix_show_more": "Mehr anzeigen",
       "mix_show_less": "Weniger anzeigen",
@@ -85,7 +90,10 @@
       "site_notice": "Impressum",
       "privacy_policy": "Datenschutzerklärung",
       "report_bug": "Fehler melden",
-      "disclaimer": "Diese Website ist ein nicht-kommerzielles Fanprojekt und steht in keiner Verbindung mit den Entwicklern oder dem Publisher des Spiels Ale Abbey. Alle Marken, Grafiken, Spielinhalte und urheberrechtlich geschützten Materialien gehören ihren jeweiligen Eigentümern. Der hier bereitgestellte Code und die Anwendung sind eigenständige Fan-Entwicklungen und kein offizieller Bestandteil des Spiels."
+      "disclaimer": "Diese Website ist ein nicht-kommerzielles Fanprojekt und steht in keiner Verbindung mit den Entwicklern oder dem Publisher des Spiels Ale Abbey. Alle Marken, Grafiken, Spielinhalte und urheberrechtlich geschützten Materialien gehören ihren jeweiligen Eigentümern. Der hier bereitgestellte Code und die Anwendung sind eigenständige Fan-Entwicklungen und kein offizieller Bestandteil des Spiels.",
+      "results_progress_total": "Mögliche Kombinationen: {total}",
+      "results_progress_total_complete": "Alle Kombinationen geprüft: {total}",
+      "results_progress_states_complete": "Fertig – {visited} Kombinationen geprüft"
     },
     "attr_labels": {
       "taste": "Geschmack",
@@ -147,6 +155,7 @@
       "solver_search_timeout": "Nach vielen Kombinationen wurden keine Ergebnisse gefunden. Bitte lockere die Einstellungen.",
       "solver_search_partial": "Suche vorzeitig beendet – zeige die besten gefundenen Ergebnisse.",
       "solver_trimmed_optional": "Zu viele optionale Zutaten ausgewählt. Die Suche wurde auf die {kept} relevantesten von {total} begrenzt.",
+      "solver_search_stopped": "Manuell nach {visited} Kombinationen gestoppt.",
       "style_unknown": "—"
     }
   },
@@ -199,6 +208,7 @@
       "badge_single_variety": "Single-variety",
       "tooltip_required": "This ingredient is mandatory.",
       "button_submit": "Calculate recipe",
+      "button_stop_search": "Stop search",
       "label_include": "Include ingredient",
       "label_optional": "Optional",
       "button_optional_all": "Mark all optional",
@@ -218,6 +228,10 @@
       "results_empty": "No solution found for the current constraints.",
       "results_placeholder": "No recipe has been calculated yet. Use the form and click “Calculate recipe” to see results here.",
       "results_loading": "Calculating recipe…",
+      "results_progress_states": "Exploring combinations… {visited} visited",
+      "results_progress_states_limit": "Exploring combinations… {visited} / {limit} visited",
+      "results_progress_stopping": "Stopping… {visited} visited so far",
+      "results_progress_stopping_limit": "Stopping… {visited} / {limit} visited so far",
       "mix_empty": "No ingredients selected yet.",
       "mix_show_more": "Show more",
       "mix_show_less": "Show less",
@@ -236,7 +250,10 @@
       "site_notice": "Site Notice",
       "privacy_policy": "Privacy Policy",
       "report_bug": "Report a bug",
-      "disclaimer": "This website is a non-commercial fan project created for educational and entertainment purposes. It is not affiliated with, endorsed by, or sponsored by the developer or publisher of Ale Abbey. All trademarks, game content, and related materials remain the property of their respective owners. The code and web application itself are fan-made and not part of the original game."
+      "disclaimer": "This website is a non-commercial fan project created for educational and entertainment purposes. It is not affiliated with, endorsed by, or sponsored by the developer or publisher of Ale Abbey. All trademarks, game content, and related materials remain the property of their respective owners. The code and web application itself are fan-made and not part of the original game.",
+      "results_progress_total": "Possible combinations: {total}",
+      "results_progress_total_complete": "All combinations explored: {total}",
+      "results_progress_states_complete": "Finished — checked {visited} combinations"
     },
     "attr_labels": {
       "taste": "Flavor",
@@ -298,6 +315,7 @@
       "solver_search_timeout": "Stopped after exploring too many combinations. Try relaxing the filters.",
       "solver_search_partial": "Stopped early after reaching the search limit. Showing the best results found so far.",
       "solver_trimmed_optional": "Too many optional ingredients selected. Limited the search to the {kept} most relevant out of {total}.",
+      "solver_search_stopped": "Stopped manually after exploring {visited} combinations.",
       "style_unknown": "—"
     }
   }

@@ -18,22 +18,30 @@ let ingredientIdToDisplayNameMap = new Map();
 let ingredientCategoryIdToElementsMap = new Map();
 
 const WORKER_MIN_INGREDIENTS = 1;
+const MANUAL_STOP_ERROR_NAME = 'SolverManualStopError';
+
+const createManualStopError = () => {
+  const error = new Error('Solver manually stopped');
+  error.name = MANUAL_STOP_ERROR_NAME;
+  error.isManualStop = true;
+  return error;
+};
+
+const isManualStopError = (error) => (
+  Boolean(error)
+  && (error.name === MANUAL_STOP_ERROR_NAME || error.isManualStop === true)
+);
 
 const createSolverWorkerController = (initPayload) => {
   if (typeof window === 'undefined' || typeof Worker === 'undefined') {
     return null;
   }
 
-  let worker;
-  try {
-    worker = new Worker(new URL('./solver-worker.js', import.meta.url), { type: 'module' });
-  } catch (error) {
-    console.warn('Failed to create solver worker', error);
-    return null;
-  }
-
   const pending = new Map();
+  let worker = null;
   let nextId = 1;
+  let activeSolveId = null;
+  let readyPromise = null;
 
   const rejectAll = (error) => {
     const reason = error instanceof Error ? error : new Error(String(error || 'Worker error'));
@@ -45,67 +53,208 @@ const createSolverWorkerController = (initPayload) => {
       }
     });
     pending.clear();
+    activeSolveId = null;
   };
 
-  worker.addEventListener('message', (event) => {
+  const handleWorkerMessage = (event) => {
     const data = event.data || {};
     const { id, type, payload, error } = data;
     if (id === undefined || id === null || !pending.has(id)) {
       return;
     }
-    const { resolve, reject } = pending.get(id);
+    const entry = pending.get(id);
+    const { resolve, reject, onProgress } = entry;
+    if (type === 'progress') {
+      if (typeof onProgress === 'function') {
+        try {
+          onProgress(payload);
+        } catch (progressError) {
+          console.error('Solver worker progress handler failed', progressError);
+        }
+      }
+      return;
+    }
     pending.delete(id);
     if (type === 'error') {
       reject(error instanceof Error ? error : new Error(String((error && error.message) || error || 'Worker error')));
     } else {
       resolve(payload);
     }
-  });
+  };
 
-  worker.addEventListener('error', (event) => {
+  const handleWorkerError = (event) => {
     rejectAll(event?.error || event?.message || 'Worker runtime error');
-  });
+    if (worker) {
+      worker.removeEventListener('message', handleWorkerMessage);
+      worker.removeEventListener('error', handleWorkerError);
+      worker.removeEventListener('messageerror', handleWorkerMessageError);
+      worker.terminate();
+      worker = null;
+    }
+    readyPromise = null;
+  };
 
-  worker.addEventListener('messageerror', (event) => {
+  const handleWorkerMessageError = (event) => {
     rejectAll(event?.data || 'Worker message error');
-  });
+    if (worker) {
+      worker.removeEventListener('message', handleWorkerMessage);
+      worker.removeEventListener('error', handleWorkerError);
+      worker.removeEventListener('messageerror', handleWorkerMessageError);
+      worker.terminate();
+      worker = null;
+    }
+    readyPromise = null;
+  };
 
-  const post = (type, payload) => {
+  const detachWorker = () => {
     if (!worker) {
-      return Promise.reject(new Error('Worker not available'));
+      return;
+    }
+    worker.removeEventListener('message', handleWorkerMessage);
+    worker.removeEventListener('error', handleWorkerError);
+    worker.removeEventListener('messageerror', handleWorkerMessageError);
+  };
+
+  const terminateWorker = () => {
+    detachWorker();
+    if (worker) {
+      worker.terminate();
+      worker = null;
+    }
+    readyPromise = null;
+  };
+
+  const sendMessage = (type, payload, options = {}) => {
+    if (!worker) {
+      return { id: null, promise: Promise.reject(new Error('Worker not available')) };
     }
     const id = nextId;
     nextId += 1;
     const message = { id, type, payload };
+    let resolveFn;
+    let rejectFn;
     const promise = new Promise((resolve, reject) => {
-      pending.set(id, { resolve, reject });
+      resolveFn = resolve;
+      rejectFn = reject;
+    });
+    pending.set(id, {
+      resolve: resolveFn,
+      reject: rejectFn,
+      onProgress: typeof options.onProgress === 'function' ? options.onProgress : null,
     });
     try {
       worker.postMessage(message);
     } catch (error) {
       pending.delete(id);
-      return Promise.reject(error);
+      if (typeof rejectFn === 'function') {
+        try {
+          rejectFn(error);
+        } catch (rejectError) {
+          console.error('Solver worker rejection failed', rejectError);
+        }
+      }
+      return { id, promise };
     }
-    return promise;
+    return { id, promise };
   };
 
-  const ready = post('init', initPayload).catch((error) => {
-    rejectAll(error);
-    return Promise.reject(error);
+  const startWorker = () => {
+    terminateWorker();
+    try {
+      worker = new Worker(new URL('./solver-worker.js', import.meta.url), { type: 'module' });
+    } catch (error) {
+      console.warn('Failed to create solver worker', error);
+      worker = null;
+      readyPromise = null;
+      return false;
+    }
+    worker.addEventListener('message', handleWorkerMessage);
+    worker.addEventListener('error', handleWorkerError);
+    worker.addEventListener('messageerror', handleWorkerMessageError);
+    pending.clear();
+    nextId = 1;
+    activeSolveId = null;
+    const readyMessage = sendMessage('init', initPayload);
+    readyPromise = readyMessage.promise.catch((error) => {
+      rejectAll(error);
+      throw error;
+    });
+    return true;
+  };
+
+  const ensureReady = () => {
+    if (!worker || !readyPromise) {
+      if (!startWorker()) {
+        return Promise.reject(new Error('Worker not available'));
+      }
+    }
+    return readyPromise;
+  };
+
+  if (!startWorker()) {
+    return null;
+  }
+
+  const solve = (params, { onProgress } = {}) => ensureReady().then(() => {
+    const message = sendMessage('solve', { params }, { onProgress });
+    if (message.id !== null) {
+      activeSolveId = message.id;
+      message.promise.finally(() => {
+        if (activeSolveId === message.id) {
+          activeSolveId = null;
+        }
+      });
+    }
+    return message.promise;
   });
 
-  const solve = (params) => ready.then(() => post('solve', { params }));
+  const cancelSolve = () => {
+    if (!worker || activeSolveId === null) {
+      return false;
+    }
+    try {
+      worker.postMessage({ type: 'cancel', payload: { targetId: activeSolveId } });
+      return true;
+    } catch (error) {
+      console.warn('Failed to send cancel request to worker', error);
+      return false;
+    }
+  };
+
+  const stopActiveSolve = () => {
+    if (activeSolveId === null) {
+      return false;
+    }
+    const manualError = createManualStopError();
+    const entry = pending.get(activeSolveId);
+    if (entry) {
+      pending.delete(activeSolveId);
+      try {
+        entry.reject(manualError);
+      } catch (rejectError) {
+        console.error('Solver worker rejection failed', rejectError);
+      }
+    }
+    activeSolveId = null;
+    if (!startWorker()) {
+      terminateWorker();
+    }
+    return true;
+  };
+
+  const terminate = () => {
+    rejectAll(new Error('Worker terminated'));
+    terminateWorker();
+  };
 
   return {
-    ready,
-    solve,
-    terminate: () => {
-      if (worker) {
-        worker.terminate();
-        worker = null;
-      }
-      rejectAll(new Error('Worker terminated'));
+    get ready() {
+      return readyPromise;
     },
+    solve,
+    cancelSolve,
+    stopActiveSolve,
+    terminate,
   };
 };
 
@@ -353,8 +502,9 @@ const initSolver = () => {
     return styleNameMap[id] || id;
   };
 
-  const runSolveOnMainThread = (request) => solveRecipeSync({
-    ...request,
+  const runSolveOnMainThread = (params, extra = {}) => solveRecipeSync({
+    ...params,
+    ...extra,
     attrs: ATTRS,
     styles: stylesData,
     ingredients,
@@ -382,6 +532,10 @@ const initSolver = () => {
     resultsList,
     resultsEmpty,
     statusMessage,
+    resultsProgress,
+    resultsProgressText,
+    resultsProgressTotal,
+    resultsStop: resultsStopButton,
     debugToggle,
     debugContent,
     legacyToggle,
@@ -400,6 +554,238 @@ const initSolver = () => {
 
   if (categoryOptionalToggleBtn) {
     categoryOptionalToggleBtn.disabled = true;
+  }
+
+  const formatCount = (value) => {
+    if (typeof value === 'bigint') {
+      try {
+        return value.toLocaleString();
+      } catch (error) {
+        return value.toString();
+      }
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return '0';
+      }
+      if (/^-?\d+$/.test(trimmed)) {
+        try {
+          return BigInt(trimmed).toLocaleString();
+        } catch (error) {
+          const negative = trimmed.startsWith('-');
+          const digits = negative ? trimmed.slice(1) : trimmed;
+          const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+          return negative ? `-${grouped}` : grouped;
+        }
+      }
+      const numericFromString = Number(trimmed);
+      if (Number.isFinite(numericFromString)) {
+        return formatCount(numericFromString);
+      }
+      return trimmed;
+    }
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return '0';
+    }
+    const floored = Math.floor(Math.max(0, numeric));
+    try {
+      return floored.toLocaleString();
+    } catch (error) {
+      return String(floored);
+    }
+  };
+
+  let stopRequested = false;
+  let lastProgressSnapshot = {
+    visitedStates: 0,
+    maxStateVisits: 0,
+    aborted: false,
+    reason: null,
+    final: false,
+    totalCombinations: null,
+  };
+
+  const renderProgressSnapshot = (snapshot) => {
+    if (!resultsProgress && !resultsProgressText && !resultsStopButton) {
+      return;
+    }
+    const visitedText = formatCount(snapshot.visitedStates);
+    const hasLimit = Number.isFinite(snapshot.maxStateVisits) && snapshot.maxStateVisits > 0;
+    const limitText = hasLimit ? formatCount(snapshot.maxStateVisits) : null;
+    const hasTotal = snapshot.totalCombinations !== null && snapshot.totalCombinations !== undefined;
+    const toBigInt = (value) => {
+      if (typeof value === 'bigint') {
+        return value;
+      }
+      if (typeof value === 'number') {
+        if (!Number.isFinite(value)) {
+          return null;
+        }
+        return BigInt(Math.max(0, Math.floor(value)));
+      }
+      if (typeof value === 'string') {
+        try {
+          return BigInt(value.trim());
+        } catch (error) {
+          return null;
+        }
+      }
+      return null;
+    };
+    const totalBigInt = hasTotal ? toBigInt(snapshot.totalCombinations) : null;
+    const visitedBigInt = toBigInt(snapshot.visitedStates);
+    const reachedTotal = Boolean(
+      totalBigInt !== null && visitedBigInt !== null && visitedBigInt >= totalBigInt,
+    );
+    if (resultsProgressTotal) {
+      if (hasTotal) {
+        const formattedTotal = formatCount(snapshot.totalCombinations);
+        const totalKey = reachedTotal && snapshot.final && !snapshot.aborted
+          ? 'results_progress_total_complete'
+          : 'results_progress_total';
+        const totalText = translate(totalKey, { total: formattedTotal });
+        resultsProgressTotal.textContent = totalText;
+        resultsProgressTotal.hidden = false;
+      } else {
+        resultsProgressTotal.textContent = '';
+        resultsProgressTotal.hidden = true;
+      }
+    }
+    let text;
+    if (stopRequested && !snapshot.final && !snapshot.aborted) {
+      text = hasLimit
+        ? translate('results_progress_stopping_limit', { visited: visitedText, limit: limitText })
+        : translate('results_progress_stopping', { visited: visitedText });
+    } else if (snapshot.final && !snapshot.aborted && reachedTotal) {
+      text = translate('results_progress_states_complete', { visited: visitedText });
+    } else {
+      text = hasLimit
+        ? translate('results_progress_states_limit', { visited: visitedText, limit: limitText })
+        : translate('results_progress_states', { visited: visitedText });
+    }
+    if (resultsProgressText) {
+      resultsProgressText.textContent = text;
+    }
+    if (resultsProgress) {
+      resultsProgress.hidden = false;
+    }
+    if (resultsStopButton) {
+      const hideButton = snapshot.final || snapshot.aborted;
+      resultsStopButton.hidden = hideButton;
+      resultsStopButton.disabled = stopRequested || hideButton;
+    }
+  };
+
+  const handleProgressUpdate = (update = {}) => {
+    const visited = Number(update && update.visitedStates);
+    const limit = Number(update && update.maxStateVisits);
+    const totalRaw = update && update.totalCombinations;
+    const totalValue = (() => {
+      if (typeof totalRaw === 'bigint') {
+        return totalRaw;
+      }
+      if (typeof totalRaw === 'number') {
+        if (!Number.isFinite(totalRaw) || totalRaw < 0) {
+          return null;
+        }
+        return BigInt(Math.floor(totalRaw));
+      }
+      if (typeof totalRaw === 'string') {
+        const trimmed = totalRaw.trim();
+        if (!trimmed) {
+          return null;
+        }
+        if (/^-?\d+$/.test(trimmed)) {
+          try {
+            return BigInt(trimmed);
+          } catch (error) {
+            return trimmed;
+          }
+        }
+        return trimmed;
+      }
+      return null;
+    })();
+    lastProgressSnapshot = {
+      visitedStates: Number.isFinite(visited) && visited >= 0 ? Math.floor(visited) : 0,
+      maxStateVisits: Number.isFinite(limit) && limit > 0 ? limit : 0,
+      aborted: Boolean(update && update.aborted),
+      reason: typeof update?.reason === 'string' ? update.reason : null,
+      final: Boolean(update && update.final),
+      totalCombinations: totalValue,
+    };
+    renderProgressSnapshot(lastProgressSnapshot);
+  };
+
+  const beginProgressUI = () => {
+    stopRequested = false;
+    lastProgressSnapshot = {
+      visitedStates: 0,
+      maxStateVisits: 0,
+      aborted: false,
+      reason: null,
+      final: false,
+      totalCombinations: null,
+    };
+    renderProgressSnapshot(lastProgressSnapshot);
+  };
+
+  const resetProgressUI = () => {
+    stopRequested = false;
+    lastProgressSnapshot = {
+      visitedStates: 0,
+      maxStateVisits: 0,
+      aborted: false,
+      reason: null,
+      final: false,
+      totalCombinations: null,
+    };
+    if (resultsProgress) {
+      resultsProgress.hidden = true;
+    }
+    if (resultsProgressText) {
+      resultsProgressText.textContent = '';
+    }
+    if (resultsProgressTotal) {
+      resultsProgressTotal.textContent = '';
+      resultsProgressTotal.hidden = true;
+    }
+    if (resultsStopButton) {
+      resultsStopButton.hidden = true;
+      resultsStopButton.disabled = false;
+    }
+  };
+
+  const requestStopSolve = () => {
+    if (stopRequested) {
+      return;
+    }
+    stopRequested = true;
+    renderProgressSnapshot(lastProgressSnapshot);
+    if (workerController) {
+      let stopped = false;
+      if (typeof workerController.stopActiveSolve === 'function') {
+        try {
+          stopped = workerController.stopActiveSolve() || false;
+        } catch (error) {
+          console.warn('Failed to stop worker solve manually', error);
+        }
+      }
+      if (!stopped && typeof workerController.cancelSolve === 'function') {
+        workerController.cancelSolve();
+      }
+    }
+  };
+
+  resetProgressUI();
+
+  if (resultsStopButton) {
+    resultsStopButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      requestStopSolve();
+    });
   }
 
   const mixCapElements = new Map();
@@ -3153,6 +3539,9 @@ const initSolver = () => {
       return;
     }
     renderState({ loading: next });
+    if (!next) {
+      resetProgressUI();
+    }
   };
 
   const AUTO_SOLVE_DEBOUNCE_MS = 250;
@@ -3195,6 +3584,7 @@ const initSolver = () => {
       });
       const formattedVirtues = formatList(virtueNames);
       const message = translate('virtue_missing_rule', { virtues: formattedVirtues });
+      resetProgressUI();
       renderSolutions(
         [],
         [message],
@@ -3208,6 +3598,7 @@ const initSolver = () => {
       return Promise.resolve();
     }
     setLoadingState(true);
+    beginProgressUI();
 
     const runComputation = (resolve) => {
       const debugLines = [];
@@ -3357,8 +3748,15 @@ const initSolver = () => {
           topK: DEFAULT_TOP_K,
         };
 
+        const solverOptions = {
+          onProgress: handleProgressUpdate,
+        };
+
         const solvePromise = workerController
-          ? workerController.solve(workerRequest).catch((error) => {
+          ? workerController.solve(workerRequest, solverOptions).catch((error) => {
+            if (isManualStopError(error)) {
+              throw error;
+            }
             console.warn('Solver worker solve failed; falling back to main thread', error);
             if (workerController) {
               workerController.terminate();
@@ -3367,12 +3765,20 @@ const initSolver = () => {
             return runSolveOnMainThread({
               ...workerRequest,
               allowedIngredientIds: allowedSet,
+            }, {
+              allowedIngredientIds: allowedSet,
+              onProgress: handleProgressUpdate,
+              shouldAbort: () => stopRequested,
             });
           })
           : Promise.resolve(
             runSolveOnMainThread({
               ...workerRequest,
               allowedIngredientIds: allowedSet,
+            }, {
+              allowedIngredientIds: allowedSet,
+              onProgress: handleProgressUpdate,
+              shouldAbort: () => stopRequested,
             }),
           );
 
@@ -3382,9 +3788,19 @@ const initSolver = () => {
             renderDebug(debugLines);
           })
           .catch((error) => {
-            console.error('Recipe calculation failed', error);
-            renderSolutions([], [translate('solver_failed')], selectionMeta, 0);
-            renderDebug(debugLines);
+            if (isManualStopError(error)) {
+              const visitedText = formatCount(lastProgressSnapshot.visitedStates);
+              const stopMessage = translate('solver_search_stopped', { visited: visitedText });
+              const infoMessages = typeof stopMessage === 'string' && stopMessage.length
+                ? [stopMessage]
+                : [];
+              renderSolutions([], infoMessages, selectionMeta, 0);
+              renderDebug(debugLines);
+            } else {
+              console.error('Recipe calculation failed', error);
+              renderSolutions([], [translate('solver_failed')], selectionMeta, 0);
+              renderDebug(debugLines);
+            }
           })
           .finally(finalize);
       } catch (error) {

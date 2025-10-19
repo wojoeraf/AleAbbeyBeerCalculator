@@ -33,6 +33,16 @@
  * @property {number} [topK]
  * @property {number} [maxStateVisits]
  * @property {boolean} [allowOptionalTrim]
+ * @property {(update: {
+ *   visitedStates: number;
+ *   maxStateVisits: number;
+ *   aborted: boolean;
+ *   reason: 'limit' | 'user' | null;
+ *   totalCombinations?: bigint | number;
+ *   final?: boolean;
+ * }) => void} [onProgress]
+ * @property {number} [progressInterval]
+ * @property {() => boolean} [shouldAbort]
  * @property {string[]} attrs
  * @property {Record<string, StyleData>} styles
  * @property {Ingredient[]} ingredients
@@ -51,6 +61,12 @@
  *   ingredientCount: number;
  * }>} solutions
  * @property {string[]} info
+ * @property {number} totalSolutions
+ * @property {number} visitedStates
+ * @property {number} maxStateVisits
+ * @property {boolean} aborted
+ * @property {'limit' | 'user' | null} abortReason
+ * @property {bigint | number} totalCombinations
  */
 
 export const EPS = 1e-9;
@@ -58,10 +74,11 @@ export const DEFAULT_TOP_K = 3;
 export const LOW_SEASON_COST_MULTIPLIER = 1.25;
 export const HIGH_SEASON_COST_MULTIPLIER = 0.75;
 export const SEASON_ORDER = ['spring', 'summer', 'autumn', 'winter'];
-const DEFAULT_MAX_STATE_VISITS = 1000000;
-const OPTIONAL_TRIM_THRESHOLD = 18;
+const DEFAULT_MAX_STATE_VISITS = 100000000;
+const DEFAULT_PROGRESS_INTERVAL = 10000;
+const OPTIONAL_TRIM_THRESHOLD = 30;
 const OPTIONAL_TRIM_MIN = 8;
-const OPTIONAL_TRIM_MAX = 18;
+const OPTIONAL_TRIM_MAX = 30;
 
 const SEASONAL_MULTIPLIERS = {
   spring: { malt: LOW_SEASON_COST_MULTIPLIER, fruit: HIGH_SEASON_COST_MULTIPLIER },
@@ -103,6 +120,71 @@ const getSeasonalMultiplier = (season, seasonalType) => {
     return map[normalized];
   }
   return 1;
+};
+
+const formatVisitedCount = (value) => {
+  const numeric = Number.isFinite(value) ? Math.floor(value) : 0;
+  try {
+    return numeric.toLocaleString();
+  } catch (error) {
+    return String(numeric);
+  }
+};
+
+const clampCount = (value) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return 0;
+  }
+  if (numeric <= 0) {
+    return 0;
+  }
+  return Math.floor(numeric);
+};
+
+const computeCombinationCount = (minCounts = [], maxCounts = [], totalCap = 0) => {
+  const length = Array.isArray(minCounts) ? minCounts.length : 0;
+  if (length === 0) {
+    return BigInt(totalCap >= 0 ? 1 : 0);
+  }
+  const maxArray = Array.isArray(maxCounts) ? maxCounts : [];
+  const cap = clampCount(totalCap);
+  let minSum = 0;
+  const ranges = new Array(length).fill(0);
+  for (let i = 0; i < length; i += 1) {
+    const minVal = clampCount(minCounts[i]);
+    const maxVal = Math.max(minVal, clampCount(maxArray[i]));
+    minSum += minVal;
+    ranges[i] = maxVal - minVal;
+  }
+  if (minSum > cap) {
+    return 0n;
+  }
+  const extraCapacity = cap - minSum;
+  if (extraCapacity === 0) {
+    return 1n;
+  }
+  const width = extraCapacity + 1;
+  let dp = new Array(width).fill(0n);
+  dp[0] = 1n;
+  for (let i = 0; i < length; i += 1) {
+    const range = ranges[i];
+    if (range <= 0) {
+      continue;
+    }
+    const next = new Array(width).fill(0n);
+    let windowSum = 0n;
+    for (let used = 0; used <= extraCapacity; used += 1) {
+      windowSum += dp[used];
+      const dropIndex = used - range - 1;
+      if (dropIndex >= 0) {
+        windowSum -= dp[dropIndex];
+      }
+      next[used] = windowSum;
+    }
+    dp = next;
+  }
+  return dp.reduce((acc, val) => acc + val, 0n);
 };
 
 /**
@@ -246,12 +328,36 @@ export const solveRecipe = (params) => {
     ? Math.floor(maxStateVisitsInput)
     : DEFAULT_MAX_STATE_VISITS;
 
+  const onProgress = typeof params.onProgress === 'function' ? params.onProgress : null;
+  const progressInterval = Number.isFinite(params.progressInterval) && params.progressInterval > 0
+    ? Math.floor(params.progressInterval)
+    : DEFAULT_PROGRESS_INTERVAL;
+  const shouldAbort = typeof params.shouldAbort === 'function' ? params.shouldAbort : null;
+
   const style = styles[styleName];
   if (!style) {
+    if (onProgress) {
+      try {
+        onProgress({
+          visitedStates: 0,
+          maxStateVisits,
+          aborted: false,
+          reason: null,
+          final: true,
+        });
+      } catch (error) {
+        // ignore progress errors
+      }
+    }
     return {
       solutions: [],
       info: [translate('unknown_style', { style: displayStyleName(styleName) })],
       totalSolutions: 0,
+      visitedStates: 0,
+      maxStateVisits,
+      aborted: false,
+      abortReason: null,
+      totalCombinations: 0,
     };
   }
 
@@ -294,7 +400,29 @@ export const solveRecipe = (params) => {
   });
 
   if (minCounts.some((cnt) => cnt > perCap)) {
-    return { solutions: [], info: [translate('min_exceeds_cap')], totalSolutions: 0 };
+    if (onProgress) {
+      try {
+        onProgress({
+          visitedStates: 0,
+          maxStateVisits,
+          aborted: false,
+          reason: null,
+          final: true,
+        });
+      } catch (error) {
+        // ignore progress errors
+      }
+    }
+    return {
+      solutions: [],
+      info: [translate('min_exceeds_cap')],
+      totalSolutions: 0,
+      visitedStates: 0,
+      maxStateVisits,
+      aborted: false,
+      abortReason: null,
+      totalCombinations: 0,
+    };
   }
 
   const minSum = minCounts.reduce((acc, val) => acc + val, 0);
@@ -426,7 +554,29 @@ export const solveRecipe = (params) => {
 
   const perAttrLists = attrs.map((attr) => allowedIntervalsForAttr(attr, allowedBandMap[attr]));
   if (perAttrLists.some((list) => list.length === 0)) {
-    return { solutions: [], info: [translate('no_intervals')], totalSolutions: 0 };
+    if (onProgress) {
+      try {
+        onProgress({
+          visitedStates: 0,
+          maxStateVisits,
+          aborted: false,
+          reason: null,
+          final: true,
+        });
+      } catch (error) {
+        // ignore progress errors
+      }
+    }
+    return {
+      solutions: [],
+      info: [translate('no_intervals')],
+      totalSolutions: 0,
+      visitedStates: 0,
+      maxStateVisits,
+      aborted: false,
+      abortReason: null,
+      totalCombinations: 0,
+    };
   }
 
   const attrNeedSigns = attrs.map((_, attrIdx) => {
@@ -546,6 +696,12 @@ export const solveRecipe = (params) => {
   const orderedMaxCounts = orderedIndices.map((idx) => perIngredientCeilValues[idx]);
   const orderedCosts = orderedIndices.map((idx) => baseCosts[idx]);
 
+  const totalCombinationCount = computeCombinationCount(
+    orderedMinCounts,
+    orderedMaxCounts,
+    adjustedTotalCap,
+  );
+
   const suffixMinBaseCost = new Array(orderLength + 1).fill(0);
   for (let idx = orderLength - 1; idx >= 0; idx -= 1) {
     const minCnt = orderedMinCounts[idx];
@@ -560,7 +716,29 @@ export const solveRecipe = (params) => {
     attrs.length,
   );
   if (suffixMinCounts[0] > adjustedTotalCap) {
-    return { solutions: [], info: [translate('cap_too_small')], totalSolutions: 0 };
+    if (onProgress) {
+      try {
+        onProgress({
+          visitedStates: 0,
+          maxStateVisits,
+          aborted: false,
+          reason: null,
+          final: true,
+        });
+      } catch (error) {
+        // ignore progress errors
+      }
+    }
+    return {
+      solutions: [],
+      info: [translate('cap_too_small')],
+      totalSolutions: 0,
+      visitedStates: 0,
+      maxStateVisits,
+      aborted: false,
+      abortReason: null,
+      totalCombinations: 0,
+    };
   }
 
   const counts = new Array(orderLength).fill(0);
@@ -636,6 +814,42 @@ export const solveRecipe = (params) => {
   const infoMessages = [];
   let globalAborted = false;
   let totalSolutions = 0;
+  let globalVisitedStates = 0;
+  let lastProgressEmission = 0;
+  let lastProgressVisitedStates = 0;
+  let abortedByLimit = false;
+  let abortedBySignal = false;
+
+  const emitProgress = ({ force = false, final = false, reason = null } = {}) => {
+    if (!onProgress) {
+      return;
+    }
+    if (!force && !final && globalVisitedStates < lastProgressEmission + progressInterval) {
+      return;
+    }
+    lastProgressEmission = globalVisitedStates;
+    try {
+      onProgress({
+        visitedStates: globalVisitedStates,
+        maxStateVisits,
+        aborted: globalAborted,
+        reason: reason !== null
+          ? reason
+          : abortedBySignal
+            ? 'user'
+            : abortedByLimit
+              ? 'limit'
+              : null,
+        totalCombinations: totalCombinationCount,
+        final,
+      });
+      lastProgressVisitedStates = globalVisitedStates;
+    } catch (error) {
+      // ignore progress errors
+    }
+  };
+
+  emitProgress({ force: true });
 
   const iterateBoxes = (attrIdx, lower, upper) => {
     if (attrIdx === attrs.length) {
@@ -645,17 +859,31 @@ export const solveRecipe = (params) => {
       const stateCostMemo = new Map();
       let visitedStates = 0;
       let aborted = false;
+      let abortedReason = null;
 
       const dfs = (idx, used, totals, costSoFar) => {
         if (aborted) {
           return;
         }
+        if (shouldAbort && shouldAbort()) {
+          aborted = true;
+          globalAborted = true;
+          abortedBySignal = true;
+          abortedReason = 'user';
+          emitProgress({ force: true, reason: 'user' });
+          return;
+        }
         visitedStates += 1;
+        globalVisitedStates += 1;
         if (visitedStates > maxStateVisits) {
           aborted = true;
           globalAborted = true;
+          abortedByLimit = true;
+          abortedReason = 'limit';
+          emitProgress({ force: true, reason: 'limit' });
           return;
         }
+        emitProgress({ force: globalVisitedStates === 1 });
         const roundedTotalsKey = totals
           .map((val) => (Number.isFinite(val) ? Math.round(val * 1000) : 0))
           .join(',');
@@ -860,9 +1088,20 @@ export const solveRecipe = (params) => {
 
       dfs(0, 0, base.slice(), 0);
       if (aborted) {
-        infoMessages.push(translate(
-          solutions.length > 0 ? 'solver_search_partial' : 'solver_search_timeout',
-        ));
+        if (abortedReason === 'user') {
+          const stopMessage = translate('solver_search_stopped', {
+            visited: formatVisitedCount(
+              Math.max(globalVisitedStates, lastProgressVisitedStates),
+            ),
+          });
+          if (typeof stopMessage === 'string' && stopMessage.length) {
+            infoMessages.push(stopMessage);
+          }
+        } else {
+          infoMessages.push(translate(
+            solutions.length > 0 ? 'solver_search_partial' : 'solver_search_timeout',
+          ));
+        }
       }
       return;
     }
@@ -890,6 +1129,7 @@ export const solveRecipe = (params) => {
     allowOptionalTrim
     && wasGlobalAborted
     && solutions.length === 0
+    && !abortedBySignal
     && allowedOptionalIds.length > OPTIONAL_TRIM_THRESHOLD
   ) {
     const targetCount = Math.max(
@@ -908,6 +1148,9 @@ export const solveRecipe = (params) => {
           allowedIngredientIds: Array.from(trimmedAllowedSet),
           maxStateVisits,
           allowOptionalTrim: false,
+          onProgress,
+          progressInterval,
+          shouldAbort,
         };
         const fallbackResult = solveRecipe(fallbackParams);
         const trimMessage = translate('solver_trimmed_optional', {
@@ -932,14 +1175,40 @@ export const solveRecipe = (params) => {
         const fallbackTotal = Number.isFinite(fallbackResult.totalSolutions)
           ? fallbackResult.totalSolutions
           : fallbackSolutions.length;
+        const fallbackVisited = Number.isFinite(fallbackResult.visitedStates)
+          ? fallbackResult.visitedStates
+          : 0;
         return {
           solutions: fallbackSolutions,
           info: combinedInfo,
           totalSolutions: fallbackTotal,
+          visitedStates: Math.max(
+            fallbackVisited,
+            globalVisitedStates,
+            lastProgressVisitedStates,
+          ),
+          maxStateVisits: Number.isFinite(fallbackResult.maxStateVisits)
+            ? fallbackResult.maxStateVisits
+            : maxStateVisits,
+          aborted: Boolean(fallbackResult.aborted),
+          abortReason: fallbackResult.abortReason ?? null,
+          totalCombinations: fallbackResult.totalCombinations
+            ?? totalCombinationCount,
         };
       }
     }
   }
 
-  return { solutions, info: infoMessages, totalSolutions };
+  emitProgress({ force: true, final: true });
+
+  return {
+    solutions,
+    info: infoMessages,
+    totalSolutions,
+    visitedStates: Math.max(globalVisitedStates, lastProgressVisitedStates),
+    maxStateVisits,
+    aborted: globalAborted,
+    abortReason: abortedBySignal ? 'user' : abortedByLimit ? 'limit' : null,
+    totalCombinations: totalCombinationCount,
+  };
 };

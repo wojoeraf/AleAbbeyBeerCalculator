@@ -437,6 +437,15 @@
                                 <p class="hint">{{ ui.results_loading }}</p>
                             </div>
                         </div>
+                        <div class="results-progress-panel" data-results-progress hidden>
+                            <div class="results-progress-panel__inner">
+                                <p class="hint results-progress__total" data-results-progress-total hidden></p>
+                                <p class="hint results-progress__text" data-results-progress-text></p>
+                                <button type="button" class="btn-secondary results-progress__stop" data-stop-solver hidden>
+                                    {{ ui.button_stop_search }}
+                                </button>
+                            </div>
+                        </div>
                         <p class="hint results-status" data-status-message hidden></p>
                         <p class="hint results-status-empty" data-results-empty hidden>
                             <strong>{{ ui.section_results }}</strong> {{ ui.results_empty }}</p>
