@@ -271,6 +271,52 @@ test('solveRecipe trims large optional sets when hitting search limit', () => {
   );
 });
 
+test('solveRecipe reports visited states when aborted manually', () => {
+  const numericIntervals = createNumericIntervals();
+  const bandPreferences = createBandPreferences(null);
+  let abortFlag = false;
+  const threshold = 8;
+  const result = solveRecipe({
+    styleName: 'light_ale',
+    numericIntervals,
+    bandPreferences,
+    totalCap: 25,
+    perCap: 25,
+    extraMinCounts: {},
+    allowedIngredientIds: null,
+    topK: 5,
+    attrs: SAMPLE_ATTRS,
+    styles: SAMPLE_STYLES,
+    ingredients: SAMPLE_INGREDIENTS,
+    allowOptionalTrim: false,
+    progressInterval: 1,
+    onProgress: ({ visitedStates }) => {
+      if (visitedStates >= threshold) {
+        abortFlag = true;
+      }
+    },
+    shouldAbort: () => abortFlag,
+    translate: (key, replacements = {}) => {
+      if (key === 'solver_search_stopped') {
+        return `stopped ${replacements.visited}`;
+      }
+      return key;
+    },
+    displayStyleName: (id) => id,
+  });
+
+  assert.ok(result.aborted, 'expected solver to abort');
+  assert.strictEqual(result.abortReason, 'user');
+  assert.ok(
+    result.visitedStates >= threshold,
+    `expected visitedStates >= ${threshold}, got ${result.visitedStates}`,
+  );
+  assert.ok(
+    result.info.some((msg) => typeof msg === 'string' && msg.includes(String(threshold))),
+    'expected info message to include visited count',
+  );
+});
+
 test('solveRecipe reports total solutions beyond the displayed top results', () => {
   const attrs = ['virtue'];
   const styles = {

@@ -18,23 +18,30 @@ let ingredientIdToDisplayNameMap = new Map();
 let ingredientCategoryIdToElementsMap = new Map();
 
 const WORKER_MIN_INGREDIENTS = 1;
+const MANUAL_STOP_ERROR_NAME = 'SolverManualStopError';
+
+const createManualStopError = () => {
+  const error = new Error('Solver manually stopped');
+  error.name = MANUAL_STOP_ERROR_NAME;
+  error.isManualStop = true;
+  return error;
+};
+
+const isManualStopError = (error) => (
+  Boolean(error)
+  && (error.name === MANUAL_STOP_ERROR_NAME || error.isManualStop === true)
+);
 
 const createSolverWorkerController = (initPayload) => {
   if (typeof window === 'undefined' || typeof Worker === 'undefined') {
     return null;
   }
 
-  let worker;
-  try {
-    worker = new Worker(new URL('./solver-worker.js', import.meta.url), { type: 'module' });
-  } catch (error) {
-    console.warn('Failed to create solver worker', error);
-    return null;
-  }
-
   const pending = new Map();
+  let worker = null;
   let nextId = 1;
   let activeSolveId = null;
+  let readyPromise = null;
 
   const rejectAll = (error) => {
     const reason = error instanceof Error ? error : new Error(String(error || 'Worker error'));
@@ -49,7 +56,7 @@ const createSolverWorkerController = (initPayload) => {
     activeSolveId = null;
   };
 
-  worker.addEventListener('message', (event) => {
+  const handleWorkerMessage = (event) => {
     const data = event.data || {};
     const { id, type, payload, error } = data;
     if (id === undefined || id === null || !pending.has(id)) {
@@ -73,17 +80,51 @@ const createSolverWorkerController = (initPayload) => {
     } else {
       resolve(payload);
     }
-  });
+  };
 
-  worker.addEventListener('error', (event) => {
+  const handleWorkerError = (event) => {
     rejectAll(event?.error || event?.message || 'Worker runtime error');
-  });
+    if (worker) {
+      worker.removeEventListener('message', handleWorkerMessage);
+      worker.removeEventListener('error', handleWorkerError);
+      worker.removeEventListener('messageerror', handleWorkerMessageError);
+      worker.terminate();
+      worker = null;
+    }
+    readyPromise = null;
+  };
 
-  worker.addEventListener('messageerror', (event) => {
+  const handleWorkerMessageError = (event) => {
     rejectAll(event?.data || 'Worker message error');
-  });
+    if (worker) {
+      worker.removeEventListener('message', handleWorkerMessage);
+      worker.removeEventListener('error', handleWorkerError);
+      worker.removeEventListener('messageerror', handleWorkerMessageError);
+      worker.terminate();
+      worker = null;
+    }
+    readyPromise = null;
+  };
 
-  const post = (type, payload, options = {}) => {
+  const detachWorker = () => {
+    if (!worker) {
+      return;
+    }
+    worker.removeEventListener('message', handleWorkerMessage);
+    worker.removeEventListener('error', handleWorkerError);
+    worker.removeEventListener('messageerror', handleWorkerMessageError);
+  };
+
+  const terminateWorker = () => {
+    detachWorker();
+    if (worker) {
+      worker.terminate();
+      worker = null;
+    }
+    readyPromise = null;
+  };
+
+  const sendMessage = (type, payload, options = {}) => {
     if (!worker) {
       return { id: null, promise: Promise.reject(new Error('Worker not available')) };
     }
@@ -117,14 +158,45 @@ const createSolverWorkerController = (initPayload) => {
     return { id, promise };
   };
 
-  const readyMessage = post('init', initPayload);
-  const ready = readyMessage.promise.catch((error) => {
-    rejectAll(error);
-    return Promise.reject(error);
-  });
+  const startWorker = () => {
+    terminateWorker();
+    try {
+      worker = new Worker(new URL('./solver-worker.js', import.meta.url), { type: 'module' });
+    } catch (error) {
+      console.warn('Failed to create solver worker', error);
+      worker = null;
+      readyPromise = null;
+      return false;
+    }
+    worker.addEventListener('message', handleWorkerMessage);
+    worker.addEventListener('error', handleWorkerError);
+    worker.addEventListener('messageerror', handleWorkerMessageError);
+    pending.clear();
+    nextId = 1;
+    activeSolveId = null;
+    const readyMessage = sendMessage('init', initPayload);
+    readyPromise = readyMessage.promise.catch((error) => {
+      rejectAll(error);
+      throw error;
+    });
+    return true;
+  };
 
-  const solve = (params, { onProgress } = {}) => ready.then(() => {
-    const message = post('solve', { params }, { onProgress });
+  const ensureReady = () => {
+    if (!worker || !readyPromise) {
+      if (!startWorker()) {
+        return Promise.reject(new Error('Worker not available'));
+      }
+    }
+    return readyPromise;
+  };
+
+  if (!startWorker()) {
+    return null;
+  }
+
+  const solve = (params, { onProgress } = {}) => ensureReady().then(() => {
+    const message = sendMessage('solve', { params }, { onProgress });
     if (message.id !== null) {
       activeSolveId = message.id;
       message.promise.finally(() => {
@@ -149,17 +221,40 @@ const createSolverWorkerController = (initPayload) => {
     }
   };
 
+  const stopActiveSolve = () => {
+    if (activeSolveId === null) {
+      return false;
+    }
+    const manualError = createManualStopError();
+    const entry = pending.get(activeSolveId);
+    if (entry) {
+      pending.delete(activeSolveId);
+      try {
+        entry.reject(manualError);
+      } catch (rejectError) {
+        console.error('Solver worker rejection failed', rejectError);
+      }
+    }
+    activeSolveId = null;
+    if (!startWorker()) {
+      terminateWorker();
+    }
+    return true;
+  };
+
+  const terminate = () => {
+    rejectAll(new Error('Worker terminated'));
+    terminateWorker();
+  };
+
   return {
-    ready,
+    get ready() {
+      return readyPromise;
+    },
     solve,
     cancelSolve,
-    terminate: () => {
-      if (worker) {
-        worker.terminate();
-        worker = null;
-      }
-      rejectAll(new Error('Worker terminated'));
-    },
+    stopActiveSolve,
+    terminate,
   };
 };
 
@@ -564,8 +659,18 @@ const initSolver = () => {
     }
     stopRequested = true;
     renderProgressSnapshot(lastProgressSnapshot);
-    if (workerController && typeof workerController.cancelSolve === 'function') {
-      workerController.cancelSolve();
+    if (workerController) {
+      let stopped = false;
+      if (typeof workerController.stopActiveSolve === 'function') {
+        try {
+          stopped = workerController.stopActiveSolve() || false;
+        } catch (error) {
+          console.warn('Failed to stop worker solve manually', error);
+        }
+      }
+      if (!stopped && typeof workerController.cancelSolve === 'function') {
+        workerController.cancelSolve();
+      }
     }
   };
 
@@ -3544,6 +3649,9 @@ const initSolver = () => {
 
         const solvePromise = workerController
           ? workerController.solve(workerRequest, solverOptions).catch((error) => {
+            if (isManualStopError(error)) {
+              throw error;
+            }
             console.warn('Solver worker solve failed; falling back to main thread', error);
             if (workerController) {
               workerController.terminate();
@@ -3575,9 +3683,19 @@ const initSolver = () => {
             renderDebug(debugLines);
           })
           .catch((error) => {
-            console.error('Recipe calculation failed', error);
-            renderSolutions([], [translate('solver_failed')], selectionMeta, 0);
-            renderDebug(debugLines);
+            if (isManualStopError(error)) {
+              const visitedText = formatCount(lastProgressSnapshot.visitedStates);
+              const stopMessage = translate('solver_search_stopped', { visited: visitedText });
+              const infoMessages = typeof stopMessage === 'string' && stopMessage.length
+                ? [stopMessage]
+                : [];
+              renderSolutions([], infoMessages, selectionMeta, 0);
+              renderDebug(debugLines);
+            } else {
+              console.error('Recipe calculation failed', error);
+              renderSolutions([], [translate('solver_failed')], selectionMeta, 0);
+              renderDebug(debugLines);
+            }
           })
           .finally(finalize);
       } catch (error) {

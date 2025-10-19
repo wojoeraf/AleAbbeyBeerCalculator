@@ -748,6 +748,7 @@ export const solveRecipe = (params) => {
   let totalSolutions = 0;
   let globalVisitedStates = 0;
   let lastProgressEmission = 0;
+  let lastProgressVisitedStates = 0;
   let abortedByLimit = false;
   let abortedBySignal = false;
 
@@ -773,6 +774,7 @@ export const solveRecipe = (params) => {
               : null,
         final,
       });
+      lastProgressVisitedStates = globalVisitedStates;
     } catch (error) {
       // ignore progress errors
     }
@@ -1017,7 +1019,9 @@ export const solveRecipe = (params) => {
       if (aborted) {
         if (abortedReason === 'user') {
           const stopMessage = translate('solver_search_stopped', {
-            visited: formatVisitedCount(globalVisitedStates),
+            visited: formatVisitedCount(
+              Math.max(globalVisitedStates, lastProgressVisitedStates),
+            ),
           });
           if (typeof stopMessage === 'string' && stopMessage.length) {
             infoMessages.push(stopMessage);
@@ -1100,13 +1104,18 @@ export const solveRecipe = (params) => {
         const fallbackTotal = Number.isFinite(fallbackResult.totalSolutions)
           ? fallbackResult.totalSolutions
           : fallbackSolutions.length;
+        const fallbackVisited = Number.isFinite(fallbackResult.visitedStates)
+          ? fallbackResult.visitedStates
+          : 0;
         return {
           solutions: fallbackSolutions,
           info: combinedInfo,
           totalSolutions: fallbackTotal,
-          visitedStates: Number.isFinite(fallbackResult.visitedStates)
-            ? fallbackResult.visitedStates
-            : globalVisitedStates,
+          visitedStates: Math.max(
+            fallbackVisited,
+            globalVisitedStates,
+            lastProgressVisitedStates,
+          ),
           maxStateVisits: Number.isFinite(fallbackResult.maxStateVisits)
             ? fallbackResult.maxStateVisits
             : maxStateVisits,
@@ -1123,7 +1132,7 @@ export const solveRecipe = (params) => {
     solutions,
     info: infoMessages,
     totalSolutions,
-    visitedStates: globalVisitedStates,
+    visitedStates: Math.max(globalVisitedStates, lastProgressVisitedStates),
     maxStateVisits,
     aborted: globalAborted,
     abortReason: abortedBySignal ? 'user' : abortedByLimit ? 'limit' : null,

@@ -432,15 +432,17 @@
                                 </h4>
                                 <p class="hint results-placeholder" data-results-placeholder>{{ ui.results_placeholder }}</p>
                             </div>
-                            <div class="results-progress" data-results-progress hidden>
+                            <div class="results-loading" data-results-loading hidden role="status" aria-live="polite">
+                                <div class="loading-spinner" aria-hidden="true"></div>
+                                <p class="hint">{{ ui.results_loading }}</p>
+                            </div>
+                        </div>
+                        <div class="results-progress-panel" data-results-progress hidden>
+                            <div class="results-progress-panel__inner">
                                 <p class="hint results-progress__text" data-results-progress-text></p>
                                 <button type="button" class="btn-secondary results-progress__stop" data-stop-solver hidden>
                                     {{ ui.button_stop_search }}
                                 </button>
-                            </div>
-                            <div class="results-loading" data-results-loading hidden role="status" aria-live="polite">
-                                <div class="loading-spinner" aria-hidden="true"></div>
-                                <p class="hint">{{ ui.results_loading }}</p>
                             </div>
                         </div>
                         <p class="hint results-status" data-status-message hidden></p>
