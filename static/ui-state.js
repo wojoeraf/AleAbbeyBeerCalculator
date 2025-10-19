@@ -42,6 +42,7 @@ export const initUIState = () => {
     resultsHeader: document.querySelector('[data-results-header]'),
     resultsProgress: document.querySelector('[data-results-progress]'),
     resultsProgressText: document.querySelector('[data-results-progress-text]'),
+    resultsProgressTotal: document.querySelector('[data-results-progress-total]'),
     resultsStop: document.querySelector('[data-stop-solver]'),
     debugPanel: document.querySelector('[data-debug-panel]'),
     debugOutput: document.querySelector('[data-debug-output]'),

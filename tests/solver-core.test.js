@@ -82,6 +82,26 @@ const createBandPreferences = (band) =>
     }),
   );
 
+const toBigIntSafe = (value) => {
+  if (typeof value === 'bigint') {
+    return value;
+  }
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      return null;
+    }
+    return BigInt(Math.floor(value));
+  }
+  if (typeof value === 'string') {
+    try {
+      return BigInt(value);
+    } catch (error) {
+      return null;
+    }
+  }
+  return null;
+};
+
 test('computeWeightedOrder sorts indices by max absolute coefficient', () => {
   const vectors = [
     [0, 2, -1],
@@ -175,6 +195,20 @@ test('solveRecipe finds a light ale all-green combination', () => {
     [null, 'user', 'limit'].includes(result.abortReason ?? null),
     `expected abortReason to be null, "user", or "limit", got ${result.abortReason}`,
   );
+  assert.ok(
+    result.totalCombinations !== undefined,
+    'expected totalCombinations to be present on the result',
+  );
+  const totalCombos = toBigIntSafe(result.totalCombinations);
+  const visitedCombos = toBigIntSafe(result.visitedStates);
+  assert.ok(totalCombos !== null, 'expected totalCombinations to be coercible to bigint');
+  assert.ok(visitedCombos !== null, 'expected visitedStates to be coercible to bigint');
+  if (totalCombos !== null && visitedCombos !== null) {
+    assert.ok(
+      totalCombos >= visitedCombos,
+      `expected totalCombinations >= visitedStates, got ${totalCombos} vs ${visitedCombos}`,
+    );
+  }
 });
 
 test('solveRecipe excludes unchecked optional ingredients', () => {
@@ -229,6 +263,7 @@ test('solveRecipe trims large optional sets when hitting search limit', () => {
       bands: {},
     },
   };
+
   const numericIntervals = Object.fromEntries(
     attrs.map((attr) => [attr, [Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY]]),
   );
@@ -276,6 +311,7 @@ test('solveRecipe reports visited states when aborted manually', () => {
   const bandPreferences = createBandPreferences(null);
   let abortFlag = false;
   const threshold = 8;
+  let observedTotal = null;
   const result = solveRecipe({
     styleName: 'light_ale',
     numericIntervals,
@@ -290,9 +326,12 @@ test('solveRecipe reports visited states when aborted manually', () => {
     ingredients: SAMPLE_INGREDIENTS,
     allowOptionalTrim: false,
     progressInterval: 1,
-    onProgress: ({ visitedStates }) => {
+    onProgress: ({ visitedStates, totalCombinations }) => {
       if (visitedStates >= threshold) {
         abortFlag = true;
+      }
+      if (totalCombinations !== undefined) {
+        observedTotal = totalCombinations;
       }
     },
     shouldAbort: () => abortFlag,
@@ -315,6 +354,19 @@ test('solveRecipe reports visited states when aborted manually', () => {
     result.info.some((msg) => typeof msg === 'string' && msg.includes(String(threshold))),
     'expected info message to include visited count',
   );
+  assert.ok(
+    observedTotal !== null,
+    'expected progress updates to include totalCombinations',
+  );
+  const observedTotalBigInt = toBigIntSafe(observedTotal);
+  const resultTotalBigInt = toBigIntSafe(result.totalCombinations);
+  if (observedTotalBigInt !== null && resultTotalBigInt !== null) {
+    assert.strictEqual(
+      observedTotalBigInt.toString(),
+      resultTotalBigInt.toString(),
+      'expected progress total to match result total',
+    );
+  }
 });
 
 test('solveRecipe reports total solutions beyond the displayed top results', () => {

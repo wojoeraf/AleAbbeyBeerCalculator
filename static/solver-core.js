@@ -38,6 +38,7 @@
  *   maxStateVisits: number;
  *   aborted: boolean;
  *   reason: 'limit' | 'user' | null;
+ *   totalCombinations?: bigint | number;
  *   final?: boolean;
  * }) => void} [onProgress]
  * @property {number} [progressInterval]
@@ -65,6 +66,7 @@
  * @property {number} maxStateVisits
  * @property {boolean} aborted
  * @property {'limit' | 'user' | null} abortReason
+ * @property {bigint | number} totalCombinations
  */
 
 export const EPS = 1e-9;
@@ -127,6 +129,62 @@ const formatVisitedCount = (value) => {
   } catch (error) {
     return String(numeric);
   }
+};
+
+const clampCount = (value) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return 0;
+  }
+  if (numeric <= 0) {
+    return 0;
+  }
+  return Math.floor(numeric);
+};
+
+const computeCombinationCount = (minCounts = [], maxCounts = [], totalCap = 0) => {
+  const length = Array.isArray(minCounts) ? minCounts.length : 0;
+  if (length === 0) {
+    return BigInt(totalCap >= 0 ? 1 : 0);
+  }
+  const maxArray = Array.isArray(maxCounts) ? maxCounts : [];
+  const cap = clampCount(totalCap);
+  let minSum = 0;
+  const ranges = new Array(length).fill(0);
+  for (let i = 0; i < length; i += 1) {
+    const minVal = clampCount(minCounts[i]);
+    const maxVal = Math.max(minVal, clampCount(maxArray[i]));
+    minSum += minVal;
+    ranges[i] = maxVal - minVal;
+  }
+  if (minSum > cap) {
+    return 0n;
+  }
+  const extraCapacity = cap - minSum;
+  if (extraCapacity === 0) {
+    return 1n;
+  }
+  const width = extraCapacity + 1;
+  let dp = new Array(width).fill(0n);
+  dp[0] = 1n;
+  for (let i = 0; i < length; i += 1) {
+    const range = ranges[i];
+    if (range <= 0) {
+      continue;
+    }
+    const next = new Array(width).fill(0n);
+    let windowSum = 0n;
+    for (let used = 0; used <= extraCapacity; used += 1) {
+      windowSum += dp[used];
+      const dropIndex = used - range - 1;
+      if (dropIndex >= 0) {
+        windowSum -= dp[dropIndex];
+      }
+      next[used] = windowSum;
+    }
+    dp = next;
+  }
+  return dp.reduce((acc, val) => acc + val, 0n);
 };
 
 /**
@@ -299,6 +357,7 @@ export const solveRecipe = (params) => {
       maxStateVisits,
       aborted: false,
       abortReason: null,
+      totalCombinations: 0,
     };
   }
 
@@ -362,6 +421,7 @@ export const solveRecipe = (params) => {
       maxStateVisits,
       aborted: false,
       abortReason: null,
+      totalCombinations: 0,
     };
   }
 
@@ -515,6 +575,7 @@ export const solveRecipe = (params) => {
       maxStateVisits,
       aborted: false,
       abortReason: null,
+      totalCombinations: 0,
     };
   }
 
@@ -635,6 +696,12 @@ export const solveRecipe = (params) => {
   const orderedMaxCounts = orderedIndices.map((idx) => perIngredientCeilValues[idx]);
   const orderedCosts = orderedIndices.map((idx) => baseCosts[idx]);
 
+  const totalCombinationCount = computeCombinationCount(
+    orderedMinCounts,
+    orderedMaxCounts,
+    adjustedTotalCap,
+  );
+
   const suffixMinBaseCost = new Array(orderLength + 1).fill(0);
   for (let idx = orderLength - 1; idx >= 0; idx -= 1) {
     const minCnt = orderedMinCounts[idx];
@@ -670,6 +737,7 @@ export const solveRecipe = (params) => {
       maxStateVisits,
       aborted: false,
       abortReason: null,
+      totalCombinations: 0,
     };
   }
 
@@ -772,6 +840,7 @@ export const solveRecipe = (params) => {
             : abortedByLimit
               ? 'limit'
               : null,
+        totalCombinations: totalCombinationCount,
         final,
       });
       lastProgressVisitedStates = globalVisitedStates;
@@ -779,6 +848,8 @@ export const solveRecipe = (params) => {
       // ignore progress errors
     }
   };
+
+  emitProgress({ force: true });
 
   const iterateBoxes = (attrIdx, lower, upper) => {
     if (attrIdx === attrs.length) {
@@ -1121,6 +1192,8 @@ export const solveRecipe = (params) => {
             : maxStateVisits,
           aborted: Boolean(fallbackResult.aborted),
           abortReason: fallbackResult.abortReason ?? null,
+          totalCombinations: fallbackResult.totalCombinations
+            ?? totalCombinationCount,
         };
       }
     }
@@ -1136,5 +1209,6 @@ export const solveRecipe = (params) => {
     maxStateVisits,
     aborted: globalAborted,
     abortReason: abortedBySignal ? 'user' : abortedByLimit ? 'limit' : null,
+    totalCombinations: totalCombinationCount,
   };
 };

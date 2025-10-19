@@ -534,6 +534,7 @@ const initSolver = () => {
     statusMessage,
     resultsProgress,
     resultsProgressText,
+    resultsProgressTotal,
     resultsStop: resultsStopButton,
     debugToggle,
     debugContent,
@@ -556,6 +557,34 @@ const initSolver = () => {
   }
 
   const formatCount = (value) => {
+    if (typeof value === 'bigint') {
+      try {
+        return value.toLocaleString();
+      } catch (error) {
+        return value.toString();
+      }
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return '0';
+      }
+      if (/^-?\d+$/.test(trimmed)) {
+        try {
+          return BigInt(trimmed).toLocaleString();
+        } catch (error) {
+          const negative = trimmed.startsWith('-');
+          const digits = negative ? trimmed.slice(1) : trimmed;
+          const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+          return negative ? `-${grouped}` : grouped;
+        }
+      }
+      const numericFromString = Number(trimmed);
+      if (Number.isFinite(numericFromString)) {
+        return formatCount(numericFromString);
+      }
+      return trimmed;
+    }
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) {
       return '0';
@@ -575,6 +604,7 @@ const initSolver = () => {
     aborted: false,
     reason: null,
     final: false,
+    totalCombinations: null,
   };
 
   const renderProgressSnapshot = (snapshot) => {
@@ -584,11 +614,52 @@ const initSolver = () => {
     const visitedText = formatCount(snapshot.visitedStates);
     const hasLimit = Number.isFinite(snapshot.maxStateVisits) && snapshot.maxStateVisits > 0;
     const limitText = hasLimit ? formatCount(snapshot.maxStateVisits) : null;
+    const hasTotal = snapshot.totalCombinations !== null && snapshot.totalCombinations !== undefined;
+    const toBigInt = (value) => {
+      if (typeof value === 'bigint') {
+        return value;
+      }
+      if (typeof value === 'number') {
+        if (!Number.isFinite(value)) {
+          return null;
+        }
+        return BigInt(Math.max(0, Math.floor(value)));
+      }
+      if (typeof value === 'string') {
+        try {
+          return BigInt(value.trim());
+        } catch (error) {
+          return null;
+        }
+      }
+      return null;
+    };
+    const totalBigInt = hasTotal ? toBigInt(snapshot.totalCombinations) : null;
+    const visitedBigInt = toBigInt(snapshot.visitedStates);
+    const reachedTotal = Boolean(
+      totalBigInt !== null && visitedBigInt !== null && visitedBigInt >= totalBigInt,
+    );
+    if (resultsProgressTotal) {
+      if (hasTotal) {
+        const formattedTotal = formatCount(snapshot.totalCombinations);
+        const totalKey = reachedTotal && snapshot.final && !snapshot.aborted
+          ? 'results_progress_total_complete'
+          : 'results_progress_total';
+        const totalText = translate(totalKey, { total: formattedTotal });
+        resultsProgressTotal.textContent = totalText;
+        resultsProgressTotal.hidden = false;
+      } else {
+        resultsProgressTotal.textContent = '';
+        resultsProgressTotal.hidden = true;
+      }
+    }
     let text;
     if (stopRequested && !snapshot.final && !snapshot.aborted) {
       text = hasLimit
         ? translate('results_progress_stopping_limit', { visited: visitedText, limit: limitText })
         : translate('results_progress_stopping', { visited: visitedText });
+    } else if (snapshot.final && !snapshot.aborted && reachedTotal) {
+      text = translate('results_progress_states_complete', { visited: visitedText });
     } else {
       text = hasLimit
         ? translate('results_progress_states_limit', { visited: visitedText, limit: limitText })
@@ -610,12 +681,40 @@ const initSolver = () => {
   const handleProgressUpdate = (update = {}) => {
     const visited = Number(update && update.visitedStates);
     const limit = Number(update && update.maxStateVisits);
+    const totalRaw = update && update.totalCombinations;
+    const totalValue = (() => {
+      if (typeof totalRaw === 'bigint') {
+        return totalRaw;
+      }
+      if (typeof totalRaw === 'number') {
+        if (!Number.isFinite(totalRaw) || totalRaw < 0) {
+          return null;
+        }
+        return BigInt(Math.floor(totalRaw));
+      }
+      if (typeof totalRaw === 'string') {
+        const trimmed = totalRaw.trim();
+        if (!trimmed) {
+          return null;
+        }
+        if (/^-?\d+$/.test(trimmed)) {
+          try {
+            return BigInt(trimmed);
+          } catch (error) {
+            return trimmed;
+          }
+        }
+        return trimmed;
+      }
+      return null;
+    })();
     lastProgressSnapshot = {
-      visitedStates: Number.isFinite(visited) && visited >= 0 ? visited : 0,
+      visitedStates: Number.isFinite(visited) && visited >= 0 ? Math.floor(visited) : 0,
       maxStateVisits: Number.isFinite(limit) && limit > 0 ? limit : 0,
       aborted: Boolean(update && update.aborted),
       reason: typeof update?.reason === 'string' ? update.reason : null,
       final: Boolean(update && update.final),
+      totalCombinations: totalValue,
     };
     renderProgressSnapshot(lastProgressSnapshot);
   };
@@ -628,6 +727,7 @@ const initSolver = () => {
       aborted: false,
       reason: null,
       final: false,
+      totalCombinations: null,
     };
     renderProgressSnapshot(lastProgressSnapshot);
   };
@@ -640,12 +740,17 @@ const initSolver = () => {
       aborted: false,
       reason: null,
       final: false,
+      totalCombinations: null,
     };
     if (resultsProgress) {
       resultsProgress.hidden = true;
     }
     if (resultsProgressText) {
       resultsProgressText.textContent = '';
+    }
+    if (resultsProgressTotal) {
+      resultsProgressTotal.textContent = '';
+      resultsProgressTotal.hidden = true;
     }
     if (resultsStopButton) {
       resultsStopButton.hidden = true;
